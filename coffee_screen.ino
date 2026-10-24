@@ -16,9 +16,7 @@
   Attention : le Nano sort du 5V alors que le GC9A01 est en 3.3V.
   Utilise un adaptateur de niveau ou des résistances en série (1k) sur SCL, SDA, CS, DC, RES.
 
-  Positions mesurées sur l'image d'origine (1254 px) et mises à l'échelle 240 px.
-  Les positions des icônes sont dans icones.h (ICON_xxx_X / ICON_xxx_Y).
-  Pour les textes, Y est la ligne de base (baseline) de la police GFX.
+  Toutes les positions (icônes et textes) sont dans icones.h.
 */
 
 #include <Adafruit_GFX.h>
@@ -48,40 +46,33 @@ CJMCU111 encodeur(ENC_PIN_GA, ENC_PIN_GB);
 #define FONT_GRANDE (&FontGrande)   // 38 (chiffres uniquement)
 #define FONT_UNITE  (&FontUnite)    // C, m, l, s
 
-// ---------- Température : "92 °C" (aligné à gauche) ----------
-#define TEMP_X          98
-#define TEMP_BASE       71     // ligne de base du nombre
-#define TEMP_UNIT_BASE  68     // ligne de base du "C"
-#define TEMP_DEG_Y      53     // centre du petit cercle du degré
-#define TEMP_CLR_X      95     // zone effacée à chaque mise à jour
-#define TEMP_CLR_Y      39
-#define TEMP_CLR_W      83
-#define TEMP_CLR_H      34
-
-// ---------- Volume : "38 ml" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define VOL_X           80
-#define VOL_BASE        145
-#define VOL_UNIT_BASE   144
-#define VOL_CLR_X       77     // 77 -> 240 : largeur max à 3 chiffres, sans toucher la goutte
-#define VOL_CLR_Y       96
-#define VOL_CLR_W       163
-#define VOL_CLR_H       52
-
-// ---------- Temps : "48 s" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define TEMPS_X         110
-#define TEMPS_BASE      201
-#define TEMPS_UNIT_BASE 201
-#define TEMPS_CLR_X     107     // 107 -> 205, sans toucher l'horloge
-#define TEMPS_CLR_Y     169
-#define TEMPS_CLR_W     98
-#define TEMPS_CLR_H     34
+// Les positions (icônes et textes) sont dans icones.h
 
 // ------------------------------------------------------------
+// Mélange COLOR_ICON avec COLOR_BG ; alpha : 0 (fond) à 15 (couleur pleine)
+uint16_t melange(uint8_t alpha) {
+  uint8_t r = (COLOR_BG >> 11) & 0x1F, g = (COLOR_BG >> 5) & 0x3F, b = COLOR_BG & 0x1F;
+  int8_t dr = ((COLOR_ICON >> 11) & 0x1F) - r;
+  int8_t dg = ((COLOR_ICON >> 5) & 0x3F) - g;
+  int8_t db = (COLOR_ICON & 0x1F) - b;
+  return ((uint16_t)(r + dr * alpha / 15) << 11) | ((uint16_t)(g + dg * alpha / 15) << 5) | (uint16_t)(b + db * alpha / 15);
+}
+
+// Dessine une icône stockée en alpha 4 bits (PROGMEM), les pixels de fond ne sont pas redessinés
+void dessinerIcone(int16_t x, int16_t y, const uint8_t *alpha, uint8_t w, uint8_t h) {
+  tft.startWrite();
+  for (uint16_t i = 0; i < (uint16_t)w * h; i++) {
+    uint8_t a = pgm_read_byte(&alpha[i >> 1]);
+    a = (i & 1) ? (a & 0x0F) : (a >> 4);
+    if (a) tft.writePixel(x + i % w, y + i / w, melange(a));
+  }
+  tft.endWrite();
+}
+
 void afficherIcones() {
-  // drawRGBBitmap lit le tableau en PROGMEM (const uint16_t[])
-  tft.drawRGBBitmap(ICON_THERMO_X,  ICON_THERMO_Y,  ICON_THERMO,  ICON_THERMO_W,  ICON_THERMO_H);
-  tft.drawRGBBitmap(ICON_GOUTTE_X,  ICON_GOUTTE_Y,  ICON_GOUTTE,  ICON_GOUTTE_W,  ICON_GOUTTE_H);
-  tft.drawRGBBitmap(ICON_HORLOGE_X, ICON_HORLOGE_Y, ICON_HORLOGE, ICON_HORLOGE_W, ICON_HORLOGE_H);
+  dessinerIcone(ICON_THERMO_X,  ICON_THERMO_Y,  ICON_THERMO,  ICON_THERMO_W,  ICON_THERMO_H);
+  dessinerIcone(ICON_GOUTTE_X,  ICON_GOUTTE_Y,  ICON_GOUTTE,  ICON_GOUTTE_W,  ICON_GOUTTE_H);
+  dessinerIcone(ICON_HORLOGE_X, ICON_HORLOGE_Y, ICON_HORLOGE, ICON_HORLOGE_W, ICON_HORLOGE_H);
 }
 
 // Température en °C (plage conseillée : 0 à 99)
@@ -96,10 +87,10 @@ void afficherTemperature(int t) {
   tft.print(buf);
 
   int16_t x = tft.getCursorX();
-  tft.drawCircle(x + 6, TEMP_DEG_Y, 4, COLOR_TEXT);   // symbole degré (anneau de 2 px)
-  tft.drawCircle(x + 6, TEMP_DEG_Y, 3, COLOR_TEXT);
+  tft.drawCircle(x + TEMP_DEG_DX, TEMP_DEG_Y, TEMP_DEG_R, COLOR_TEXT);       // symbole degré (anneau de 2 px)
+  tft.drawCircle(x + TEMP_DEG_DX, TEMP_DEG_Y, TEMP_DEG_R - 1, COLOR_TEXT);
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 11, TEMP_UNIT_BASE);
+  tft.setCursor(x + TEMP_UNIT_DX, TEMP_UNIT_BASE);
   tft.print('C');
 }
 
@@ -116,7 +107,7 @@ void afficherVolume(int ml) {
 
   int16_t x = tft.getCursorX();
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 5, VOL_UNIT_BASE);
+  tft.setCursor(x + VOL_UNIT_DX, VOL_UNIT_BASE);
   tft.print(F("ml"));
 }
 
@@ -133,7 +124,7 @@ void afficherTemps(int s) {
 
   int16_t x = tft.getCursorX();
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 1, TEMPS_UNIT_BASE);
+  tft.setCursor(x + TEMPS_UNIT_DX, TEMPS_UNIT_BASE);
   tft.print('s');
 }
 
