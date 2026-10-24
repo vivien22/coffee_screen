@@ -43,45 +43,45 @@ Adafruit_GC9A01A tft(PIN_CS, PIN_DC, PIN_RST);
 CJMCU111 encodeur(ENC_PIN_GA, ENC_PIN_GB);
 
 // ---------- Couleur et polices ----------
-#define COLOR_TEXT 0xFF7B                   // crème (253,239,221)
+#define COLOR_TEXT 0xFFBC                   // crème (254,245,228)
 #define FONT_VALEUR (&FontValeur)   // 92 et 48 (chiffres uniquement)
 #define FONT_GRANDE (&FontGrande)   // 38 (chiffres uniquement)
 #define FONT_UNITE  (&FontUnite)    // C, m, l, s
 
 // ---------- Température : "92 °C" (aligné à gauche) ----------
-#define TEMP_X          46
-#define TEMP_BASE       95     // ligne de base du nombre
-#define TEMP_UNIT_BASE  93     // ligne de base du "C"
-#define TEMP_DEG_Y      82     // centre du petit cercle du degré
-#define TEMP_CLR_X      42     // zone effacée à chaque mise à jour
-#define TEMP_CLR_Y      70
-#define TEMP_CLR_W      72
-#define TEMP_CLR_H      28
+#define TEMP_X          98
+#define TEMP_BASE       71     // ligne de base du nombre
+#define TEMP_UNIT_BASE  68     // ligne de base du "C"
+#define TEMP_DEG_Y      53     // centre du petit cercle du degré
+#define TEMP_CLR_X      95     // zone effacée à chaque mise à jour
+#define TEMP_CLR_Y      39
+#define TEMP_CLR_W      83
+#define TEMP_CLR_H      34
 
 // ---------- Volume : "38 ml" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define VOL_X           89
-#define VOL_BASE        160
-#define VOL_UNIT_BASE   159
-#define VOL_CLR_X       86     // 86 -> 198 : largeur max à 3 chiffres, sans toucher la goutte
-#define VOL_CLR_Y       122
-#define VOL_CLR_W       112
-#define VOL_CLR_H       42
+#define VOL_X           80
+#define VOL_BASE        145
+#define VOL_UNIT_BASE   144
+#define VOL_CLR_X       77     // 77 -> 240 : largeur max à 3 chiffres, sans toucher la goutte
+#define VOL_CLR_Y       96
+#define VOL_CLR_W       163
+#define VOL_CLR_H       52
 
 // ---------- Temps : "48 s" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define TEMPS_X         155
-#define TEMPS_BASE      95
-#define TEMPS_UNIT_BASE 93
-#define TEMPS_CLR_X     152    // 152 -> 226, sans toucher l'horloge
-#define TEMPS_CLR_Y     70
-#define TEMPS_CLR_W     74
-#define TEMPS_CLR_H     28
+#define TEMPS_X         110
+#define TEMPS_BASE      201
+#define TEMPS_UNIT_BASE 201
+#define TEMPS_CLR_X     107     // 107 -> 205, sans toucher l'horloge
+#define TEMPS_CLR_Y     169
+#define TEMPS_CLR_W     98
+#define TEMPS_CLR_H     34
 
 // ------------------------------------------------------------
 void afficherIcones() {
   // drawRGBBitmap lit le tableau en PROGMEM (const uint16_t[])
-  tft.drawRGBBitmap(ICON_THERMO_X+50,  ICON_THERMO_Y-30,  ICON_THERMO,  ICON_THERMO_W,  ICON_THERMO_H);
-  tft.drawRGBBitmap(ICON_GOUTTE_X,  ICON_GOUTTE_Y-20,  ICON_GOUTTE,  ICON_GOUTTE_W,  ICON_GOUTTE_H);
-  tft.drawRGBBitmap(ICON_HORLOGE_X-50, ICON_HORLOGE_Y+100, ICON_HORLOGE, ICON_HORLOGE_W, ICON_HORLOGE_H);
+  tft.drawRGBBitmap(ICON_THERMO_X,  ICON_THERMO_Y,  ICON_THERMO,  ICON_THERMO_W,  ICON_THERMO_H);
+  tft.drawRGBBitmap(ICON_GOUTTE_X,  ICON_GOUTTE_Y,  ICON_GOUTTE,  ICON_GOUTTE_W,  ICON_GOUTTE_H);
+  tft.drawRGBBitmap(ICON_HORLOGE_X, ICON_HORLOGE_Y, ICON_HORLOGE, ICON_HORLOGE_W, ICON_HORLOGE_H);
 }
 
 // Température en °C (plage conseillée : 0 à 99)
@@ -89,17 +89,17 @@ void afficherTemperature(int t) {
   char buf[6];
   itoa(t, buf, 10);
 
-  tft.fillRect(TEMP_CLR_X+50, TEMP_CLR_Y-30, TEMP_CLR_W, TEMP_CLR_H, COLOR_BG);
+  tft.fillRect(TEMP_CLR_X, TEMP_CLR_Y, TEMP_CLR_W, TEMP_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
   tft.setFont(FONT_VALEUR);
-  tft.setCursor(TEMP_X+50, TEMP_BASE-30);
+  tft.setCursor(TEMP_X, TEMP_BASE);
   tft.print(buf);
 
   int16_t x = tft.getCursorX();
-  tft.drawCircle(x + 6, TEMP_DEG_Y-30, 3, COLOR_TEXT);   // symbole degré (anneau de 2 px)
-  tft.drawCircle(x + 6, TEMP_DEG_Y-30, 2, COLOR_TEXT);
+  tft.drawCircle(x + 6, TEMP_DEG_Y, 4, COLOR_TEXT);   // symbole degré (anneau de 2 px)
+  tft.drawCircle(x + 6, TEMP_DEG_Y, 3, COLOR_TEXT);
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 10, TEMP_UNIT_BASE-30);
+  tft.setCursor(x + 11, TEMP_UNIT_BASE);
   tft.print('C');
 }
 
@@ -108,15 +108,15 @@ void afficherVolume(int ml) {
   char buf[6];
   itoa(ml, buf, 10);
 
-  tft.fillRect(VOL_CLR_X, VOL_CLR_Y-20, VOL_CLR_W, VOL_CLR_H, COLOR_BG);
+  tft.fillRect(VOL_CLR_X, VOL_CLR_Y, VOL_CLR_W, VOL_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
   tft.setFont(FONT_GRANDE);
-  tft.setCursor(VOL_X, VOL_BASE-20);
+  tft.setCursor(VOL_X, VOL_BASE);
   tft.print(buf);
 
   int16_t x = tft.getCursorX();
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 5, VOL_UNIT_BASE-20);
+  tft.setCursor(x + 5, VOL_UNIT_BASE);
   tft.print(F("ml"));
 }
 
@@ -125,15 +125,15 @@ void afficherTemps(int s) {
   char buf[6];
   itoa(s, buf, 10);
 
-  tft.fillRect(TEMPS_CLR_X-50, TEMPS_CLR_Y+100, TEMPS_CLR_W, TEMPS_CLR_H, COLOR_BG);
+  tft.fillRect(TEMPS_CLR_X, TEMPS_CLR_Y, TEMPS_CLR_W, TEMPS_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
   tft.setFont(FONT_VALEUR);
-  tft.setCursor(TEMPS_X-50, TEMPS_BASE+100);
+  tft.setCursor(TEMPS_X, TEMPS_BASE);
   tft.print(buf);
 
   int16_t x = tft.getCursorX();
   tft.setFont(FONT_UNITE);
-  tft.setCursor(x + 4, TEMPS_UNIT_BASE+100);
+  tft.setCursor(x + 1, TEMPS_UNIT_BASE);
   tft.print('s');
 }
 
