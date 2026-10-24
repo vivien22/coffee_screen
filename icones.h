@@ -28,10 +28,10 @@
 #define TEMP_BASE       71     // ligne de base du nombre
 #define TEMP_UNIT_BASE  68     // ligne de base du "C"
 #define TEMP_DEG_Y      53     // centre du petit cercle du degré
-#define TEMP_CLR_X      95     // zone effacée à chaque mise à jour
-#define TEMP_CLR_Y      39
-#define TEMP_CLR_W      83
-#define TEMP_CLR_H      34
+#define TEMP_CLR_X      97     // 97 -> 210
+#define TEMP_CLR_Y      22     // 22 -> 74
+#define TEMP_CLR_W      113
+#define TEMP_CLR_H      52
 #define TEMP_DEG_DX     6     // décalage du centre du ° par rapport à la fin du nombre
 #define TEMP_DEG_R      4     // rayon extérieur du ° (anneau de 2 px)
 #define TEMP_UNIT_DX    11    // décalage du "C" par rapport à la fin du nombre
@@ -40,9 +40,9 @@
 #define VOL_X           80
 #define VOL_BASE        145
 #define VOL_UNIT_BASE   144
-#define VOL_CLR_X       77     // 77 -> 240 : largeur max à 3 chiffres, sans toucher la goutte
-#define VOL_CLR_Y       96
-#define VOL_CLR_W       163
+#define VOL_CLR_X       79     // 79 -> 240 : largeur max à 3 chiffres, sans toucher la goutte
+#define VOL_CLR_Y       96     // 96 -> 148
+#define VOL_CLR_W       161
 #define VOL_CLR_H       52
 #define VOL_UNIT_DX     5     // décalage de "ml" par rapport à la fin du nombre
 
@@ -50,10 +50,10 @@
 #define TEMPS_X         110
 #define TEMPS_BASE      201
 #define TEMPS_UNIT_BASE 201
-#define TEMPS_CLR_X     107     // 107 -> 205, sans toucher l'horloge
-#define TEMPS_CLR_Y     169
-#define TEMPS_CLR_W     98
-#define TEMPS_CLR_H     34
+#define TEMPS_CLR_X     109    // 109 -> 240, sans toucher l'horloge
+#define TEMPS_CLR_Y     152    // 152 -> 204
+#define TEMPS_CLR_W     131
+#define TEMPS_CLR_H     52
 #define TEMPS_UNIT_DX   1     // décalage du "s" par rapport à la fin du nombre
 
 // ============================ 3. Icônes (alpha 4 bits) ============================

@@ -46,6 +46,11 @@ CJMCU111 encodeur(ENC_PIN_GA, ENC_PIN_GB);
 #define FONT_GRANDE (&FontGrande)   // 38 (chiffres uniquement)
 #define FONT_UNITE  (&FontUnite)    // C, m, l, s
 
+enum taille {
+    SMALL,
+    BIG
+};
+
 // Les positions (icônes et textes) sont dans icones.h
 
 // ------------------------------------------------------------
@@ -76,13 +81,17 @@ void afficherIcones() {
 }
 
 // Température en °C (plage conseillée : 0 à 99)
-void afficherTemperature(int t) {
+void afficherTemperature(int t, enum taille size) {
   char buf[6];
   itoa(t, buf, 10);
 
   tft.fillRect(TEMP_CLR_X, TEMP_CLR_Y, TEMP_CLR_W, TEMP_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  tft.setFont(FONT_VALEUR);
+  if(size == SMALL){
+    tft.setFont(FONT_VALEUR);
+  }else{
+    tft.setFont(FONT_GRANDE);
+  }
   tft.setCursor(TEMP_X, TEMP_BASE);
   tft.print(buf);
 
@@ -95,13 +104,17 @@ void afficherTemperature(int t) {
 }
 
 // Volume en ml (plage conseillée : 0 à 999)
-void afficherVolume(int ml) {
+void afficherVolume(int ml, enum taille size) {
   char buf[6];
   itoa(ml, buf, 10);
 
   tft.fillRect(VOL_CLR_X, VOL_CLR_Y, VOL_CLR_W, VOL_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  tft.setFont(FONT_GRANDE);
+  if(size == SMALL){
+    tft.setFont(FONT_VALEUR);
+  }else{
+    tft.setFont(FONT_GRANDE);
+  }
   tft.setCursor(VOL_X, VOL_BASE);
   tft.print(buf);
 
@@ -112,13 +125,17 @@ void afficherVolume(int ml) {
 }
 
 // Temps en secondes (plage conseillée : 0 à 999)
-void afficherTemps(int s) {
+void afficherTemps(int s, enum taille size) {
   char buf[6];
   itoa(s, buf, 10);
 
   tft.fillRect(TEMPS_CLR_X, TEMPS_CLR_Y, TEMPS_CLR_W, TEMPS_CLR_H, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  tft.setFont(FONT_VALEUR);
+  if(size == SMALL){
+    tft.setFont(FONT_VALEUR);
+  }else{
+    tft.setFont(FONT_GRANDE);
+  }
   tft.setCursor(TEMPS_X, TEMPS_BASE);
   tft.print(buf);
 
@@ -132,45 +149,75 @@ void afficherTemps(int s) {
 int volume = 60;                // volume affiché au démarrage
 int tps = 0;                    // volume affiché au démarrage
 
+enum taille tempSize = SMALL;
+enum taille volSize = BIG;
+enum taille tpsSize = SMALL;
+int stepSize = 0;
+
 void setup() {
   delay(500);   // laisse l'alimentation 3.3V et l'écran se stabiliser à la mise sous tension
   tft.begin();
   tft.fillScreen(COLOR_BG);
 
   afficherIcones();
-  afficherTemperature(92);
-  afficherVolume(volume);
-  afficherTemps(tps);
+  afficherTemperature(92, tempSize);
+  afficherVolume(volume, volSize);
+  afficherTemps(tps, tpsSize);
  
   encodeur.begin();
 }
-
+/*
 unsigned long tempsPrecedent = 0;
 bool compteur = false;
-
+*/
 void loop() {
+  /*
   unsigned long tempsActuel = millis();
   if(compteur){
     if (tempsActuel - tempsPrecedent >= 1000) {
       tempsPrecedent += 1000;
-      afficherTemps(tps++);
+      afficherTemps(tps++, SMALL);
       if(tps>999){
         tps=0;
       }
     }
   }
+  */
 
   byte gauche, droite, push;
   if (encodeur.read(gauche, droite, push)) {
     int nouveau = constrain(volume + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
     if (nouveau != volume) {
       volume = nouveau;
-      afficherVolume(volume);
+      afficherVolume(volume, volSize);
     }
     if(push){
+
+      if(stepSize == 0){
+        tempSize = SMALL;
+        volSize = SMALL;
+        tpsSize = BIG;
+        stepSize=1;
+      }else if(stepSize == 1){
+        tempSize = BIG;
+        volSize = SMALL;
+        tpsSize = SMALL;
+        stepSize=2;
+      }else if(stepSize == 2){
+        tempSize = SMALL;
+        volSize = BIG;
+        tpsSize = SMALL;
+        stepSize=0;
+      }
+
+      afficherTemperature(92, tempSize);
+      afficherVolume(volume, volSize);
+      afficherTemps(tps, tpsSize);
+      /*
       compteur=!compteur;
       tps=0;
       tempsPrecedent=tempsActuel-1000;
+      */
     }
   }
 }
