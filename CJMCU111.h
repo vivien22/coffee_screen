@@ -4,7 +4,7 @@
   Copyright (c) 2020 Christian Pohl, aka ChrisPHL, www.chpohl.de.
 
   Packaged as a library from the demo code (ISR logic unchanged,
-  push duration added).
+  push duration and short / double / long push events added).
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,14 +27,33 @@
 // Uncomment to output a signal on two pins during the ISR (for oscilloscope analysis)
 //#define CJMCU_111_DEBUG 1
 
+// Push events returned by CJMCU111::update()
+enum PushEvent {
+  PUSH_NONE,     // nothing happened
+  PUSH_SHORT,    // one short push (reported after the double push delay)
+  PUSH_DOUBLE,   // two short pushes in a row
+  PUSH_LONG      // push held for longPushMs or more (reported on release)
+};
+
 class CJMCU111 {
   public:
     // pinGa and pinGb must be interrupt pins (D2 and D3 on Nano / Uno)
-    CJMCU111(byte pinGa = 2, byte pinGb = 3);
+    // longPushMs:   a push held at least this long (ms) is a long push
+    // doublePushMs: max delay (ms) between two short pushes for a double push.
+    //               A short push is reported once this delay has passed, 0 disables the double push.
+    CJMCU111(byte pinGa = 2, byte pinGb = 3, unsigned int longPushMs = 800, unsigned int doublePushMs = 350);
 
     // Call in setup()
     void begin();
 
+    // --- Recommended: rotation + classified push events ---
+    // Call it on every loop(): the delay for a short push is checked here.
+    // left, right: detents turned left / right since the last call.
+    // event: PUSH_NONE, PUSH_SHORT, PUSH_DOUBLE or PUSH_LONG (one event per call).
+    // Returns true if there was a rotation or a push event.
+    bool update(byte &left, byte &right, PushEvent &event);
+
+    // --- Raw reading (do not mix with update()) ---
     // Returns true if there was a rotation or a push since the last call.
     // left, right: detents turned left / right; push: number of pushes.
     // Counters are reset after reading.
@@ -78,6 +97,13 @@ class CJMCU111 {
 
     static volatile unsigned long isrGxTime;
     static volatile unsigned long isrGxLastTime;
+
+    // Push classification (main context only, used by update())
+    unsigned int longPushThresholdMs;
+    unsigned int doublePushWindowMs;
+    bool shortPushPending;            // a short push is waiting to know if a second one follows
+    unsigned long shortPushTime;      // time (ms) of the pending short push
+    PushEvent queuedPushEvent;        // event to return on the next update() call
 };
 
 #endif

@@ -4,7 +4,7 @@
   Copyright (c) 2020 Christian Pohl, aka ChrisPHL, www.chpohl.de.
 
   Packaged as a library from the demo code (ISR logic unchanged,
-  push duration added).
+  push duration and short / double / long push events added).
   License: GNU General Public License v3 (see CJMCU111.h).
 */
 
@@ -30,9 +30,14 @@ volatile unsigned long CJMCU111::isrGxTime = 0;
 volatile unsigned long CJMCU111::isrGxLastTime = 0;
 
 
-CJMCU111::CJMCU111(byte pinGa, byte pinGb) {
+CJMCU111::CJMCU111(byte pinGa, byte pinGb, unsigned int longPushMs, unsigned int doublePushMs) {
   rotaryPinGa = pinGa;
   rotaryPinGb = pinGb;
+  longPushThresholdMs = longPushMs;
+  doublePushWindowMs = doublePushMs;
+  shortPushPending = false;
+  shortPushTime = 0;
+  queuedPushEvent = PUSH_NONE;
 }
 
 void CJMCU111::begin() {
@@ -53,6 +58,55 @@ void CJMCU111::begin() {
 }
 
 //===========
+
+bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
+  left = 0;
+  right = 0;
+  event = PUSH_NONE;
+
+  // an event queued by the previous call goes first (rotation is kept for the next call)
+  if (queuedPushEvent != PUSH_NONE) {
+    event = queuedPushEvent;
+    queuedPushEvent = PUSH_NONE;
+    return true;
+  }
+
+  byte push = 0;
+  unsigned long pushDurationMs = 0;
+  if (read(left, right, push, pushDurationMs) && push) {
+    unsigned long now = millis();
+    if (push >= 2) {
+      // two pushes registered since the last call: double push
+      shortPushPending = false;
+      event = PUSH_DOUBLE;
+    } else if (pushDurationMs >= longPushThresholdMs) {
+      if (shortPushPending) {
+        // short push followed by a long one: report both, in order
+        shortPushPending = false;
+        event = PUSH_SHORT;
+        queuedPushEvent = PUSH_LONG;
+      } else {
+        event = PUSH_LONG;
+      }
+    } else if (shortPushPending && (now - shortPushTime) < doublePushWindowMs) {
+      shortPushPending = false;
+      event = PUSH_DOUBLE;
+    } else {
+      if (shortPushPending) event = PUSH_SHORT; // previous short push, not followed in time
+      shortPushPending = true;
+      shortPushTime = now;
+    }
+  }
+
+  // a short push alone: report it once the double push delay has passed
+  if (event == PUSH_NONE && shortPushPending && (millis() - shortPushTime) >= doublePushWindowMs) {
+    shortPushPending = false;
+    event = PUSH_SHORT;
+  }
+
+  return left || right || event != PUSH_NONE;
+}
+
 
 // Equivalent of the "if (rotaryInputDetected) { ... }" block in the demo's loop()
 bool CJMCU111::read(byte &left, byte &right, byte &push) {

@@ -46,8 +46,10 @@ Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 #define VALUE_MIN        0
 #define VALUE_MAX        999
 #define LONG_PUSH_MS     800   // a push held at least this long (ms) is a long push
+#define DOUBLE_PUSH_MS   350   // max delay (ms) between two short pushes for a double push (0 = disabled)
+                               // a short push is reported once this delay has passed
 
-CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB);
+CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
 
 // ---------- Fonts (digits in two sizes, units) ----------
 #define FONT_SMALL (&FontSmall)   // digits, small size
@@ -170,13 +172,46 @@ TextSize volumeSize = TEXT_SIZE_LARGE;
 TextSize durationSize = TEXT_SIZE_SMALL;
 ActiveParameter activeParameter = PARAMETER_VOLUME;
 
-// Called once when a long push is released (held for LONG_PUSH_MS or more)
-void onLongPush() {
-  volume = 60;
-  duration = 0;
-  temperature = 90;
+unsigned long previousMillis = 0;
+bool counting = false;
+
+// Short push
+void onShortPush() {
+  if(counting==false){
+    counting=true;
+    previousMillis = millis();
+  }else if(counting==true){
+    counting=false;
+  }
+}
+
+// Double push: two short pushes less than DOUBLE_PUSH_MS apart (detected by the CJMCU111 library)
+void onDoublePush() {
+  if (activeParameter == PARAMETER_VOLUME) {
+    temperatureSize = TEXT_SIZE_SMALL;
+    volumeSize = TEXT_SIZE_SMALL;
+    durationSize = TEXT_SIZE_LARGE;
+    activeParameter = PARAMETER_DURATION;
+  } else if (activeParameter == PARAMETER_DURATION) {
+    temperatureSize = TEXT_SIZE_LARGE;
+    volumeSize = TEXT_SIZE_SMALL;
+    durationSize = TEXT_SIZE_SMALL;
+    activeParameter = PARAMETER_TEMPERATURE;
+  } else if (activeParameter == PARAMETER_TEMPERATURE) {
+    temperatureSize = TEXT_SIZE_SMALL;
+    volumeSize = TEXT_SIZE_LARGE;
+    durationSize = TEXT_SIZE_SMALL;
+    activeParameter = PARAMETER_VOLUME;
+  }
+
   drawTemperature(temperature, temperatureSize);
   drawVolume(volume, volumeSize);
+  drawDuration(duration, durationSize);
+}
+
+// Long push: held for LONG_PUSH_MS or more (reported when the button is released)
+void onLongPush() {
+  duration = 0;
   drawDuration(duration, durationSize);
 }
 
@@ -200,27 +235,22 @@ void setup() {
 
   encoder.begin();
 }
-/*
-unsigned long previousMillis = 0;
-bool counting = false;
-*/
 void loop() {
-  /*
+  
   unsigned long currentMillis = millis();
   if (counting) {
     if (currentMillis - previousMillis >= 1000) {
       previousMillis += 1000;
-      drawDuration(duration++, TEXT_SIZE_SMALL);
+      drawDuration(duration++, durationSize);
       if (duration > 999) {
         duration = 0;
       }
     }
   }
-  */
 
-  byte leftSteps, rightSteps, pushCount;
-  unsigned long pushDurationMs;
-  if (encoder.read(leftSteps, rightSteps, pushCount, pushDurationMs)) {
+  byte leftSteps, rightSteps;
+  PushEvent pushEvent;
+  if (encoder.update(leftSteps, rightSteps, pushEvent)) {
 
     if (activeParameter == PARAMETER_VOLUME) {
       int newValue = constrain(volume + (rightSteps - leftSteps) * ENCODER_STEP, VALUE_MIN, VALUE_MAX);
@@ -242,38 +272,12 @@ void loop() {
       }
     }
 
-    if (pushCount) {
-
-      if (pushDurationMs >= LONG_PUSH_MS) {
-        onLongPush();
-      } else {
-
-        if (activeParameter == PARAMETER_VOLUME) {
-          temperatureSize = TEXT_SIZE_SMALL;
-          volumeSize = TEXT_SIZE_SMALL;
-          durationSize = TEXT_SIZE_LARGE;
-          activeParameter = PARAMETER_DURATION;
-        } else if (activeParameter == PARAMETER_DURATION) {
-          temperatureSize = TEXT_SIZE_LARGE;
-          volumeSize = TEXT_SIZE_SMALL;
-          durationSize = TEXT_SIZE_SMALL;
-          activeParameter = PARAMETER_TEMPERATURE;
-        } else if (activeParameter == PARAMETER_TEMPERATURE) {
-          temperatureSize = TEXT_SIZE_SMALL;
-          volumeSize = TEXT_SIZE_LARGE;
-          durationSize = TEXT_SIZE_SMALL;
-          activeParameter = PARAMETER_VOLUME;
-        }
-
-        drawTemperature(temperature, temperatureSize);
-        drawVolume(volume, volumeSize);
-        drawDuration(duration, durationSize);
-        /*
-        counting = !counting;
-        duration = 0;
-        previousMillis = currentMillis - 1000;
-        */
-      }
+    if (pushEvent == PUSH_SHORT) {
+      onShortPush();
+    } else if (pushEvent == PUSH_DOUBLE) {
+      onDoublePush();
+    } else if (pushEvent == PUSH_LONG) {
+      onLongPush();
     }
   }
 }
