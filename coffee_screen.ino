@@ -1,9 +1,9 @@
 /*
-  Afficheur café GC9A01 : icônes + valeurs (température, volume, temps)
+  GC9A01 coffee screen: icons + values (temperature, volume, duration)
   Arduino Nano + Adafruit_GC9A01A
-  (nécessite aussi Adafruit GFX Library et Adafruit BusIO)
+  (also requires the Adafruit GFX Library and Adafruit BusIO)
 
-  Câblage (SPI matériel du Nano) :
+  Wiring (Nano hardware SPI):
     GC9A01   Nano
     VCC   -> 3.3V
     GND   -> GND
@@ -12,242 +12,268 @@
     CS    -> D10
     DC    -> D7
     RES   -> D8
+    BL    -> D9   (backlight)
 
-  Attention : le Nano sort du 5V alors que le GC9A01 est en 3.3V.
-  Utilise un adaptateur de niveau ou des résistances en série (1k) sur SCL, SDA, CS, DC, RES.
+  Warning: the Nano outputs 5V while the GC9A01 runs at 3.3V.
+  Use a level shifter or series resistors (1k) on SCL, SDA, CS, DC, RES.
 
-  Toutes les positions (icônes et textes) sont dans icones.h.
+  All positions and colors (icons and texts) are in icons.h.
+
+  Naming conventions (all identifiers in English):
+    macros and constants: UPPER_SNAKE_CASE
+    functions and variables: camelCase
+    types (enum): PascalCase
 */
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
-#include "PolicesCafe.h"
-#include "icones.h"
+#include "fonts.h"
+#include "icons.h"
 #include "CJMCU111.h"
 
-#define PIN_CS  10
-#define PIN_DC  7
-#define PIN_RST 8
+// ---------- Pins ----------
+#define PIN_TFT_CS       10
+#define PIN_TFT_DC       7
+#define PIN_TFT_RST      8
+#define PIN_TFT_BL       9     // backlight
+#define PIN_ENCODER_GA   2     // interrupt pins: D2 and D3 on Nano
+#define PIN_ENCODER_GB   3
 
-Adafruit_GC9A01A tft(PIN_CS, PIN_DC, PIN_RST);
+Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
-// ---------- Encodeur rotatif CJMCU-111 (règle le volume) ----------
-#define ENC_PIN_GA  2          // broches d'interruption : D2 et D3 sur Nano
-#define ENC_PIN_GB  3
-#define VOL_PAS     1          // ml par cran
-#define VOL_MIN     0
-#define VOL_MAX     999
+// ---------- CJMCU-111 rotary encoder (adjusts the selected value) ----------
+#define ENCODER_STEP     1     // value change per detent
+#define VALUE_MIN        0
+#define VALUE_MAX        999
+#define LONG_PUSH_MS     800   // a push held at least this long (ms) is a long push
 
-CJMCU111 encodeur(ENC_PIN_GA, ENC_PIN_GB);
+CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB);
 
-// ---------- Couleur et polices ----------
-#define COLOR_TEXT 0xFFBC                   // crème (254,245,228)
-#define FONT_VALEUR (&FontValeur)   // 92 et 48 (chiffres uniquement)
-#define FONT_GRANDE (&FontGrande)   // 38 (chiffres uniquement)
-#define FONT_UNITE  (&FontUnite)    // C, m, l, s
+// ---------- Fonts (digits in two sizes, units) ----------
+#define FONT_SMALL (&FontSmall)   // digits, small size
+#define FONT_LARGE (&FontLarge)   // digits, large size
+#define FONT_UNIT  (&FontUnit)    // units: C, ml, s
 
-enum taille {
-    SMALL,
-    BIG
+enum TextSize {
+  TEXT_SIZE_SMALL,
+  TEXT_SIZE_LARGE
 };
 
-// Les positions (icônes et textes) sont dans icones.h
+// Positions (icons and texts) are in icons.h
 
 // ------------------------------------------------------------
-// Mélange COLOR_ICON avec COLOR_BG ; alpha : 0 (fond) à 15 (couleur pleine)
-uint16_t melange(uint8_t alpha) {
+// Blend COLOR_ICON with COLOR_BG; opacity: 0 (background) to 15 (full color)
+uint16_t blendColor(uint8_t opacity) {
   uint8_t r = (COLOR_BG >> 11) & 0x1F, g = (COLOR_BG >> 5) & 0x3F, b = COLOR_BG & 0x1F;
   int8_t dr = ((COLOR_ICON >> 11) & 0x1F) - r;
   int8_t dg = ((COLOR_ICON >> 5) & 0x3F) - g;
   int8_t db = (COLOR_ICON & 0x1F) - b;
-  return ((uint16_t)(r + dr * alpha / 15) << 11) | ((uint16_t)(g + dg * alpha / 15) << 5) | (uint16_t)(b + db * alpha / 15);
+  return ((uint16_t)(r + dr * opacity / 15) << 11) | ((uint16_t)(g + dg * opacity / 15) << 5) | (uint16_t)(b + db * opacity / 15);
 }
 
-// Dessine une icône stockée en alpha 4 bits (PROGMEM), les pixels de fond ne sont pas redessinés
-void dessinerIcone(int16_t x, int16_t y, const uint8_t *alpha, uint8_t w, uint8_t h) {
+// Draw an icon stored as 4-bit opacity (PROGMEM); background pixels are not redrawn
+void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uint8_t height) {
   tft.startWrite();
-  for (uint16_t i = 0; i < (uint16_t)w * h; i++) {
-    uint8_t a = pgm_read_byte(&alpha[i >> 1]);
-    a = (i & 1) ? (a & 0x0F) : (a >> 4);
-    if (a) tft.writePixel(x + i % w, y + i / w, melange(a));
+  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
+    uint8_t opacity = pgm_read_byte(&opacities[i >> 1]);
+    opacity = (i & 1) ? (opacity & 0x0F) : (opacity >> 4);
+    if (opacity) tft.writePixel(x + i % width, y + i / width, blendColor(opacity));
   }
   tft.endWrite();
 }
 
-void afficherIcones() {
-  dessinerIcone(ICON_THERMO_X,  ICON_THERMO_Y,  ICON_THERMO,  ICON_THERMO_W,  ICON_THERMO_H);
-  dessinerIcone(ICON_GOUTTE_X,  ICON_GOUTTE_Y,  ICON_GOUTTE,  ICON_GOUTTE_W,  ICON_GOUTTE_H);
-  dessinerIcone(ICON_HORLOGE_X, ICON_HORLOGE_Y, ICON_HORLOGE, ICON_HORLOGE_W, ICON_HORLOGE_H);
+void drawIcons() {
+  drawIcon(ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
+  drawIcon(ICON_DROP_X,        ICON_DROP_Y,        ICON_DROP,        ICON_DROP_WIDTH,        ICON_DROP_HEIGHT);
+  drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
-// Température en °C (plage conseillée : 0 à 99)
-void afficherTemperature(int t, enum taille size) {
-  char buf[6];
-  itoa(t, buf, 10);
+// Temperature in °C (recommended range: 0 to 99)
+void drawTemperature(int value, TextSize size) {
+  char text[6];
+  itoa(value, text, 10);
 
-  tft.fillRect(TEMP_CLR_X, TEMP_CLR_Y, TEMP_CLR_W, TEMP_CLR_H, COLOR_BG);
+  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  if(size == SMALL){
-    tft.setFont(FONT_VALEUR);
-  }else{
-    tft.setFont(FONT_GRANDE);
+  if (size == TEXT_SIZE_SMALL) {
+    tft.setFont(FONT_SMALL);
+  } else {
+    tft.setFont(FONT_LARGE);
   }
-  tft.setCursor(TEMP_X, TEMP_BASE);
-  tft.print(buf);
+  tft.setCursor(TEMPERATURE_X, TEMPERATURE_BASELINE);
+  tft.print(text);
 
-  int16_t x = tft.getCursorX();
-  tft.drawCircle(x + TEMP_DEG_DX, TEMP_DEG_Y, TEMP_DEG_R, COLOR_TEXT);       // symbole degré (anneau de 2 px)
-  tft.drawCircle(x + TEMP_DEG_DX, TEMP_DEG_Y, TEMP_DEG_R - 1, COLOR_TEXT);
-  tft.setFont(FONT_UNITE);
-  tft.setCursor(x + TEMP_UNIT_DX, TEMP_UNIT_BASE);
+  int16_t xNumberEnd = tft.getCursorX();
+  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS, COLOR_TEXT);       // degree sign (2 px ring)
+  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS - 1, COLOR_TEXT);
+  tft.setFont(FONT_UNIT);
+  tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
   tft.print('C');
 }
 
-// Volume en ml (plage conseillée : 0 à 999)
-void afficherVolume(int ml, enum taille size) {
-  char buf[6];
-  itoa(ml, buf, 10);
+// Volume in ml (recommended range: 0 to 999)
+void drawVolume(int value, TextSize size) {
+  char text[6];
+  itoa(value, text, 10);
 
-  tft.fillRect(VOL_CLR_X, VOL_CLR_Y, VOL_CLR_W, VOL_CLR_H, COLOR_BG);
+  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  if(size == SMALL){
-    tft.setFont(FONT_VALEUR);
-  }else{
-    tft.setFont(FONT_GRANDE);
+  if (size == TEXT_SIZE_SMALL) {
+    tft.setFont(FONT_SMALL);
+  } else {
+    tft.setFont(FONT_LARGE);
   }
-  tft.setCursor(VOL_X, VOL_BASE);
-  tft.print(buf);
+  tft.setCursor(VOLUME_X, VOLUME_BASELINE);
+  tft.print(text);
 
-  int16_t x = tft.getCursorX();
-  tft.setFont(FONT_UNITE);
-  tft.setCursor(x + VOL_UNIT_DX, VOL_UNIT_BASE);
+  int16_t xNumberEnd = tft.getCursorX();
+  tft.setFont(FONT_UNIT);
+  tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
   tft.print(F("ml"));
 }
 
-// Temps en secondes (plage conseillée : 0 à 999)
-void afficherTemps(int s, enum taille size) {
-  char buf[6];
-  itoa(s, buf, 10);
+// Duration in seconds (recommended range: 0 to 999)
+void drawDuration(int value, TextSize size) {
+  char text[6];
+  itoa(value, text, 10);
 
-  tft.fillRect(TEMPS_CLR_X, TEMPS_CLR_Y, TEMPS_CLR_W, TEMPS_CLR_H, COLOR_BG);
+  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  if(size == SMALL){
-    tft.setFont(FONT_VALEUR);
-  }else{
-    tft.setFont(FONT_GRANDE);
+  if (size == TEXT_SIZE_SMALL) {
+    tft.setFont(FONT_SMALL);
+  } else {
+    tft.setFont(FONT_LARGE);
   }
-  tft.setCursor(TEMPS_X, TEMPS_BASE);
-  tft.print(buf);
+  tft.setCursor(DURATION_X, DURATION_BASELINE);
+  tft.print(text);
 
-  int16_t x = tft.getCursorX();
-  tft.setFont(FONT_UNITE);
-  tft.setCursor(x + TEMPS_UNIT_DX, TEMPS_UNIT_BASE);
+  int16_t xNumberEnd = tft.getCursorX();
+  tft.setFont(FONT_UNIT);
+  tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
   tft.print('s');
 }
 
 // ------------------------------------------------------------
-int volume = 60;                // volume affiché au démarrage
-int tps = 0;                    // temps affiché au démarrage
-int temp = 90;                  // température affiché au démarrage
+// Value adjusted by the encoder (a short push selects the next one)
+enum ActiveParameter {
+  PARAMETER_VOLUME,
+  PARAMETER_DURATION,
+  PARAMETER_TEMPERATURE
+};
 
-enum taille tempSize = SMALL;
-enum taille volSize = BIG;
-enum taille tpsSize = SMALL;
-int stepSize = 0;
+int volume = 60;                // volume shown at startup
+int duration = 0;               // duration shown at startup
+int temperature = 90;           // temperature shown at startup
 
-#define TFT_BL 9
+TextSize temperatureSize = TEXT_SIZE_SMALL;
+TextSize volumeSize = TEXT_SIZE_LARGE;
+TextSize durationSize = TEXT_SIZE_SMALL;
+ActiveParameter activeParameter = PARAMETER_VOLUME;
+
+// Called once when a long push is released (held for LONG_PUSH_MS or more)
+void onLongPush() {
+  volume = 60;
+  duration = 0;
+  temperature = 90;
+  drawTemperature(temperature, temperatureSize);
+  drawVolume(volume, volumeSize);
+  drawDuration(duration, durationSize);
+}
 
 void setup() {
-  
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, LOW); 
 
-  delay(200);   // laisse l'alimentation 3.3V et l'écran se stabiliser à la mise sous tension
+  pinMode(PIN_TFT_BL, OUTPUT);
+  digitalWrite(PIN_TFT_BL, LOW);
+
+  delay(200);   // let the 3.3V supply and the screen settle at power-on
   tft.begin();
   tft.fillScreen(COLOR_BG);
 
-  digitalWrite(TFT_BL, HIGH);
+  digitalWrite(PIN_TFT_BL, HIGH);
 
   delay(100);
 
-  afficherIcones();
-  afficherTemperature(temp, tempSize);
-  afficherVolume(volume, volSize);
-  afficherTemps(tps, tpsSize);
- 
-  encodeur.begin();
+  drawIcons();
+  drawTemperature(temperature, temperatureSize);
+  drawVolume(volume, volumeSize);
+  drawDuration(duration, durationSize);
+
+  encoder.begin();
 }
 /*
-unsigned long tempsPrecedent = 0;
-bool compteur = false;
+unsigned long previousMillis = 0;
+bool counting = false;
 */
 void loop() {
   /*
-  unsigned long tempsActuel = millis();
-  if(compteur){
-    if (tempsActuel - tempsPrecedent >= 1000) {
-      tempsPrecedent += 1000;
-      afficherTemps(tps++, SMALL);
-      if(tps>999){
-        tps=0;
+  unsigned long currentMillis = millis();
+  if (counting) {
+    if (currentMillis - previousMillis >= 1000) {
+      previousMillis += 1000;
+      drawDuration(duration++, TEXT_SIZE_SMALL);
+      if (duration > 999) {
+        duration = 0;
       }
     }
   }
   */
 
-  byte gauche, droite, push;
-  if (encodeur.read(gauche, droite, push)) {
+  byte leftSteps, rightSteps, pushCount;
+  unsigned long pushDurationMs;
+  if (encoder.read(leftSteps, rightSteps, pushCount, pushDurationMs)) {
 
-    if(stepSize == 0){
-      int nouveau = constrain(volume + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
-      if (nouveau != volume) {
-        volume = nouveau;
-        afficherVolume(volume, volSize);
+    if (activeParameter == PARAMETER_VOLUME) {
+      int newValue = constrain(volume + (rightSteps - leftSteps) * ENCODER_STEP, VALUE_MIN, VALUE_MAX);
+      if (newValue != volume) {
+        volume = newValue;
+        drawVolume(volume, volumeSize);
       }
-    }else if(stepSize == 1){
-      int nouveau = constrain(tps + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
-      if (nouveau != tps) {
-        tps = nouveau;
-        afficherTemps(tps, tpsSize);
+    } else if (activeParameter == PARAMETER_DURATION) {
+      int newValue = constrain(duration + (rightSteps - leftSteps) * ENCODER_STEP, VALUE_MIN, VALUE_MAX);
+      if (newValue != duration) {
+        duration = newValue;
+        drawDuration(duration, durationSize);
       }
-    }else if(stepSize == 2){
-      int nouveau = constrain(temp + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
-      if (nouveau != temp) {
-        temp = nouveau;
-        afficherTemperature(temp, tempSize);
+    } else if (activeParameter == PARAMETER_TEMPERATURE) {
+      int newValue = constrain(temperature + (rightSteps - leftSteps) * ENCODER_STEP, VALUE_MIN, VALUE_MAX);
+      if (newValue != temperature) {
+        temperature = newValue;
+        drawTemperature(temperature, temperatureSize);
       }
     }
 
-    if(push){
+    if (pushCount) {
 
-      if(stepSize == 0){
-        tempSize = SMALL;
-        volSize = SMALL;
-        tpsSize = BIG;
-        stepSize=1;
-        afficherVolume(volume, volSize);
-        afficherTemps(tps, tpsSize);
-      }else if(stepSize == 1){
-        tempSize = BIG;
-        volSize = SMALL;
-        tpsSize = SMALL;
-        stepSize=2;
-        afficherTemps(tps, tpsSize);
-        afficherTemperature(temp, tempSize);
-      }else if(stepSize == 2){
-        tempSize = SMALL;
-        volSize = BIG;
-        tpsSize = SMALL;
-        stepSize=0;
-        afficherTemperature(temp, tempSize);
-        afficherVolume(volume, volSize);
+      if (pushDurationMs >= LONG_PUSH_MS) {
+        onLongPush();
+      } else {
+
+        if (activeParameter == PARAMETER_VOLUME) {
+          temperatureSize = TEXT_SIZE_SMALL;
+          volumeSize = TEXT_SIZE_SMALL;
+          durationSize = TEXT_SIZE_LARGE;
+          activeParameter = PARAMETER_DURATION;
+        } else if (activeParameter == PARAMETER_DURATION) {
+          temperatureSize = TEXT_SIZE_LARGE;
+          volumeSize = TEXT_SIZE_SMALL;
+          durationSize = TEXT_SIZE_SMALL;
+          activeParameter = PARAMETER_TEMPERATURE;
+        } else if (activeParameter == PARAMETER_TEMPERATURE) {
+          temperatureSize = TEXT_SIZE_SMALL;
+          volumeSize = TEXT_SIZE_LARGE;
+          durationSize = TEXT_SIZE_SMALL;
+          activeParameter = PARAMETER_VOLUME;
+        }
+
+        drawTemperature(temperature, temperatureSize);
+        drawVolume(volume, volumeSize);
+        drawDuration(duration, durationSize);
+        /*
+        counting = !counting;
+        duration = 0;
+        previousMillis = currentMillis - 1000;
+        */
       }
-
-      /*
-      compteur=!compteur;
-      tps=0;
-      tempsPrecedent=tempsActuel-1000;
-      */
     }
   }
 }

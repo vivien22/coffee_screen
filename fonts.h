@@ -1,9 +1,9 @@
-// Généré automatiquement - polices GFX réduites aux caractères utilisés (Poppins Bold, gras renforcé)
-// Chiffres 0-9 en deux tailles + unités C, m, l, s (chaque unité a sa propre taille, comme sur le visuel)
+// Auto-generated - GFX fonts reduced to the characters actually used (Poppins Bold, emboldened)
+// Digits 0-9 in two sizes + units C, m, l, s (each unit glyph has its own size, as in the mockup)
 #pragma once
 #include <Adafruit_GFX.h>
 
-const uint8_t FontValeurBitmaps[] PROGMEM = {
+const uint8_t FontSmallBitmaps[] PROGMEM = {
   0x00, 0xF8, 0x00, 0x1F, 0xFC, 0x00, 0xFF, 0xFC, 0x07, 0xFF, 0xF8, 0x3F,
   0xFF, 0xE0, 0xFF, 0xFF, 0xC7, 0xF8, 0x7F, 0x1F, 0xC0, 0xFE, 0x7E, 0x03,
   0xFB, 0xF8, 0x07, 0xEF, 0xE0, 0x1F, 0xBF, 0x80, 0x7E, 0xFE, 0x01, 0xFF,
@@ -64,7 +64,7 @@ const uint8_t FontValeurBitmaps[] PROGMEM = {
   0xFF, 0xC1, 0xFF, 0xFC, 0x1F, 0xFF, 0x80, 0x7F, 0xF0, 0x01, 0xFC, 0x00,
 };
 
-const GFXglyph FontValeurGlyphs[] PROGMEM = {
+const GFXglyph FontSmallGlyphs[] PROGMEM = {
   { 0, 22, 29, 25, 2, -29 }, // 0x30 '0'
   { 80, 11, 28, 14, 1, -28 }, // 0x31 '1'
   { 119, 19, 29, 22, 1, -29 }, // 0x32 '2'
@@ -77,9 +77,9 @@ const GFXglyph FontValeurGlyphs[] PROGMEM = {
   { 623, 20, 29, 23, 2, -29 }, // 0x39 '9'
 };
 
-const GFXfont FontValeur PROGMEM = {(uint8_t *)FontValeurBitmaps, (GFXglyph *)FontValeurGlyphs, 0x30, 0x39, 49};
+const GFXfont FontSmall PROGMEM = {(uint8_t *)FontSmallBitmaps, (GFXglyph *)FontSmallGlyphs, 0x30, 0x39, 49};
 
-const uint8_t FontGrandeBitmaps[] PROGMEM = {
+const uint8_t FontLargeBitmaps[] PROGMEM = {
   0x00, 0x07, 0xFC, 0x00, 0x00, 0x07, 0xFF, 0xF0, 0x00, 0x03, 0xFF, 0xFF,
   0x80, 0x00, 0xFF, 0xFF, 0xFC, 0x00, 0x3F, 0xFF, 0xFF, 0xC0, 0x0F, 0xFF,
   0xFF, 0xF8, 0x03, 0xFF, 0xFF, 0xFF, 0x80, 0xFF, 0xFF, 0xFF, 0xF8, 0x1F,
@@ -237,7 +237,7 @@ const uint8_t FontGrandeBitmaps[] PROGMEM = {
   0xE0, 0x00,
 };
 
-const GFXglyph FontGrandeGlyphs[] PROGMEM = {
+const GFXglyph FontLargeGlyphs[] PROGMEM = {
   { 0, 35, 47, 37, 2, -46 }, // 0x30 '0'
   { 206, 18, 46, 21, 1, -45 }, // 0x31 '1'
   { 310, 32, 46, 33, 1, -46 }, // 0x32 '2'
@@ -250,9 +250,9 @@ const GFXglyph FontGrandeGlyphs[] PROGMEM = {
   { 1656, 33, 47, 35, 2, -46 }, // 0x39 '9'
 };
 
-const GFXfont FontGrande PROGMEM = {(uint8_t *)FontGrandeBitmaps, (GFXglyph *)FontGrandeGlyphs, 0x30, 0x39, 77};
+const GFXfont FontLarge PROGMEM = {(uint8_t *)FontLargeBitmaps, (GFXglyph *)FontLargeGlyphs, 0x30, 0x39, 77};
 
-const uint8_t FontUniteBitmaps[] PROGMEM = {
+const uint8_t FontUnitBitmaps[] PROGMEM = {
   0x01, 0xFC, 0x00, 0x7F, 0xF0, 0x1F, 0xFF, 0x83, 0xFF, 0xFC, 0x3F, 0xDF,
   0xE7, 0xE0, 0x7E, 0x7C, 0x03, 0xFF, 0xC0, 0x00, 0xF8, 0x00, 0x0F, 0x80,
   0x00, 0xF8, 0x00, 0x0F, 0x80, 0x00, 0xF8, 0x00, 0x0F, 0xC0, 0x00, 0x7C,
@@ -270,7 +270,7 @@ const uint8_t FontUniteBitmaps[] PROGMEM = {
   0xF7, 0xFF, 0x8F, 0xFC, 0x0F, 0xC0,
 };
 
-const GFXglyph FontUniteGlyphs[] PROGMEM = {
+const GFXglyph FontUnitGlyphs[] PROGMEM = {
   { 0, 20, 21, 22, 1, -21 }, // 0x43 'C'
   { 0, 0, 0, 0, 0, 0 }, // 0x44 'D'
   { 0, 0, 0, 0, 0, 0 }, // 0x45 'E'
@@ -322,4 +322,4 @@ const GFXglyph FontUniteGlyphs[] PROGMEM = {
   { 144, 14, 17, 16, 1, -17 }, // 0x73 's'
 };
 
-const GFXfont FontUnite PROGMEM = {(uint8_t *)FontUniteBitmaps, (GFXglyph *)FontUniteGlyphs, 0x43, 0x73, 42};
+const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x43, 0x73, 42};

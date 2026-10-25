@@ -3,7 +3,8 @@
   (https://github.com/ChrisPHL/CJMCU-111-rotary-button-demo).
   Copyright (c) 2020 Christian Pohl, aka ChrisPHL, www.chpohl.de.
 
-  Mise sous forme de bibliothèque du code de la démo (logique de l'ISR inchangée).
+  Packaged as a library from the demo code (ISR logic unchanged,
+  push duration added).
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,24 +24,28 @@
 
 #include <Arduino.h>
 
-// Décommenter pour sortir un signal sur deux broches pendant l'ISR (analyse à l'oscilloscope)
+// Uncomment to output a signal on two pins during the ISR (for oscilloscope analysis)
 //#define CJMCU_111_DEBUG 1
 
 class CJMCU111 {
   public:
-    // pinGa et pinGb doivent être des broches d'interruption (D2 et D3 sur Nano / Uno)
+    // pinGa and pinGb must be interrupt pins (D2 and D3 on Nano / Uno)
     CJMCU111(byte pinGa = 2, byte pinGb = 3);
 
-    // À appeler dans setup()
+    // Call in setup()
     void begin();
 
-    // Renvoie true s'il y a eu une rotation ou un appui depuis le dernier appel.
-    // left, right : crans tournés à gauche / à droite ; push : nombre d'appuis.
-    // Les compteurs sont remis à zéro après lecture.
+    // Returns true if there was a rotation or a push since the last call.
+    // left, right: detents turned left / right; push: number of pushes.
+    // Counters are reset after reading.
     bool read(byte &left, byte &right, byte &push);
 
+    // Same, and also returns the duration (ms) of the last push, measured from
+    // press to release. Use it to tell a short push from a long push.
+    bool read(byte &left, byte &right, byte &push, unsigned long &pushDurationMs);
+
   private:
-    // Une seule instance possible : l'ISR et son état sont statiques
+    // Only one instance is possible: the ISR and its state are static
     static void isrGx();
 
     static byte rotaryPinGa;
@@ -67,6 +72,7 @@ class CJMCU111 {
     static volatile byte rotationCountL;
     static volatile byte rotationCountR;
     static volatile byte rotaryPushCount;
+    static volatile unsigned long rotaryPushDuration; // msec, last push
 
     static const byte isrGxDebounceDuration = 2; // msec
 

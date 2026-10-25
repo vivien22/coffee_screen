@@ -3,8 +3,9 @@
   (https://github.com/ChrisPHL/CJMCU-111-rotary-button-demo).
   Copyright (c) 2020 Christian Pohl, aka ChrisPHL, www.chpohl.de.
 
-  Mise sous forme de bibliothèque du code de la démo (logique de l'ISR inchangée).
-  Licence : GNU General Public License v3 (voir CJMCU111.h).
+  Packaged as a library from the demo code (ISR logic unchanged,
+  push duration added).
+  License: GNU General Public License v3 (see CJMCU111.h).
 */
 
 #include "CJMCU111.h"
@@ -23,6 +24,7 @@ volatile bool CJMCU111::rotaryInputDetected = false;
 volatile byte CJMCU111::rotationCountL = 0;
 volatile byte CJMCU111::rotationCountR = 0;
 volatile byte CJMCU111::rotaryPushCount = 0;
+volatile unsigned long CJMCU111::rotaryPushDuration = 0;
 
 volatile unsigned long CJMCU111::isrGxTime = 0;
 volatile unsigned long CJMCU111::isrGxLastTime = 0;
@@ -52,17 +54,24 @@ void CJMCU111::begin() {
 
 //===========
 
-// Équivalent du bloc "if (rotaryInputDetected) { ... }" de loop() dans la démo
+// Equivalent of the "if (rotaryInputDetected) { ... }" block in the demo's loop()
 bool CJMCU111::read(byte &left, byte &right, byte &push) {
+  unsigned long pushDurationMs;
+  return read(left, right, push, pushDurationMs);
+}
+
+bool CJMCU111::read(byte &left, byte &right, byte &push, unsigned long &pushDurationMs) {
   if (!rotaryInputDetected) return false;
 
   noInterrupts(); // necessary when reading a multi-byte variable from the ISR
   left = rotationCountL;
   right = rotationCountR;
   push = rotaryPushCount;
+  pushDurationMs = rotaryPushDuration;
   rotationCountL = 0;
   rotationCountR = 0;
   rotaryPushCount = 0;
+  rotaryPushDuration = 0;
   rotaryInputDetected = false;
   interrupts();
   return true;
@@ -98,6 +107,7 @@ void CJMCU111::isrGx() {
         rotationStatus = kRotationStatusWaiting;
         if ((isrGxTime - isrGxLastTime) > isrGxDebounceDuration) {
           ++rotaryPushCount;
+          rotaryPushDuration = isrGxTime - isrGxLastTime; // press -> release, msec
           rotaryInputDetected = true;
         }
       }

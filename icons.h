@@ -1,67 +1,68 @@
-// Données d'affichage de l'afficheur café GC9A01 (240 x 240) : couleurs, POSITIONS, icônes
-// Visuel : Interface_circulaire_minimaliste_92_C_38_ml_48s.png (cercle 1186 px -> écran 240 px)
+// Display data for the GC9A01 coffee screen (240 x 240): colors, POSITIONS, icons
+// Mockup: Interface_circulaire_minimaliste_92_C_38_ml_48s.png (1186 px circle -> 240 px screen)
 //
-//   1. Couleurs
-//   2. Positionnement des icônes et des textes (tout est ici : le sketch ne contient plus de coordonnées)
-//   3. Icônes : masques de transparence 4 bits (2 pixels par octet), colorés au dessin avec COLOR_ICON
+//   1. Colors (background, text, icons)
+//   2. Positions of icons and texts (everything is here: the sketch contains no coordinates)
+//   3. Icons: 4-bit opacity masks (2 pixels per byte), drawn with COLOR_ICON
 #pragma once
 #include <Arduino.h>
 
-// ============================== 1. Couleurs ==============================
-#define COLOR_BG   0x1040     // fond du visuel (21,8,1)
-#define COLOR_ICON 0xFDCD     // orange des icônes (255,186,107) ; les bords sont mélangés avec COLOR_BG
+// ============================== 1. Colors ==============================
+#define COLOR_BG                      0x1040 // mockup background (21,8,1)
+#define COLOR_TEXT                    0xFFBC // cream (254,245,228)
+#define COLOR_ICON                    0xFDCD // icon orange (255,186,107); edges are blended with COLOR_BG
 
-// ========================== 2. Positionnement ============================
-// Icônes : X, Y = coin haut gauche
-#define ICON_THERMO_X 64
-#define ICON_THERMO_Y 35
-#define ICON_GOUTTE_X 38
-#define ICON_GOUTTE_Y 99
-#define ICON_HORLOGE_X 65
-#define ICON_HORLOGE_Y 167
+// ========================== 2. Positions ============================
+// Icons: X, Y = top-left corner
+#define ICON_THERMOMETER_X            64
+#define ICON_THERMOMETER_Y            35
+#define ICON_DROP_X                   38
+#define ICON_DROP_Y                   99
+#define ICON_CLOCK_X                  65
+#define ICON_CLOCK_Y                  167
 
-// Pour les textes, Y est la ligne de base (baseline) de la police GFX.
-// Les zones CLR sont effacées (COLOR_BG) avant chaque mise à jour de la valeur.
+// For texts, Y is the baseline of the GFX font (_BASELINE).
+// Zones (_ZONE_) are erased with COLOR_BG before each value update.
 
-// ---------- Température : "92 °C" (aligné à gauche) ----------
-#define TEMP_X          98
-#define TEMP_BASE       71     // ligne de base du nombre
-#define TEMP_UNIT_BASE  68     // ligne de base du "C"
-#define TEMP_DEG_Y      53     // centre du petit cercle du degré
-#define TEMP_CLR_X      97     // 97 -> 210
-#define TEMP_CLR_Y      22     // 22 -> 74
-#define TEMP_CLR_W      113
-#define TEMP_CLR_H      52
-#define TEMP_DEG_DX     6     // décalage du centre du ° par rapport à la fin du nombre
-#define TEMP_DEG_R      4     // rayon extérieur du ° (anneau de 2 px)
-#define TEMP_UNIT_DX    11    // décalage du "C" par rapport à la fin du nombre
+// ---------- Temperature: "92 °C" (left-aligned) ----------
+#define TEMPERATURE_X                 98
+#define TEMPERATURE_BASELINE          71    // baseline of the number
+#define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
+#define TEMPERATURE_DEGREE_Y          53    // center of the small degree circle
+#define TEMPERATURE_ZONE_X            97    // 97 -> 210
+#define TEMPERATURE_ZONE_Y            22    // 22 -> 74
+#define TEMPERATURE_ZONE_WIDTH        113
+#define TEMPERATURE_ZONE_HEIGHT       52
+#define TEMPERATURE_DEGREE_DX         6     // offset of the degree center from the end of the number
+#define TEMPERATURE_DEGREE_RADIUS     4     // outer radius of the degree sign (2 px ring)
+#define TEMPERATURE_UNIT_DX           11    // offset of the "C" from the end of the number
 
-// ---------- Volume : "38 ml" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define VOL_X           80
-#define VOL_BASE        145
-#define VOL_UNIT_BASE   144
-#define VOL_CLR_X       79     // 79 -> 240 : largeur max à 3 chiffres, sans toucher la goutte
-#define VOL_CLR_Y       96     // 96 -> 148
-#define VOL_CLR_W       161
-#define VOL_CLR_H       52
-#define VOL_UNIT_DX     5     // décalage de "ml" par rapport à la fin du nombre
+// ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
+#define VOLUME_X                      80
+#define VOLUME_BASELINE               145
+#define VOLUME_UNIT_BASELINE          144
+#define VOLUME_ZONE_X                 79    // 79 -> 240: max width with 3 digits, without touching the drop
+#define VOLUME_ZONE_Y                 96    // 96 -> 148
+#define VOLUME_ZONE_WIDTH             161
+#define VOLUME_ZONE_HEIGHT            52
+#define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 
-// ---------- Temps : "48 s" (aligné à gauche, jusqu'à 3 chiffres) ----------
-#define TEMPS_X         110
-#define TEMPS_BASE      201
-#define TEMPS_UNIT_BASE 201
-#define TEMPS_CLR_X     109    // 109 -> 240, sans toucher l'horloge
-#define TEMPS_CLR_Y     152    // 152 -> 204
-#define TEMPS_CLR_W     131
-#define TEMPS_CLR_H     52
-#define TEMPS_UNIT_DX   1     // décalage du "s" par rapport à la fin du nombre
+// ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
+#define DURATION_X                    110
+#define DURATION_BASELINE             201
+#define DURATION_UNIT_BASELINE        201
+#define DURATION_ZONE_X               109   // 109 -> 240, without touching the clock
+#define DURATION_ZONE_Y               152   // 152 -> 204
+#define DURATION_ZONE_WIDTH           131
+#define DURATION_ZONE_HEIGHT          52
+#define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
 
-// ============================ 3. Icônes (alpha 4 bits) ============================
-// Pixel i : octet i/2, quartet de poids fort si i est pair. 0 = fond, 15 = couleur pleine.
+// ============================ 3. Icons (4-bit opacity) ============================
+// Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.
 
-#define ICON_THERMO_W 25
-#define ICON_THERMO_H 42
-const uint8_t ICON_THERMO[] PROGMEM = {
+#define ICON_THERMOMETER_WIDTH 25
+#define ICON_THERMOMETER_HEIGHT 42
+const uint8_t ICON_THERMOMETER[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x25, 0x76, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x03, 0xAE, 0xFF, 0xFE, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xEF, 0xEF, 0xFE,
   0xEF, 0xF6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xEF, 0xEF, 0xEC, 0xEF, 0xFF, 0xF2, 0x00,
@@ -97,9 +98,9 @@ const uint8_t ICON_THERMO[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x44, 0x54, 0x10, 0x00, 0x00, 0x00, 0x00,
 };
 
-#define ICON_GOUTTE_W 35
-#define ICON_GOUTTE_H 46
-const uint8_t ICON_GOUTTE[] PROGMEM = {
+#define ICON_DROP_WIDTH 35
+#define ICON_DROP_HEIGHT 46
+const uint8_t ICON_DROP[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7F, 0xFF, 0x90, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4F, 0xFE, 0xFF, 0x60, 0x00, 0x00,
@@ -153,9 +154,9 @@ const uint8_t ICON_GOUTTE[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-#define ICON_HORLOGE_W 39
-#define ICON_HORLOGE_H 39
-const uint8_t ICON_HORLOGE[] PROGMEM = {
+#define ICON_CLOCK_WIDTH 39
+#define ICON_CLOCK_HEIGHT 39
+const uint8_t ICON_CLOCK[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x23, 0x45, 0x54, 0x30, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0xCD, 0xEF, 0xFF, 0xFE, 0xDA,
   0x73, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0xBF, 0xFF, 0xEE,
