@@ -147,20 +147,31 @@ void afficherTemps(int s, enum taille size) {
 
 // ------------------------------------------------------------
 int volume = 60;                // volume affiché au démarrage
-int tps = 0;                    // volume affiché au démarrage
+int tps = 0;                    // temps affiché au démarrage
+int temp = 90;                  // température affiché au démarrage
 
 enum taille tempSize = SMALL;
 enum taille volSize = BIG;
 enum taille tpsSize = SMALL;
 int stepSize = 0;
 
+#define TFT_BL 9
+
 void setup() {
-  delay(500);   // laisse l'alimentation 3.3V et l'écran se stabiliser à la mise sous tension
+  
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, LOW); 
+
+  delay(200);   // laisse l'alimentation 3.3V et l'écran se stabiliser à la mise sous tension
   tft.begin();
   tft.fillScreen(COLOR_BG);
 
+  digitalWrite(TFT_BL, HIGH);
+
+  delay(100);
+
   afficherIcones();
-  afficherTemperature(92, tempSize);
+  afficherTemperature(temp, tempSize);
   afficherVolume(volume, volSize);
   afficherTemps(tps, tpsSize);
  
@@ -186,11 +197,27 @@ void loop() {
 
   byte gauche, droite, push;
   if (encodeur.read(gauche, droite, push)) {
-    int nouveau = constrain(volume + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
-    if (nouveau != volume) {
-      volume = nouveau;
-      afficherVolume(volume, volSize);
+
+    if(stepSize == 0){
+      int nouveau = constrain(volume + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
+      if (nouveau != volume) {
+        volume = nouveau;
+        afficherVolume(volume, volSize);
+      }
+    }else if(stepSize == 1){
+      int nouveau = constrain(tps + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
+      if (nouveau != tps) {
+        tps = nouveau;
+        afficherTemps(tps, tpsSize);
+      }
+    }else if(stepSize == 2){
+      int nouveau = constrain(temp + (droite - gauche) * VOL_PAS, VOL_MIN, VOL_MAX);
+      if (nouveau != temp) {
+        temp = nouveau;
+        afficherTemperature(temp, tempSize);
+      }
     }
+
     if(push){
 
       if(stepSize == 0){
@@ -198,21 +225,24 @@ void loop() {
         volSize = SMALL;
         tpsSize = BIG;
         stepSize=1;
+        afficherVolume(volume, volSize);
+        afficherTemps(tps, tpsSize);
       }else if(stepSize == 1){
         tempSize = BIG;
         volSize = SMALL;
         tpsSize = SMALL;
         stepSize=2;
+        afficherTemps(tps, tpsSize);
+        afficherTemperature(temp, tempSize);
       }else if(stepSize == 2){
         tempSize = SMALL;
         volSize = BIG;
         tpsSize = SMALL;
         stepSize=0;
+        afficherTemperature(temp, tempSize);
+        afficherVolume(volume, volSize);
       }
 
-      afficherTemperature(92, tempSize);
-      afficherVolume(volume, volSize);
-      afficherTemps(tps, tpsSize);
       /*
       compteur=!compteur;
       tps=0;
