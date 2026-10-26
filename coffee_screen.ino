@@ -45,7 +45,7 @@ Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 #define ENCODER_STEP     1     // value change per detent
 #define VALUE_MIN        0
 #define VALUE_MAX        999
-#define LONG_PUSH_MS     800   // a push held at least this long (ms) is a long push
+#define LONG_PUSH_MS     800   // a push held this long (ms) is a long push (reported before the release)
 #define DOUBLE_PUSH_MS   350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                // a short push is reported once this delay has passed
 
