@@ -30,6 +30,12 @@
 #define FONT_LARGE (&FontLarge)   // digits, large size
 #define FONT_UNIT  (&FontUnit)    // units: C, ml, s
 
+// ---------- Paremeters EEPROM address ----------
+#define PARAMETERS_BASE_ADDR        ((int)0)
+#define PARAMETERS_TEMPERATURE_ADDR (PARAMETERS_BASE_ADDR)
+#define PARAMETERS_VOLUME_ADDR      (PARAMETERS_TEMPERATURE_ADDR + sizeof(parameters.temperature.value))
+#define PARAMETERS_DURATION_ADDR    (PARAMETERS_VOLUME_ADDR + sizeof(parameters.volume.value))
+
 // ---------- Types ----------
 enum TextSize {
   TEXT_SIZE_SMALL,

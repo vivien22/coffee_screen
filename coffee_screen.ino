@@ -28,6 +28,7 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
+#include <EEPROM.h>
 #include "coffee_screen.h"
 #include "CJMCU111.h"
 
@@ -175,11 +176,20 @@ void onDoublePush() {
 
 // Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release)
 void onLongPush() {
-  parameters.duration.value = 0;
-  drawDuration(parameters.duration);
+    if (activeParameter == PARAMETER_VOLUME) {
+    EEPROM.put(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
+  } else if (activeParameter == PARAMETER_DURATION) {
+    EEPROM.put(PARAMETERS_DURATION_ADDR, parameters.duration.value);
+  } else if (activeParameter == PARAMETER_TEMPERATURE) {
+    EEPROM.put(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
+  }
 }
 
 void setup() {
+
+  parameters.temperature.value = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
+  parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+  parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
 
   pinMode(PIN_TFT_BL, OUTPUT);
   digitalWrite(PIN_TFT_BL, LOW);
