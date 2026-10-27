@@ -14,7 +14,7 @@
 
 // ========================== 2. Positions ============================
 // Icons: X, Y = top-left corner
-#define ICON_THERMOMETER_X            64
+#define ICON_THERMOMETER_X            53
 #define ICON_THERMOMETER_Y            35
 #define ICON_DROP_X                   38
 #define ICON_DROP_Y                   99
@@ -24,14 +24,15 @@
 // For texts, Y is the baseline of the GFX font (_BASELINE).
 // Zones (_ZONE_) are erased with COLOR_BG before each value update.
 
-// ---------- Temperature: "92 °C" (left-aligned) ----------
-#define TEMPERATURE_X                 98
+// ---------- Temperature: "92 °C" (left-aligned, up to 3 digits) ----------
+// 199 stays inside the round screen). The thermometer follows the layout.
+#define TEMPERATURE_X                 87    // small digits
 #define TEMPERATURE_BASELINE          71    // baseline of the number
 #define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
 #define TEMPERATURE_DEGREE_Y          53    // center of the small degree circle
-#define TEMPERATURE_ZONE_X            97    // 97 -> 210
+#define TEMPERATURE_ZONE_X            86    // 86 -> 220
 #define TEMPERATURE_ZONE_Y            22    // 22 -> 74
-#define TEMPERATURE_ZONE_WIDTH        113
+#define TEMPERATURE_ZONE_WIDTH        134
 #define TEMPERATURE_ZONE_HEIGHT       52
 #define TEMPERATURE_DEGREE_DX         6     // offset of the degree center from the end of the number
 #define TEMPERATURE_DEGREE_RADIUS     4     // outer radius of the degree sign (2 px ring)

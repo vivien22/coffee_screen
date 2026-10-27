@@ -35,11 +35,11 @@
 Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
 
-// Parameters shown at startup (value, size of the digits)
+// Parameters shown at startup (value, size of the digits, maximum value)
 ScreenParameters parameters = {
-  {90, TEXT_SIZE_SMALL},    // temperature (°C)
-  {60, TEXT_SIZE_LARGE},    // volume (ml)
-  {0,  TEXT_SIZE_SMALL}     // duration (s)
+  { 90, TEXT_SIZE_SMALL, TEMPERATURE_MAX },  // temperature (°C)
+  { 60, TEXT_SIZE_LARGE, VOLUME_MAX },       // volume (ml)
+  { 0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
 };
 ActiveParameter activeParameter = PARAMETER_VOLUME;
 
@@ -154,6 +154,8 @@ void onShortPush() {
 
 // Double push: select the next parameter (it gets the large digits)
 void onDoublePush() {
+  TextSize previousTemperatureSize = parameters.temperature.size;
+
   if (activeParameter == PARAMETER_VOLUME) {
     parameters.temperature.size = TEXT_SIZE_SMALL;
     parameters.volume.size = TEXT_SIZE_SMALL;
@@ -170,13 +172,12 @@ void onDoublePush() {
     parameters.duration.size = TEXT_SIZE_SMALL;
     activeParameter = PARAMETER_VOLUME;
   }
-
   drawParameters();
 }
 
 // Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release)
 void onLongPush() {
-    if (activeParameter == PARAMETER_VOLUME) {
+  if (activeParameter == PARAMETER_VOLUME) {
     EEPROM.put(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
   } else if (activeParameter == PARAMETER_DURATION) {
     EEPROM.put(PARAMETERS_DURATION_ADDR, parameters.duration.value);
@@ -194,7 +195,7 @@ void setup() {
   pinMode(PIN_TFT_BL, OUTPUT);
   digitalWrite(PIN_TFT_BL, LOW);
 
-  delay(200);   // let the 3.3V supply and the screen settle at power-on
+  delay(200);  // let the 3.3V supply and the screen settle at power-on
   tft.begin();
   tft.fillScreen(COLOR_BG);
 
@@ -216,7 +217,7 @@ void loop() {
       previousMillis += 1000;
       drawDuration(parameters.duration);
       parameters.duration.value++;
-      if (parameters.duration.value > 999) {
+      if (parameters.duration.value > parameters.duration.maxValue) {
         parameters.duration.value = 0;
       }
     }

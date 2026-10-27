@@ -20,7 +20,9 @@
 // ---------- CJMCU-111 rotary encoder (adjusts the selected value) ----------
 #define ENCODER_STEP     1     // value change per detent
 #define VALUE_MIN        0
-#define VALUE_MAX        999
+#define TEMPERATURE_MAX  199
+#define VOLUME_MAX       999
+#define DURATION_MAX     999
 #define LONG_PUSH_MS     800   // a push held this long (ms) is a long push (reported before the release)
 #define DOUBLE_PUSH_MS   350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                // a short push is reported once this delay has passed
@@ -53,11 +55,12 @@ enum ActiveParameter {
 struct Parameter {
   int value;
   TextSize size;
+  int maxValue;
 
-  // Add delta to the value, kept between VALUE_MIN and VALUE_MAX.
+  // Add delta to the value, kept between VALUE_MIN and maxValue.
   // Returns true if the value changed (the parameter must be redrawn).
   bool adjust(int delta) {
-    int newValue = constrain(value + delta, VALUE_MIN, VALUE_MAX);
+    int newValue = constrain(value + delta, VALUE_MIN, maxValue);
     bool changed = (newValue != value);
     value = newValue;
     return changed;
@@ -66,7 +69,7 @@ struct Parameter {
 
 // The three parameters shown on the screen
 struct ScreenParameters {
-  Parameter temperature;   // °C   (recommended range: 0 to 99)
-  Parameter volume;        // ml   (recommended range: 0 to 999)
-  Parameter duration;      // s    (recommended range: 0 to 999)
+  Parameter temperature;   // °C   (0 to TEMPERATURE_MAX)
+  Parameter volume;        // ml   (0 to VOLUME_MAX)
+  Parameter duration;      // s    (0 to DURATION_MAX)
 };
