@@ -28,12 +28,26 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
+#include <Adafruit_MAX31865.h>
 #include <EEPROM.h>
 #include "coffee_screen.h"
 #include "CJMCU111.h"
 #include "volume.h"
 
 //#define SERIAL_DEBUG
+
+//----------------------------------------------------------------------------
+// Use software SPI: CS, DI, DO, CLK
+Adafruit_MAX31865 thermo = Adafruit_MAX31865(10, 11, 12, 13);
+// use hardware SPI, just pass in the CS pin
+//Adafruit_MAX31865 thermo = Adafruit_MAX31865(10);
+
+// The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
+#define RREF      430.0
+// The 'nominal' 0-degrees-C resistance of the sensor
+// 100.0 for PT100, 1000.0 for PT1000
+#define RNOMINAL  100.0
+//----------------------------------------------------------------------------
 
 Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
@@ -255,11 +269,7 @@ void setup() {
 
   encoder.begin();
 
-  for(int i=0; i<VOLUME_TABLE_SIZE; i++){
-    Serial.print(volumeTable[i]);
-    Serial.print(" ");
-  }
-  Serial.print("\n");
+  thermo.begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
 }
 
 void loop() {
@@ -274,7 +284,7 @@ void loop() {
           if (parameters.duration.value > parameters.duration.maxValue) {
             parameters.duration.value = parameters.duration.maxValue;
           }
-          drawDuration(parameters.duration);   // draw after counting: 1 is shown after one secondc:\Users\Vivien\Desktop\coffee\Project\coffee_screen\volume.c
+          drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
         }
 
         if (currentMillis - previousMillis200 >= 200) {
@@ -308,4 +318,6 @@ void loop() {
       onLongPush();
     }
   }
+
+  //Serial.print("Temperature = "); Serial.println(thermo.temperature(RNOMINAL, RREF));
 }
