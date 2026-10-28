@@ -26,6 +26,7 @@ volatile byte CJMCU111::rotationCountR = 0;
 volatile byte CJMCU111::rotaryPushCount = 0;
 volatile unsigned long CJMCU111::rotaryPushDuration = 0;
 volatile unsigned long CJMCU111::rotaryPressStart = 0;
+volatile unsigned long CJMCU111::rotaryPushPressTime = 0;
 volatile bool CJMCU111::rotaryPressCandidate = false;
 
 volatile unsigned long CJMCU111::isrGxTime = 0;
@@ -41,6 +42,10 @@ CJMCU111::CJMCU111(byte pinGa, byte pinGb, unsigned int longPushMs, unsigned int
   shortPushTime = 0;
   queuedPushEvent = PUSH_NONE;
   longPushReported = false;
+  eventPressMs = 0;
+  shortPushPressMs = 0;
+  queuedEventPressMs = 0;
+  lastReadPushPressMs = 0;
 }
 
 void CJMCU111::begin() {
@@ -62,13 +67,17 @@ void CJMCU111::begin() {
 
 //===========
 
-bool CJMCU111::pushHeld(unsigned long &heldMs) {
+bool CJMCU111::pushHeld(unsigned long &heldMs, unsigned long &pressStartMs) {
   noInterrupts(); // the status (enum) and the time are multi-byte values
   bool held = rotaryPressCandidate && (rotationStatus == kRotationStatusStartLorPush);
-  unsigned long pressStart = rotaryPressStart;
+  pressStartMs = rotaryPressStart;
   interrupts();
-  heldMs = held ? (millis() - pressStart) : 0;
+  heldMs = held ? (millis() - pressStartMs) : 0;
   return held;
+}
+
+unsigned long CJMCU111::eventPressTime() const {
+  return eventPressMs;
 }
 
 bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
@@ -79,13 +88,15 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
   // an event queued by the previous call goes first (rotation is kept for the next call)
   if (queuedPushEvent != PUSH_NONE) {
     event = queuedPushEvent;
+    eventPressMs = queuedEventPressMs;
     queuedPushEvent = PUSH_NONE;
     return true;
   }
 
   // state of the button first, then the counters: a release between the two is not lost
   unsigned long heldMs = 0;
-  bool held = pushHeld(heldMs);
+  unsigned long pressStartMs = 0;
+  bool held = pushHeld(heldMs, pressStartMs);
 
   byte push = 0;
   unsigned long pushDurationMs = 0;
@@ -108,22 +119,32 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
       // two pushes registered since the last call: double push
       shortPushPending = false;
       event = PUSH_DOUBLE;
+      eventPressMs = lastReadPushPressMs;
     } else if (pushDurationMs >= longPushThresholdMs) {
       // long push not seen while held (update() was not called in time): report it on release
       if (shortPushPending) {
         shortPushPending = false;
         event = PUSH_SHORT;
+        eventPressMs = shortPushPressMs;
         queuedPushEvent = PUSH_LONG;
+        queuedEventPressMs = lastReadPushPressMs;
       } else {
         event = PUSH_LONG;
+        eventPressMs = lastReadPushPressMs;
       }
     } else if (shortPushPending && (now - shortPushTime) < doublePushWindowMs) {
       shortPushPending = false;
       event = PUSH_DOUBLE;
+      eventPressMs = lastReadPushPressMs;
     } else {
-      if (shortPushPending) event = PUSH_SHORT; // previous short push, not followed in time
+      if (shortPushPending) {
+        // previous short push, not followed in time
+        event = PUSH_SHORT;
+        eventPressMs = shortPushPressMs;
+      }
       shortPushPending = true;
       shortPushTime = now;
+      shortPushPressMs = lastReadPushPressMs;
     }
   } else if (held && !longPushReported && heldMs >= longPushThresholdMs) {
     // the button has been held long enough: report the long push now
@@ -131,9 +152,12 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
     if (shortPushPending) {
       shortPushPending = false;
       event = PUSH_SHORT;
+      eventPressMs = shortPushPressMs;
       queuedPushEvent = PUSH_LONG;
+      queuedEventPressMs = pressStartMs;
     } else {
       event = PUSH_LONG;
+      eventPressMs = pressStartMs;
     }
   }
 
@@ -141,6 +165,7 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
   if (event == PUSH_NONE && shortPushPending && (millis() - shortPushTime) >= doublePushWindowMs) {
     shortPushPending = false;
     event = PUSH_SHORT;
+    eventPressMs = shortPushPressMs;
   }
 
   return left || right || event != PUSH_NONE;
@@ -160,6 +185,7 @@ bool CJMCU111::read(byte &left, byte &right, byte &push, unsigned long &pushDura
   right = rotationCountR;
   push = rotaryPushCount;
   pushDurationMs = rotaryPushDuration;
+  lastReadPushPressMs = rotaryPushPressTime;
   rotationCountL = 0;
   rotationCountR = 0;
   rotaryPushCount = 0;
@@ -203,6 +229,7 @@ void CJMCU111::isrGx() {
         if ((isrGxTime - isrGxLastTime) > isrGxDebounceDuration) {
           ++rotaryPushCount;
           rotaryPushDuration = isrGxTime - isrGxLastTime; // press -> release, msec
+          rotaryPushPressTime = isrGxLastTime;            // time of the press
           rotaryInputDetected = true;
         }
       }

@@ -54,6 +54,11 @@ class CJMCU111 {
     // Returns true if there was a rotation or a push event.
     bool update(byte &left, byte &right, PushEvent &event);
 
+    // Time (millis() value) at which the button was pressed for the push behind the last
+    // event returned by update(). A short push is reported after the double push delay:
+    // use this time instead of millis() to start a timer exactly when the button was pressed.
+    unsigned long eventPressTime() const;
+
     // --- Raw reading (do not mix with update()) ---
     // Returns true if there was a rotation or a push since the last call.
     // left, right: detents turned left / right; push: number of pushes.
@@ -94,6 +99,7 @@ class CJMCU111 {
     static volatile byte rotaryPushCount;
     static volatile unsigned long rotaryPushDuration; // msec, last push
     static volatile unsigned long rotaryPressStart;   // time (ms) the button was pressed
+    static volatile unsigned long rotaryPushPressTime; // time (ms) the last registered push was pressed
     static volatile bool rotaryPressCandidate;        // true while Ga stays LOW and Gb HIGH after a fresh press
 
     static const byte isrGxDebounceDuration = 2; // msec
@@ -108,9 +114,13 @@ class CJMCU111 {
     unsigned long shortPushTime;      // time (ms) of the pending short push
     PushEvent queuedPushEvent;        // event to return on the next update() call
     bool longPushReported;            // long push already reported while held: ignore its release
+    unsigned long eventPressMs;       // press time of the push behind the last event
+    unsigned long shortPushPressMs;   // press time of the pending short push
+    unsigned long queuedEventPressMs; // press time of the queued event
+    unsigned long lastReadPushPressMs;// press time of the last push read from the ISR
 
-    // True while the button is held down; heldMs = time since the press
-    bool pushHeld(unsigned long &heldMs);
+    // True while the button is held down; heldMs = time since the press, pressStartMs = time of the press
+    bool pushHeld(unsigned long &heldMs, unsigned long &pressStartMs);
 };
 
 #endif

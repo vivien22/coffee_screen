@@ -32,6 +32,8 @@
 #include "coffee_screen.h"
 #include "CJMCU111.h"
 
+//#define SERIAL_DEBUG
+
 Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
 
@@ -142,13 +144,39 @@ void drawParameters() {
 }
 
 // ------------------------------------------------------------
-// Short push: start / stop the duration counter
+// Short push: start / stop the duration counter.
+// A short push is reported after the double push delay, so the counter is timed from
+// the moment the button was pressed (encoder.eventPressTime()), not from now.
 void onShortPush() {
+
+#ifdef SERIAL_DEBUG
+  Serial.print("onShortPush\n");
+#endif
+
   if (counting == false) {
     counting = true;
-    previousMillis = millis();
+    previousMillis = encoder.eventPressTime();   // time of the last counted second
+#ifdef SERIAL_DEBUG
+  Serial.print("Start\n");
+#endif
   } else {
     counting = false;
+
+    // give back the seconds counted after the press (at most 2: push + delay < 2 s)
+    unsigned long pressMs = encoder.eventPressTime();
+    int undoneSeconds = 0;
+    while ((long)(previousMillis - pressMs) > 0 && undoneSeconds < 2) {
+      previousMillis -= 1000;
+      undoneSeconds++;
+    }
+
+    // Reset to default value
+    parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
+    drawDuration(parameters.duration);
+
+#ifdef SERIAL_DEBUG
+  Serial.print("Stop\n");
+#endif
   }
 }
 
@@ -177,31 +205,36 @@ void onDoublePush() {
 
 // Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release)
 void onLongPush() {
+  previousMillis = millis();   // while counting, the next second starts from the reset
+  
   if (activeParameter == PARAMETER_VOLUME) {
-    EEPROM.put(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
+    EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
   } else if (activeParameter == PARAMETER_DURATION) {
-    EEPROM.put(PARAMETERS_DURATION_ADDR, parameters.duration.value);
+    EEPROM.update(PARAMETERS_DURATION_ADDR, parameters.duration.value);
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
-    EEPROM.put(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
+    EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
   }
 }
 
 void setup() {
 
+#ifdef SERIAL_DEBUG
+  Serial.begin(115200);
+#endif
+
   parameters.temperature.value = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
   parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
   parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
 
+  // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black 
   pinMode(PIN_TFT_BL, OUTPUT);
   digitalWrite(PIN_TFT_BL, LOW);
 
-  delay(200);  // let the 3.3V supply and the screen settle at power-on
   tft.begin();
   tft.fillScreen(COLOR_BG);
 
+  // Set Blk Pin to High
   digitalWrite(PIN_TFT_BL, HIGH);
-
-  delay(100);
 
   drawIcons();
   drawParameters();
@@ -215,11 +248,11 @@ void loop() {
   if (counting) {
     if (currentMillis - previousMillis >= 1000) {
       previousMillis += 1000;
-      drawDuration(parameters.duration);
-      parameters.duration.value++;
+      parameters.duration.value--;
       if (parameters.duration.value > parameters.duration.maxValue) {
         parameters.duration.value = 0;
       }
+      drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
     }
   }
 
