@@ -31,6 +31,7 @@
 #include <EEPROM.h>
 #include "coffee_screen.h"
 #include "CJMCU111.h"
+#include "volume.h"
 
 //#define SERIAL_DEBUG
 
@@ -46,6 +47,7 @@ ScreenParameters parameters = {
 ActiveParameter activeParameter = PARAMETER_VOLUME;
 
 unsigned long previousMillis = 0;
+unsigned long previousMillis200 = 0;
 bool counting = false;
 
 // ------------------------------------------------------------
@@ -97,12 +99,18 @@ void drawTemperature(const Parameter &parameter) {
   tft.print('C');
 }
 
+void blinkTemperature(const Parameter &parameter) {
+  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
+  delay(500);
+  drawTemperature(parameter);
+}
+
 void drawVolume(const Parameter &parameter) {
   char text[6];
   itoa(parameter.value, text, 10);
 
   tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-  tft.setTextColor(COLOR_TEXT);
+  tft.setTextColor(COLOR_TEXT, COLOR_BG);
   if (parameter.size == TEXT_SIZE_SMALL) {
     tft.setFont(FONT_SMALL);
   } else {
@@ -115,6 +123,12 @@ void drawVolume(const Parameter &parameter) {
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
   tft.print(F("ml"));
+}
+
+void blinkVolume(const Parameter &parameter) {
+  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
+  delay(500);
+  drawVolume(parameter);
 }
 
 void drawDuration(const Parameter &parameter) {
@@ -156,8 +170,9 @@ void onShortPush() {
   if (counting == false) {
     counting = true;
     previousMillis = encoder.eventPressTime();   // time of the last counted second
+    previousMillis200 = previousMillis;
 #ifdef SERIAL_DEBUG
-  Serial.print("Start\n");
+  Serial.print("Start counting\n");
 #endif
   } else {
     counting = false;
@@ -170,12 +185,16 @@ void onShortPush() {
       undoneSeconds++;
     }
 
+    drawVolume(parameters.volume);
     // Reset to default value
-    parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
+    parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+
     drawDuration(parameters.duration);
+    // Reset to default value
+    parameters.duration.value = 0;
 
 #ifdef SERIAL_DEBUG
-  Serial.print("Stop\n");
+  Serial.print("Stop counting\n");
 #endif
   }
 }
@@ -185,19 +204,12 @@ void onDoublePush() {
   TextSize previousTemperatureSize = parameters.temperature.size;
 
   if (activeParameter == PARAMETER_VOLUME) {
-    parameters.temperature.size = TEXT_SIZE_SMALL;
-    parameters.volume.size = TEXT_SIZE_SMALL;
-    parameters.duration.size = TEXT_SIZE_LARGE;
-    activeParameter = PARAMETER_DURATION;
-  } else if (activeParameter == PARAMETER_DURATION) {
     parameters.temperature.size = TEXT_SIZE_LARGE;
     parameters.volume.size = TEXT_SIZE_SMALL;
-    parameters.duration.size = TEXT_SIZE_SMALL;
     activeParameter = PARAMETER_TEMPERATURE;
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
     parameters.temperature.size = TEXT_SIZE_SMALL;
     parameters.volume.size = TEXT_SIZE_LARGE;
-    parameters.duration.size = TEXT_SIZE_SMALL;
     activeParameter = PARAMETER_VOLUME;
   }
   drawParameters();
@@ -206,13 +218,14 @@ void onDoublePush() {
 // Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release)
 void onLongPush() {
   previousMillis = millis();   // while counting, the next second starts from the reset
+  previousMillis200 = previousMillis;
   
   if (activeParameter == PARAMETER_VOLUME) {
     EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
-  } else if (activeParameter == PARAMETER_DURATION) {
-    EEPROM.update(PARAMETERS_DURATION_ADDR, parameters.duration.value);
+    blinkVolume(parameters.volume);
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
     EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
+    blinkTemperature(parameters.temperature);
   }
 }
 
@@ -223,16 +236,17 @@ void setup() {
 #endif
 
   parameters.temperature.value = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
-  parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
-  parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
+  parameters.volume.value      = EEPROM.read(PARAMETERS_VOLUME_ADDR);
 
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black 
   pinMode(PIN_TFT_BL, OUTPUT);
   digitalWrite(PIN_TFT_BL, LOW);
-
+  // let the 3.3V supply and the screen settle at power-on
+  delay(200);  
   tft.begin();
+  // Force le bus SPI de l'Arduino Nano à sa vitesse maximale absolue (8 MHz)
+  tft.setSPISpeed(8000000); 
   tft.fillScreen(COLOR_BG);
-
   // Set Blk Pin to High
   digitalWrite(PIN_TFT_BL, HIGH);
 
@@ -240,20 +254,37 @@ void setup() {
   drawParameters();
 
   encoder.begin();
+
+  for(int i=0; i<VOLUME_TABLE_SIZE; i++){
+    Serial.print(volumeTable[i]);
+    Serial.print(" ");
+  }
+  Serial.print("\n");
 }
 
 void loop() {
 
-  unsigned long currentMillis = millis();
-  if (counting) {
-    if (currentMillis - previousMillis >= 1000) {
-      previousMillis += 1000;
-      parameters.duration.value--;
-      if (parameters.duration.value > parameters.duration.maxValue) {
-        parameters.duration.value = 0;
+  if (activeParameter == PARAMETER_VOLUME) {
+      unsigned long currentMillis = millis();
+      if (counting) {
+        if (currentMillis - previousMillis >= 1000) {
+          previousMillis += 1000;
+          parameters.duration.value++;
+
+          if (parameters.duration.value > parameters.duration.maxValue) {
+            parameters.duration.value = parameters.duration.maxValue;
+          }
+          drawDuration(parameters.duration);   // draw after counting: 1 is shown after one secondc:\Users\Vivien\Desktop\coffee\Project\coffee_screen\volume.c
+        }
+
+        if (currentMillis - previousMillis200 >= 200) {
+          previousMillis200 += 200;
+          // Read volume
+          parameters.volume.value = getVolume(parameters.duration.value);
+          drawVolume(parameters.volume);
+        }
+
       }
-      drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
-    }
   }
 
   byte leftSteps, rightSteps;
@@ -263,14 +294,14 @@ void loop() {
     int delta = (rightSteps - leftSteps) * ENCODER_STEP;
     if (activeParameter == PARAMETER_VOLUME) {
       if (parameters.volume.adjust(delta)) drawVolume(parameters.volume);
-    } else if (activeParameter == PARAMETER_DURATION) {
-      if (parameters.duration.adjust(delta)) drawDuration(parameters.duration);
     } else if (activeParameter == PARAMETER_TEMPERATURE) {
       if (parameters.temperature.adjust(delta)) drawTemperature(parameters.temperature);
     }
 
     if (pushEvent == PUSH_SHORT) {
-      onShortPush();
+      if (activeParameter == PARAMETER_VOLUME) {
+        onShortPush();
+      }
     } else if (pushEvent == PUSH_DOUBLE) {
       onDoublePush();
     } else if (pushEvent == PUSH_LONG) {

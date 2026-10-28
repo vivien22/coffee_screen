@@ -36,7 +36,6 @@
 #define PARAMETERS_BASE_ADDR        ((int)0)
 #define PARAMETERS_TEMPERATURE_ADDR (PARAMETERS_BASE_ADDR)
 #define PARAMETERS_VOLUME_ADDR      (PARAMETERS_TEMPERATURE_ADDR + sizeof(parameters.temperature.value))
-#define PARAMETERS_DURATION_ADDR    (PARAMETERS_VOLUME_ADDR + sizeof(parameters.volume.value))
 
 // ---------- Types ----------
 enum TextSize {
@@ -47,7 +46,6 @@ enum TextSize {
 // Value adjusted by the encoder (a double push selects the next one)
 enum ActiveParameter {
   PARAMETER_VOLUME,
-  PARAMETER_DURATION,
   PARAMETER_TEMPERATURE
 };
 
