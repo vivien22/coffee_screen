@@ -47,7 +47,7 @@
 
 //#define SERIAL_DEBUG   // uncomment to print the push events on the serial port (115200 bauds)
 #ifdef SERIAL_DEBUG
-  #define DEBUG_PRINT(text) Serial.print(F(text "\n"))
+  #define DEBUG_PRINT(text) Serial.print(text)
 #else
   #define DEBUG_PRINT(text)
 #endif
@@ -270,8 +270,12 @@ void loop()
   if (Output > millis() - windowStartTime){
     digitalWrite(RELAY_PIN, HIGH);
     digitalWrite(LED_BUILTIN, HIGH);
+    DEBUG_PRINT("Relay on\n");
+    DEBUG_PRINT(Output);
+    DEBUG_PRINT("\n");
   }else{
     digitalWrite(RELAY_PIN, LOW);
     digitalWrite(LED_BUILTIN, LOW); 
+    DEBUG_PRINT("Relay OFF\n");
   }
 }
