@@ -17,8 +17,19 @@
   Warning: the Nano outputs 5V while the GC9A01 runs at 3.3V.
   Use a level shifter or series resistors (1k) on SCL, SDA, CS, DC, RES.
 
-  Pins, settings, fonts and data types are in coffee_screen.h.
-  All positions and colors (icons and texts) are in icons.h.
+  Files:
+    coffee_screen.ino  this file: parameters, push events and main loop
+    coffee_screen.h    encoder pins, settings, EEPROM addresses
+    display.h / .cpp   drawing on the screen (pins of the screen, types, draw functions)
+    icons.h            positions, colors and icons (used by display.cpp)
+    fonts.h            fonts (used by display.cpp)
+    CJMCU111.h / .cpp  rotary encoder with push button
+
+  Controls:
+    rotation       adjusts the selected parameter
+    short push     start / stop the duration counter
+    double push    select the next parameter (it gets the large digits)
+    long push      store the selected parameter in the EEPROM
 
   Naming conventions (all identifiers in English):
     macros and constants: UPPER_SNAKE_CASE
@@ -26,172 +37,54 @@
     types (enum, struct): PascalCase
 */
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_GC9A01A.h>
-#include <Adafruit_MAX31865.h>
 #include <EEPROM.h>
 #include "coffee_screen.h"
+#include "display.h"
 #include "CJMCU111.h"
-#include "volume.h"
 
-//#define SERIAL_DEBUG
+//#define SERIAL_DEBUG   // uncomment to print the push events on the serial port (115200 bauds)
+#ifdef SERIAL_DEBUG
+  #define DEBUG_PRINT(text) Serial.print(F(text "\n"))
+#else
+  #define DEBUG_PRINT(text)
+#endif
 
-//----------------------------------------------------------------------------
-// Use software SPI: CS, DI, DO, CLK
-Adafruit_MAX31865 thermo = Adafruit_MAX31865(10, 11, 12, 13);
-// use hardware SPI, just pass in the CS pin
-//Adafruit_MAX31865 thermo = Adafruit_MAX31865(10);
-
-// The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
-#define RREF      430.0
-// The 'nominal' 0-degrees-C resistance of the sensor
-// 100.0 for PT100, 1000.0 for PT1000
-#define RNOMINAL  100.0
-//----------------------------------------------------------------------------
-
-Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
+// Rotary encoder with push button; it reports the rotation and short / double / long pushes
 CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
 
-// Parameters shown at startup (value, size of the digits, maximum value)
+// Parameters shown at startup (value, size of the digits, maximum value).
+// The values are replaced by the ones stored in the EEPROM in setup().
 ScreenParameters parameters = {
-  { 90, TEXT_SIZE_SMALL, TEMPERATURE_MAX },  // temperature (°C)
-  { 60, TEXT_SIZE_LARGE, VOLUME_MAX },       // volume (ml)
-  { 0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
+  { 90, TEXT_SIZE_SMALL, TEMPERATURE_MAX },   // temperature (°C)
+  { 60, TEXT_SIZE_LARGE, VOLUME_MAX },        // volume (ml)
+  {  0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
 };
+
+// Parameter adjusted by the encoder (the one with the large digits)
 ActiveParameter activeParameter = PARAMETER_VOLUME;
 
-unsigned long previousMillis = 0;
-unsigned long previousMillis200 = 0;
-bool counting = false;
-
-// ------------------------------------------------------------
-// Blend COLOR_ICON with COLOR_BG; opacity: 0 (background) to 15 (full color)
-uint16_t blendColor(uint8_t opacity) {
-  uint8_t r = (COLOR_BG >> 11) & 0x1F, g = (COLOR_BG >> 5) & 0x3F, b = COLOR_BG & 0x1F;
-  int8_t dr = ((COLOR_ICON >> 11) & 0x1F) - r;
-  int8_t dg = ((COLOR_ICON >> 5) & 0x3F) - g;
-  int8_t db = (COLOR_ICON & 0x1F) - b;
-  return ((uint16_t)(r + dr * opacity / 15) << 11) | ((uint16_t)(g + dg * opacity / 15) << 5) | (uint16_t)(b + db * opacity / 15);
-}
-
-// Draw an icon stored as 4-bit opacity (PROGMEM); background pixels are not redrawn
-void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uint8_t height) {
-  tft.startWrite();
-  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
-    uint8_t opacity = pgm_read_byte(&opacities[i >> 1]);
-    opacity = (i & 1) ? (opacity & 0x0F) : (opacity >> 4);
-    if (opacity) tft.writePixel(x + i % width, y + i / width, blendColor(opacity));
-  }
-  tft.endWrite();
-}
-
-void drawIcons() {
-  drawIcon(ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
-  drawIcon(ICON_DROP_X,        ICON_DROP_Y,        ICON_DROP,        ICON_DROP_WIDTH,        ICON_DROP_HEIGHT);
-  drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
-}
-
-void drawTemperature(const Parameter &parameter) {
-  char text[6];
-  itoa(parameter.value, text, 10);
-
-  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
-  tft.setTextColor(COLOR_TEXT);
-  if (parameter.size == TEXT_SIZE_SMALL) {
-    tft.setFont(FONT_SMALL);
-  } else {
-    tft.setFont(FONT_LARGE);
-  }
-  tft.setCursor(TEMPERATURE_X, TEMPERATURE_BASELINE);
-  tft.print(text);
-
-  int16_t xNumberEnd = tft.getCursorX();
-  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS, COLOR_TEXT);       // degree sign (2 px ring)
-  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS - 1, COLOR_TEXT);
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-  tft.print('C');
-}
-
-void blinkTemperature(const Parameter &parameter) {
-  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
-  delay(500);
-  drawTemperature(parameter);
-}
-
-void drawVolume(const Parameter &parameter) {
-  char text[6];
-  itoa(parameter.value, text, 10);
-
-  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-  tft.setTextColor(COLOR_TEXT, COLOR_BG);
-  if (parameter.size == TEXT_SIZE_SMALL) {
-    tft.setFont(FONT_SMALL);
-  } else {
-    tft.setFont(FONT_LARGE);
-  }
-  tft.setCursor(VOLUME_X, VOLUME_BASELINE);
-  tft.print(text);
-
-  int16_t xNumberEnd = tft.getCursorX();
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
-  tft.print(F("ml"));
-}
-
-void blinkVolume(const Parameter &parameter) {
-  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-  delay(500);
-  drawVolume(parameter);
-}
-
-void drawDuration(const Parameter &parameter) {
-  char text[6];
-  itoa(parameter.value, text, 10);
-
-  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
-  tft.setTextColor(COLOR_TEXT);
-  if (parameter.size == TEXT_SIZE_SMALL) {
-    tft.setFont(FONT_SMALL);
-  } else {
-    tft.setFont(FONT_LARGE);
-  }
-  tft.setCursor(DURATION_X, DURATION_BASELINE);
-  tft.print(text);
-
-  int16_t xNumberEnd = tft.getCursorX();
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
-  tft.print('s');
-}
-
-void drawParameters() {
-  drawTemperature(parameters.temperature);
-  drawVolume(parameters.volume);
-  drawDuration(parameters.duration);
-}
+// Duration counter
+unsigned long previousMillis = 0;   // time of the last counted second
+bool counting = false;              // true while the counter runs
 
 // ------------------------------------------------------------
 // Short push: start / stop the duration counter.
 // A short push is reported after the double push delay, so the counter is timed from
 // the moment the button was pressed (encoder.eventPressTime()), not from now.
-void onShortPush() {
-
-#ifdef SERIAL_DEBUG
-  Serial.print("onShortPush\n");
-#endif
+void onShortPush() 
+{
+  DEBUG_PRINT("onShortPush");
 
   if (counting == false) {
+    // Start: the next second ends one second after the press
     counting = true;
-    previousMillis = encoder.eventPressTime();   // time of the last counted second
-    previousMillis200 = previousMillis;
-#ifdef SERIAL_DEBUG
-  Serial.print("Start counting\n");
-#endif
+    previousMillis = encoder.eventPressTime();
+    DEBUG_PRINT("Start");
   } else {
+    // Stop
     counting = false;
 
-    // give back the seconds counted after the press (at most 2: push + delay < 2 s)
+    // Give back the seconds counted after the press (at most 2: push + delay < 2 s)
     unsigned long pressMs = encoder.eventPressTime();
     int undoneSeconds = 0;
     while ((long)(previousMillis - pressMs) > 0 && undoneSeconds < 2) {
@@ -199,125 +92,109 @@ void onShortPush() {
       undoneSeconds++;
     }
 
-    drawVolume(parameters.volume);
     // Reset to default value
-    parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
-
+    parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
     drawDuration(parameters.duration);
-    // Reset to default value
-    parameters.duration.value = 0;
-
-#ifdef SERIAL_DEBUG
-  Serial.print("Stop counting\n");
-#endif
+    DEBUG_PRINT("Stop");
   }
 }
 
-// Double push: select the next parameter (it gets the large digits)
-void onDoublePush() {
-  TextSize previousTemperatureSize = parameters.temperature.size;
-
+// Double push: select the next parameter (it gets the large digits).
+// The order is volume -> duration -> temperature -> volume.
+void onDoublePush() 
+{
   if (activeParameter == PARAMETER_VOLUME) {
+    parameters.temperature.size = TEXT_SIZE_SMALL;
+    parameters.volume.size      = TEXT_SIZE_SMALL;
+    parameters.duration.size    = TEXT_SIZE_LARGE;
+    activeParameter             = PARAMETER_DURATION;
+  } else if (activeParameter == PARAMETER_DURATION) {
     parameters.temperature.size = TEXT_SIZE_LARGE;
-    parameters.volume.size = TEXT_SIZE_SMALL;
+    parameters.volume.size      = TEXT_SIZE_SMALL;
+    parameters.duration.size    = TEXT_SIZE_SMALL;
     activeParameter = PARAMETER_TEMPERATURE;
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
     parameters.temperature.size = TEXT_SIZE_SMALL;
-    parameters.volume.size = TEXT_SIZE_LARGE;
-    activeParameter = PARAMETER_VOLUME;
+    parameters.volume.size      = TEXT_SIZE_LARGE;
+    parameters.duration.size    = TEXT_SIZE_SMALL;
+    activeParameter             = PARAMETER_VOLUME;
   }
-  drawParameters();
+
+  // The sizes changed: draw the three parameters again
+  drawParameters(parameters);
 }
 
-// Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release)
-void onLongPush() {
+// Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release).
+// Store the selected parameter in the EEPROM.
+void onLongPush() 
+{
   previousMillis = millis();   // while counting, the next second starts from the reset
-  previousMillis200 = previousMillis;
-  
+
   if (activeParameter == PARAMETER_VOLUME) {
     EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
-    blinkVolume(parameters.volume);
+  } else if (activeParameter == PARAMETER_DURATION) {
+    EEPROM.update(PARAMETERS_DURATION_ADDR, parameters.duration.value);
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
     EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
-    blinkTemperature(parameters.temperature);
   }
 }
 
-void setup() {
-
+// ------------------------------------------------------------
+void setup() 
+{
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
 
+  // Values stored in the EEPROM
   parameters.temperature.value = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
-  parameters.volume.value      = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+  parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+  parameters.duration.value = EEPROM.read(PARAMETERS_DURATION_ADDR);
 
-  // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black 
-  pinMode(PIN_TFT_BL, OUTPUT);
-  digitalWrite(PIN_TFT_BL, LOW);
-  // let the 3.3V supply and the screen settle at power-on
-  delay(200);  
-  tft.begin();
-  // Force le bus SPI de l'Arduino Nano à sa vitesse maximale absolue (8 MHz)
-  tft.setSPISpeed(8000000); 
-  tft.fillScreen(COLOR_BG);
-  // Set Blk Pin to High
-  digitalWrite(PIN_TFT_BL, HIGH);
-
+  beginDisplay();
   drawIcons();
-  drawParameters();
+  drawParameters(parameters);
 
   encoder.begin();
-
-  thermo.begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
 }
 
-void loop() {
-
-  if (activeParameter == PARAMETER_VOLUME) {
-      unsigned long currentMillis = millis();
-      if (counting) {
-        if (currentMillis - previousMillis >= 1000) {
-          previousMillis += 1000;
-          parameters.duration.value++;
-
-          if (parameters.duration.value > parameters.duration.maxValue) {
-            parameters.duration.value = parameters.duration.maxValue;
-          }
-          drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
-        }
-
-        if (currentMillis - previousMillis200 >= 200) {
-          previousMillis200 += 200;
-          // Read volume
-          parameters.volume.value = getVolume(parameters.duration.value);
-          drawVolume(parameters.volume);
-        }
-
+void loop() 
+{
+  // Duration counter: one step per second
+  unsigned long currentMillis = millis();
+  if (counting) {
+    if (currentMillis - previousMillis >= 1000) {
+      previousMillis += 1000;
+      parameters.duration.value--;
+      if (parameters.duration.value > parameters.duration.maxValue) {
+        parameters.duration.value = 0;
       }
+      drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
+    }
   }
 
+  // Encoder: rotation steps and push event since the last call
   byte leftSteps, rightSteps;
   PushEvent pushEvent;
   if (encoder.update(leftSteps, rightSteps, pushEvent)) {
 
+    // Rotation: adjust the selected parameter and draw it if it changed
     int delta = (rightSteps - leftSteps) * ENCODER_STEP;
     if (activeParameter == PARAMETER_VOLUME) {
       if (parameters.volume.adjust(delta)) drawVolume(parameters.volume);
+    } else if (activeParameter == PARAMETER_DURATION) {
+      if (parameters.duration.adjust(delta)) drawDuration(parameters.duration);
     } else if (activeParameter == PARAMETER_TEMPERATURE) {
       if (parameters.temperature.adjust(delta)) drawTemperature(parameters.temperature);
     }
 
+    // Push event
     if (pushEvent == PUSH_SHORT) {
-      if (activeParameter == PARAMETER_VOLUME) {
-        onShortPush();
-      }
+      onShortPush();
     } else if (pushEvent == PUSH_DOUBLE) {
       onDoublePush();
     } else if (pushEvent == PUSH_LONG) {
       onLongPush();
     }
   }
-
-  //Serial.print("Temperature = "); Serial.println(thermo.temperature(RNOMINAL, RREF));
 }

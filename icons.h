@@ -25,13 +25,13 @@
 // Zones (_ZONE_) are erased with COLOR_BG before each value update.
 
 // ---------- Temperature: "92 °C" (left-aligned, up to 3 digits) ----------
-// 199 stays inside the round screen). The thermometer follows the layout.
-#define TEMPERATURE_X                 87    // small digits
+// The row is shifted to the left so that 199 stays inside the round screen.
+#define TEMPERATURE_X                 87    // left edge of the number
 #define TEMPERATURE_BASELINE          71    // baseline of the number
 #define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
 #define TEMPERATURE_DEGREE_Y          53    // center of the small degree circle
-#define TEMPERATURE_ZONE_X            86    // 86 -> 220
-#define TEMPERATURE_ZONE_Y            22    // 22 -> 74
+#define TEMPERATURE_ZONE_X            86    // zone erased before each update: x 86 -> 220
+#define TEMPERATURE_ZONE_Y            22    // y 22 -> 74
 #define TEMPERATURE_ZONE_WIDTH        134
 #define TEMPERATURE_ZONE_HEIGHT       52
 #define TEMPERATURE_DEGREE_DX         6     // offset of the degree center from the end of the number
@@ -39,21 +39,21 @@
 #define TEMPERATURE_UNIT_DX           11    // offset of the "C" from the end of the number
 
 // ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
-#define VOLUME_X                      80
-#define VOLUME_BASELINE               145
-#define VOLUME_UNIT_BASELINE          144
-#define VOLUME_ZONE_X                 79    // 79 -> 240: max width with 3 digits, without touching the drop
-#define VOLUME_ZONE_Y                 96    // 96 -> 148
+#define VOLUME_X                      80    // left edge of the number
+#define VOLUME_BASELINE               145   // baseline of the number
+#define VOLUME_UNIT_BASELINE          144   // baseline of "ml"
+#define VOLUME_ZONE_X                 79    // zone erased before each update: x 79 -> 240 (3 digits max, the drop is not touched)
+#define VOLUME_ZONE_Y                 96    // y 96 -> 148
 #define VOLUME_ZONE_WIDTH             161
 #define VOLUME_ZONE_HEIGHT            52
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
-#define DURATION_X                    110
-#define DURATION_BASELINE             201
-#define DURATION_UNIT_BASELINE        201
-#define DURATION_ZONE_X               109   // 109 -> 240, without touching the clock
-#define DURATION_ZONE_Y               152   // 152 -> 204
+#define DURATION_X                    110   // left edge of the number
+#define DURATION_BASELINE             201   // baseline of the number
+#define DURATION_UNIT_BASELINE        201   // baseline of the "s"
+#define DURATION_ZONE_X               109   // zone erased before each update: x 109 -> 240 (the clock is not touched)
+#define DURATION_ZONE_Y               152   // y 152 -> 204
 #define DURATION_ZONE_WIDTH           131
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
@@ -61,6 +61,7 @@
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.
 
+// Size of each icon, then its data
 #define ICON_THERMOMETER_WIDTH 25
 #define ICON_THERMOMETER_HEIGHT 42
 const uint8_t ICON_THERMOMETER[] PROGMEM = {
