@@ -38,6 +38,11 @@
 #define TEMPERATURE_DEGREE_RADIUS     4     // outer radius of the degree sign (2 px ring)
 #define TEMPERATURE_UNIT_DX           11    // offset of the "C" from the end of the number
 
+// --------------------- Blinking dot for PID output ---------------------
+#define TEMPERATURE_DOT_X       80
+#define TEMPERATURE_DOT_Y       39
+#define TEMPERATURE_DOT_RADIUS  3
+
 // ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
 #define VOLUME_X                      80    // left edge of the number
 #define VOLUME_BASELINE               145   // baseline of the number

@@ -135,3 +135,7 @@ void blinkVolume(const Parameter &parameter) {
   delay(500);
   drawVolume(parameter);
 }
+
+void blinkPIDOutputIndicator(bool visible) {
+  tft.fillCircle(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, TEMPERATURE_DOT_RADIUS, visible ? COLOR_TEXT : COLOR_BG);
+}

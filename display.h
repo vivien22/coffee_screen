@@ -84,3 +84,5 @@ void drawParameters(const ScreenParameters &parameters);
 void blinkTemperature(const Parameter &parameter);
 
 void blinkVolume(const Parameter &parameter);
+
+void blinkPIDOutputIndicator(bool visible);

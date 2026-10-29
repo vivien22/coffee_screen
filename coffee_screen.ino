@@ -269,13 +269,14 @@ void loop()
 
   if (Output > millis() - windowStartTime){
     digitalWrite(RELAY_PIN, HIGH);
-    digitalWrite(LED_BUILTIN, HIGH);
+    blinkPIDOutputIndicator(true);
     DEBUG_PRINT("Relay on\n");
     DEBUG_PRINT(Output);
     DEBUG_PRINT("\n");
+
   }else{
     digitalWrite(RELAY_PIN, LOW);
-    digitalWrite(LED_BUILTIN, LOW); 
+    blinkPIDOutputIndicator(false);
     DEBUG_PRINT("Relay OFF\n");
   }
 }
