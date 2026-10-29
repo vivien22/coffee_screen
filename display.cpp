@@ -123,3 +123,15 @@ void drawParameters(const ScreenParameters &parameters) {
   drawVolume(parameters.volume);
   drawDuration(parameters.duration);
 }
+
+void blinkTemperature(const Parameter &parameter) {
+  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
+  delay(500);
+  drawTemperature(parameter);
+}
+
+void blinkVolume(const Parameter &parameter) {
+  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
+  delay(500);
+  drawVolume(parameter);
+}
