@@ -53,9 +53,10 @@
 #endif
 
 // PID parameters
-#define PIN_INPUT       0
-#define RELAY_PIN       5
+#define PID_RELAY_PIN   5
 #define MAX31865_CS_PIN 6
+// Pump raley PIN
+#define PUMP_RELAY_PIN  4
 
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
@@ -102,6 +103,7 @@ void startExtraction()
   // Start: the next second ends one second after the press
     counting = true;
     previousMillis = encoder.eventPressTime();
+    digitalWrite(PUMP_RELAY_PIN, HIGH);
     DEBUG_PRINT("Start");
 } 
 
@@ -109,6 +111,7 @@ void stopExtraction()
 {
   // Stop
     counting = false;
+    digitalWrite(PUMP_RELAY_PIN, LOW);
 
     // Give back the seconds counted after the press (at most 2: push + delay < 2 s)
     unsigned long pressMs = encoder.eventPressTime();
@@ -283,13 +286,13 @@ void loop()
   }
 
   if (Output > millis() - windowStartTime){
-    digitalWrite(RELAY_PIN, HIGH);
+    digitalWrite(PID_RELAY_PIN, HIGH);
     blinkPIDOutputIndicator(true);
     DEBUG_PRINT("Relay on\n");
     DEBUG_PRINT(Output);
     DEBUG_PRINT("\n");
   }else{
-    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(PID_RELAY_PIN, LOW);
     blinkPIDOutputIndicator(false);
     DEBUG_PRINT("Relay OFF\n");
   }
