@@ -155,7 +155,7 @@ void onShortPush()
 {
   if (counting) {
     stopExtraction();
-  } else {
+  } else if(activeParameter == PARAMETER_VOLUME){
     startExtraction();
   }
 }
