@@ -35,16 +35,17 @@ enum TextSize {
 
 // One displayed parameter: its value, the size of the digits and its maximum value
 struct Parameter {
-  int value;
+  int currentValue;
+  int defaultValue;
   TextSize size;
   int maxValue;
 
   // Add delta to the value, kept between VALUE_MIN and maxValue.
   // Returns true if the value changed (the parameter must be redrawn).
   bool adjust(int delta) {
-    int newValue = constrain(value + delta, VALUE_MIN, maxValue);
-    bool changed = (newValue != value);
-    value = newValue;
+    int newValue = constrain(defaultValue + delta, VALUE_MIN, maxValue);
+    bool changed = (newValue != defaultValue);
+    defaultValue = newValue;
     return changed;
   }
 };
@@ -74,12 +75,12 @@ void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uin
 void drawIcons();
 
 // Draw one parameter: the zone is erased, then the value and its unit are drawn
-void drawTemperature(const Parameter &parameter);
-void drawVolume(const Parameter &parameter);
-void drawDuration(const Parameter &parameter);
+void drawTemperature(const Parameter &parameter, uint16_t value);
+void drawVolume(const Parameter &parameter, uint16_t value);
+void drawDuration(const Parameter &parameter, uint16_t value);
 
 // Draw the three parameters
-void drawParameters(const ScreenParameters &parameters);
+void drawCurrentParameters(const ScreenParameters &parameters);
 
 void blinkTemperature(const Parameter &parameter);
 

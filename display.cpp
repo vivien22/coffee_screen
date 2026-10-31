@@ -66,10 +66,11 @@ void drawIcons() {
 // Erase the zone of a parameter, then draw its value (small or large digits) left-aligned
 // at x, on the given baseline. Returns the x position after the number, where the unit goes.
 static int16_t drawNumber(const Parameter &parameter,
+                          int16_t value,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
                           int16_t x, int16_t baseline) {
   char text[6];
-  itoa(parameter.value, text, 10);
+  itoa(value, text, 10);
 
   tft.fillRect(zoneX, zoneY, zoneWidth, zoneHeight, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
@@ -84,8 +85,9 @@ static int16_t drawNumber(const Parameter &parameter,
   return tft.getCursorX();
 }
 
-void drawTemperature(const Parameter &parameter) {
+void drawTemperature(const Parameter &parameter, uint16_t value) {
   int16_t xNumberEnd = drawNumber(parameter,
+                                  value,
                                   TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
                                   TEMPERATURE_X, TEMPERATURE_BASELINE);
 
@@ -98,8 +100,9 @@ void drawTemperature(const Parameter &parameter) {
   tft.print('C');
 }
 
-void drawVolume(const Parameter &parameter) {
+void drawVolume(const Parameter &parameter, uint16_t value) {
   int16_t xNumberEnd = drawNumber(parameter,
+                                  value,
                                   VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT,
                                   VOLUME_X, VOLUME_BASELINE);
 
@@ -108,8 +111,9 @@ void drawVolume(const Parameter &parameter) {
   tft.print(F("ml"));
 }
 
-void drawDuration(const Parameter &parameter) {
+void drawDuration(const Parameter &parameter, uint16_t value) {
   int16_t xNumberEnd = drawNumber(parameter,
+                                  value,
                                   DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT,
                                   DURATION_X, DURATION_BASELINE);
 
@@ -118,22 +122,22 @@ void drawDuration(const Parameter &parameter) {
   tft.print('s');
 }
 
-void drawParameters(const ScreenParameters &parameters) {
-  drawTemperature(parameters.temperature);
-  drawVolume(parameters.volume);
-  drawDuration(parameters.duration);
+void drawCurrentParameters(const ScreenParameters &parameters) {
+  drawTemperature(parameters.temperature, parameters.temperature.currentValue);
+  drawVolume(parameters.volume, parameters.volume.currentValue);
+  drawDuration(parameters.duration, parameters.duration.currentValue);
 }
 
 void blinkTemperature(const Parameter &parameter) {
   tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
   delay(500);
-  drawTemperature(parameter);
+  drawTemperature(parameter, parameter.defaultValue);
 }
 
 void blinkVolume(const Parameter &parameter) {
   tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
   delay(500);
-  drawVolume(parameter);
+  drawVolume(parameter, parameter.defaultValue);
 }
 
 void blinkPIDOutputIndicator(bool visible) {

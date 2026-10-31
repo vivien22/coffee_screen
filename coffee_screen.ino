@@ -82,9 +82,9 @@ CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
 // Parameters shown at startup (value, size of the digits, maximum value).
 // The values are replaced by the ones stored in the EEPROM in setup().
 ScreenParameters parameters = {
-  { 90, TEXT_SIZE_SMALL, TEMPERATURE_MAX },   // temperature (°C)
-  { 60, TEXT_SIZE_LARGE, VOLUME_MAX },        // volume (ml)
-  {  0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
+  { 0, 0, TEXT_SIZE_SMALL, TEMPERATURE_MAX },   // temperature (°C)
+  { 0, 0, TEXT_SIZE_LARGE, VOLUME_MAX },        // volume (ml)
+  { 0, 0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
 };
 
 // Parameter adjusted by the encoder (the one with the large digits)
@@ -118,11 +118,11 @@ void stopExtraction()
       undoneSeconds++;
     }
 
-    drawVolume(parameters.volume);
+    drawVolume(parameters.volume, parameters.volume.currentValue);
     // Reset to default value
-    parameters.volume.value = EEPROM.read(PARAMETERS_VOLUME_ADDR);
-    drawDuration(parameters.duration);
-    parameters.duration.value = 0;
+    parameters.volume.currentValue = parameters.volume.defaultValue;
+    drawDuration(parameters.duration, parameters.duration.currentValue);
+    parameters.duration.currentValue = 0;
     DEBUG_PRINT("Stop");
 } 
 
@@ -145,10 +145,11 @@ void onDoublePush()
   stopExtraction();
 
   if (activeParameter == PARAMETER_VOLUME) {
-    parameters.temperature.size = TEXT_SIZE_LARGE;
-    parameters.volume.size      = TEXT_SIZE_SMALL;
-    parameters.duration.size    = TEXT_SIZE_SMALL;
-    activeParameter             = PARAMETER_TEMPERATURE;
+    parameters.temperature.size         = TEXT_SIZE_LARGE;
+    parameters.volume.size              = TEXT_SIZE_SMALL;
+    parameters.duration.size            = TEXT_SIZE_SMALL;
+    activeParameter                     = PARAMETER_TEMPERATURE;
+    parameters.temperature.currentValue = parameters.temperature.defaultValue;
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
     parameters.temperature.size = TEXT_SIZE_SMALL;
     parameters.volume.size      = TEXT_SIZE_LARGE;
@@ -157,7 +158,7 @@ void onDoublePush()
   }
 
   // The sizes changed: draw the three parameters again
-  drawParameters(parameters);
+  drawCurrentParameters(parameters);
 }
 
 // Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release).
@@ -168,10 +169,11 @@ void onLongPush()
   previousMillis200 = previousMillis;
   
   if (activeParameter == PARAMETER_VOLUME) {
-    EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.value);
+    EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.defaultValue);
     blinkVolume(parameters.volume);
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
-    EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.value);
+    EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.defaultValue);
+    Setpoint = (double)parameters.temperature.defaultValue;
     blinkTemperature(parameters.temperature);
   }
 }
@@ -184,15 +186,12 @@ void setup()
 #endif
 
   // Values stored in the EEPROM
-  parameters.temperature.value = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
-  parameters.volume.value      = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+  parameters.temperature.defaultValue = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
+  parameters.volume.defaultValue      = EEPROM.read(PARAMETERS_VOLUME_ADDR);
+  parameters.volume.currentValue      = parameters.volume.defaultValue;
 
   // Display setup
   beginDisplay();
-
-  // Draw the 3 icons and parameters (Temperature, extraction volume setting and extraction time counter)
-  drawIcons();
-  drawParameters(parameters);
 
   // Setup rotary button
   encoder.begin();
@@ -201,7 +200,7 @@ void setup()
   windowStartTime = millis();
 
   //initialize the variables we're linked to
-  Setpoint = (double)parameters.temperature.value;
+  Setpoint = (double)parameters.temperature.defaultValue;
 
   //tell the PID to range between 0 and the full window size
   myPID.SetOutputLimits(0, WindowSize);
@@ -211,6 +210,11 @@ void setup()
 
   // Setup MAX31865
   thermo.begin(MAX31865_2WIRE);  // set to 2WIRE or 4WIRE as necessary
+  parameters.temperature.currentValue = thermo.temperature(RNOMINAL, RREF) + 0.5;
+  
+  // Draw the 3 icons and parameters (Temperature, extraction volume setting and extraction time counter)
+  drawIcons();
+  drawCurrentParameters(parameters);
 }
 
 unsigned long previousMillisTemp = 0;
@@ -223,17 +227,17 @@ void loop()
     if (counting) {
       if (currentMillis - previousMillis >= 1000) {
         previousMillis += 1000;
-        parameters.duration.value++;
-        if (parameters.duration.value > parameters.duration.maxValue) {
-          parameters.duration.value = 0;
+        parameters.duration.currentValue++;
+        if (parameters.duration.currentValue > parameters.duration.maxValue) {
+          parameters.duration.currentValue = 0;
         }
-        drawDuration(parameters.duration);   // draw after counting: 1 is shown after one second
+        drawDuration(parameters.duration, parameters.duration.currentValue);   // draw after counting: 1 is shown after one second
       }
       if (currentMillis - previousMillis200 >= 200) {
           previousMillis200 += 200;
           // Read volume
-          parameters.volume.value = getVolume(parameters.duration.value);
-          drawVolume(parameters.volume);
+          parameters.volume.currentValue = getVolume(parameters.duration.currentValue);
+          drawVolume(parameters.volume, parameters.volume.currentValue);
         }
     }
   }
@@ -245,11 +249,10 @@ void loop()
     // Rotation: adjust the selected parameter and draw it if it changed
     int delta = (rightSteps - leftSteps) * ENCODER_STEP;
     if (activeParameter == PARAMETER_VOLUME) {
-      if (parameters.volume.adjust(delta)) drawVolume(parameters.volume);
+      if (parameters.volume.adjust(delta)) drawVolume(parameters.volume, parameters.volume.defaultValue);
     } else if (activeParameter == PARAMETER_TEMPERATURE) {
-      if (parameters.temperature.adjust(delta)) drawTemperature(parameters.temperature);
+      if (parameters.temperature.adjust(delta)) drawTemperature(parameters.temperature, parameters.temperature.defaultValue);
     }
-
     // Push event
     if (pushEvent == PUSH_SHORT) {
       onShortPush();
@@ -262,12 +265,14 @@ void loop()
 
   // PID 
   Input = thermo.temperature(RNOMINAL, RREF);
-
-  parameters.temperature.value = Input + 0.5;
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillisTemp >= 1000) {
-    previousMillisTemp += 1000;
-    drawTemperature(parameters.temperature);
+  if(activeParameter != PARAMETER_TEMPERATURE){
+    int newValue = Input + 0.5;
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillisTemp >= 1000 && newValue != parameters.temperature.currentValue) {
+      previousMillisTemp += 1000;
+      parameters.temperature.currentValue = newValue;
+      drawTemperature(parameters.temperature, parameters.temperature.currentValue);
+    }
   }
   myPID.Compute();
 
@@ -283,7 +288,6 @@ void loop()
     DEBUG_PRINT("Relay on\n");
     DEBUG_PRINT(Output);
     DEBUG_PRINT("\n");
-
   }else{
     digitalWrite(RELAY_PIN, LOW);
     blinkPIDOutputIndicator(false);
