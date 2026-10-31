@@ -30,6 +30,7 @@
 #include "display.h"
 #include "CJMCU111.h"
 #include "volume.h"
+#include "USN_FlowSensor.h"
 #include "coffee_events.h"
 
 #ifdef SERIAL_DEBUG
@@ -84,6 +85,9 @@ uint32_t pidWindowStart = 0;
 // -----------------------------------------------------------------------------
 
 Adafruit_MAX31865 thermo(MAX31865_CS_PIN);
+
+// Pin A0 = Inflow (USN-HS06PS) | Pin A1 = Outflow (USN-HS06PB)
+USN_FlowSensor systemFlow(A0, A1);
 
 CJMCU111 encoder(
   PIN_ENCODER_GA,
@@ -356,6 +360,9 @@ static void updateExtraction(uint32_t now)
     if (newVolume != parameters.volume.currentValue) {
       parameters.volume.currentValue = newVolume;
       displayDirty |= DISPLAY_VOLUME;
+      if (parameters.volume.currentValue >= parameters.volume.defaultValue) {
+        stopExtraction(EXTRACTION_FINISHED);
+      }
     }
   }
 
@@ -516,6 +523,8 @@ void setup()
   encoder.begin();
 
   thermo.begin(RTD_WIRING);
+
+  systemFlow.begin();
 
   // First sensor read, with fault check before enabling the PID.
   const uint8_t initialFault = thermo.readFault();
