@@ -1,40 +1,15 @@
 /*
-  GC9A01 coffee screen: icons + values (temperature, volume, duration)
+  GC9A01 coffee screen
   Arduino Nano + Adafruit_GC9A01A
-  (also requires the Adafruit GFX Library and Adafruit BusIO)
 
-  Wiring (Nano hardware SPI):
-    GC9A01   Nano
-    VCC   -> 3.3V
-    GND   -> GND
-    SCL   -> D13 (SCK)
-    SDA   -> D11 (MOSI)
-    CS    -> D10
-    DC    -> D7
-    RES   -> D8
-    BL    -> D9   (backlight)
+  Main loop refactored into non-blocking, independent tasks:
+    - encoder / button events
+    - extraction timer and volume estimate
+    - MAX31865 temperature acquisition
+    - PID computation and time-proportioned relay
+    - display updates only when needed
 
-  Warning: the Nano outputs 5V while the GC9A01 runs at 3.3V.
-  Use a level shifter or series resistors (1k) on SCL, SDA, CS, DC, RES.
-
-  Files:
-    coffee_screen.ino  this file: parameters, push events and main loop
-    coffee_screen.h    encoder pins, settings, EEPROM addresses
-    display.h / .cpp   drawing on the screen (pins of the screen, types, draw functions)
-    icons.h            positions, colors and icons (used by display.cpp)
-    fonts.h            fonts (used by display.cpp)
-    CJMCU111.h / .cpp  rotary encoder with push button
-
-  Controls:
-    rotation       adjusts the selected parameter
-    short push     start / stop the duration counter
-    double push    select the next parameter (it gets the large digits)
-    long push      store the selected parameter in the EEPROM
-
-  Naming conventions (all identifiers in English):
-    macros and constants: UPPER_SNAKE_CASE
-    functions and variables: camelCase
-    types (enum, struct): PascalCase
+  Existing project dependencies and display functions are preserved.
 */
 
 #include <Adafruit_MAX31865.h>
@@ -45,255 +20,486 @@
 #include "CJMCU111.h"
 #include "volume.h"
 
-//#define SERIAL_DEBUG   // uncomment to print the push events on the serial port (115200 bauds)
+//#define SERIAL_DEBUG
 #ifdef SERIAL_DEBUG
   #define DEBUG_PRINT(text) Serial.print(text)
 #else
   #define DEBUG_PRINT(text)
 #endif
 
-// PID parameters
-#define PID_RELAY_PIN   5
-#define MAX31865_CS_PIN 6
-// Pump raley PIN
-#define PUMP_RELAY_PIN  4
+// -----------------------------------------------------------------------------
+// Hardware
+// -----------------------------------------------------------------------------
 
-//Define Variables we'll be connecting to
-double Setpoint, Input, Output;
+#define PID_RELAY_PIN    5
+#define MAX31865_CS_PIN  6
+#define PUMP_RELAY_PIN   4
 
-//Specify the links and initial tuning parameters
-double Kp=2, Ki=5, Kd=1;
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
-
-int WindowSize = 1000;
-unsigned long windowStartTime;
-
-// MAX31865 parameters
-// use hardware SPI, just pass in the CS pin
-Adafruit_MAX31865 thermo = Adafruit_MAX31865(MAX31865_CS_PIN);
-
-// The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
+// MAX31865
 #define RREF      428.0
-// The 'nominal' 0-degrees-C resistance of the sensor
 #define RNOMINAL  100.0
 
-// Rotary encoder with push button; it reports the rotation and short / double / long pushes
-CJMCU111 encoder(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS);
+// -----------------------------------------------------------------------------
+// Scheduling
+// -----------------------------------------------------------------------------
 
-// Parameters shown at startup (value, size of the digits, maximum value).
-// The values are replaced by the ones stored in the EEPROM in setup().
+constexpr unsigned long SENSOR_INTERVAL_MS     = 250;
+constexpr unsigned long EXTRACTION_TICK_MS     = 1000;
+constexpr unsigned long VOLUME_UPDATE_MS       = 200;
+constexpr unsigned long TEMPERATURE_DISPLAY_MS = 1000;
+constexpr int PID_WINDOW_MS                    = 1000;
+
+// -----------------------------------------------------------------------------
+// PID
+// -----------------------------------------------------------------------------
+
+double Setpoint = 0.0;
+double Input = 0.0;
+double Output = 0.0;
+
+double Kp = 2.0;
+double Ki = 5.0;
+double Kd = 1.0;
+
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+unsigned long pidWindowStart = 0;
+
+// -----------------------------------------------------------------------------
+// Devices and application data
+// -----------------------------------------------------------------------------
+
+Adafruit_MAX31865 thermo = Adafruit_MAX31865(MAX31865_CS_PIN);
+
+CJMCU111 encoder(
+  PIN_ENCODER_GA,
+  PIN_ENCODER_GB,
+  LONG_PUSH_MS,
+  DOUBLE_PUSH_MS
+);
+
 ScreenParameters parameters = {
-  { 0, 0, TEXT_SIZE_SMALL, TEMPERATURE_MAX },   // temperature (°C)
-  { 0, 0, TEXT_SIZE_LARGE, VOLUME_MAX },        // volume (ml)
-  { 0, 0, TEXT_SIZE_SMALL, DURATION_MAX }       // duration (s)
+  { 0, 0, TEXT_SIZE_SMALL, TEMPERATURE_MAX },
+  { 0, 0, TEXT_SIZE_LARGE, VOLUME_MAX },
+  { 0, 0, TEXT_SIZE_SMALL, DURATION_MAX }
 };
 
-// Parameter adjusted by the encoder (the one with the large digits)
 ActiveParameter activeParameter = PARAMETER_VOLUME;
 
-// Duration counter
-unsigned long previousMillis = 0;   // time of the last counted second
-unsigned long previousMillis200 = 0;
-bool counting = false;              // true while the counter runs
+bool counting = false;
+bool temperatureSensorValid = false;
+bool previousRelayState = false;
+bool relayIndicatorInitialized = false;
 
-// ------------------------------------------------------------
+unsigned long extractionSecondAt = 0;
+unsigned long volumeUpdateAt = 0;
+unsigned long sensorReadAt = 0;
+unsigned long temperatureDisplayAt = 0;
+
+// -----------------------------------------------------------------------------
+// Forward declarations
+// -----------------------------------------------------------------------------
+
+void handleInputs();
+void handleEncoderRotation(byte leftSteps, byte rightSteps);
+void updateExtractionTimer(unsigned long now);
+void updateExtractionVolume(unsigned long now);
+void updateTemperatureSensor(unsigned long now);
+void updateTemperatureDisplay(unsigned long now);
+void updateTemperatureControl(unsigned long now);
+void startExtraction();
+void stopExtraction();
+
+// -----------------------------------------------------------------------------
+// Extraction lifecycle
+// -----------------------------------------------------------------------------
 
 void startExtraction()
 {
-  // Start: the next second ends one second after the press
-    counting = true;
-    previousMillis = encoder.eventPressTime();
-    digitalWrite(PUMP_RELAY_PIN, HIGH);
-    DEBUG_PRINT("Start");
-} 
+  if (counting) {
+    return;
+  }
+
+  const unsigned long now = millis();
+
+  counting = true;
+  extractionSecondAt = encoder.eventPressTime();
+  volumeUpdateAt = now;
+
+  digitalWrite(PUMP_RELAY_PIN, HIGH);
+
+  DEBUG_PRINT("Extraction started\n");
+}
 
 void stopExtraction()
 {
-  // Stop
-    counting = false;
-    digitalWrite(PUMP_RELAY_PIN, LOW);
+  if (!counting) {
+    return;
+  }
 
-    // Give back the seconds counted after the press (at most 2: push + delay < 2 s)
-    unsigned long pressMs = encoder.eventPressTime();
-    int undoneSeconds = 0;
-    while ((long)(previousMillis - pressMs) > 0 && undoneSeconds < 2) {
-      previousMillis -= 1000;
-      undoneSeconds++;
-    }
+  counting = false;
+  digitalWrite(PUMP_RELAY_PIN, LOW);
 
-    drawVolume(parameters.volume, parameters.volume.currentValue);
-    // Reset to default value
-    parameters.volume.currentValue = parameters.volume.defaultValue;
-    drawDuration(parameters.duration, parameters.duration.currentValue);
-    parameters.duration.currentValue = 0;
-    DEBUG_PRINT("Stop");
-} 
+  // Keep the final measured volume visible until the next extraction.
+  drawVolume(parameters.volume, parameters.volume.currentValue);
 
-void onShortPush() 
+  // Reset the counters for the next extraction.
+  parameters.volume.currentValue = parameters.volume.defaultValue;
+  parameters.duration.currentValue = 0;
+
+  drawDuration(parameters.duration, parameters.duration.currentValue);
+
+  DEBUG_PRINT("Extraction stopped\n");
+}
+
+void onShortPush()
 {
-  DEBUG_PRINT("onShortPush");
-
-  if (counting == false) {
-    startExtraction();
-  } else {
+  if (counting) {
     stopExtraction();
+  } else {
+    startExtraction();
   }
 }
 
-// Double push: select the next parameter (it gets the large digits).
-// The order is volume -> duration -> temperature -> volume.
-void onDoublePush() 
+// Double push selects the next editable parameter.
+// Extraction is stopped only if it is actually running.
+void onDoublePush()
 {
-  // First stop extraction 
-  stopExtraction();
-
-  if (activeParameter == PARAMETER_VOLUME) {
-    parameters.temperature.size         = TEXT_SIZE_LARGE;
-    parameters.volume.size              = TEXT_SIZE_SMALL;
-    parameters.duration.size            = TEXT_SIZE_SMALL;
-    activeParameter                     = PARAMETER_TEMPERATURE;
-    parameters.temperature.currentValue = parameters.temperature.defaultValue;
-  } else if (activeParameter == PARAMETER_TEMPERATURE) {
-    parameters.temperature.size = TEXT_SIZE_SMALL;
-    parameters.volume.size      = TEXT_SIZE_LARGE;
-    parameters.duration.size    = TEXT_SIZE_SMALL;
-    activeParameter             = PARAMETER_VOLUME;
+  if (counting) {
+    stopExtraction();
   }
 
-  // The sizes changed: draw the three parameters again
+  if (activeParameter == PARAMETER_VOLUME) {
+    parameters.temperature.size = TEXT_SIZE_LARGE;
+    parameters.volume.size = TEXT_SIZE_SMALL;
+    parameters.duration.size = TEXT_SIZE_SMALL;
+
+    activeParameter = PARAMETER_TEMPERATURE;
+    parameters.temperature.currentValue =
+      parameters.temperature.defaultValue;
+  } else if (activeParameter == PARAMETER_TEMPERATURE) {
+    parameters.temperature.size = TEXT_SIZE_SMALL;
+    parameters.volume.size = TEXT_SIZE_LARGE;
+    parameters.duration.size = TEXT_SIZE_SMALL;
+
+    activeParameter = PARAMETER_VOLUME;
+  }
+
   drawCurrentParameters(parameters);
 }
 
-// Long push: reported as soon as the button has been held for LONG_PUSH_MS (before the release).
-// Store the selected parameter in the EEPROM.
-void onLongPush() 
+void onLongPush()
 {
-  previousMillis = millis();   // while counting, the next second starts from the reset
-  previousMillis200 = previousMillis;
-  
+  // Do not modify extraction timestamps here: saving a setting must not
+  // change the elapsed extraction time.
   if (activeParameter == PARAMETER_VOLUME) {
-    EEPROM.update(PARAMETERS_VOLUME_ADDR, parameters.volume.defaultValue);
+    EEPROM.update(
+      PARAMETERS_VOLUME_ADDR,
+      parameters.volume.defaultValue
+    );
     blinkVolume(parameters.volume);
   } else if (activeParameter == PARAMETER_TEMPERATURE) {
-    EEPROM.update(PARAMETERS_TEMPERATURE_ADDR, parameters.temperature.defaultValue);
+    EEPROM.update(
+      PARAMETERS_TEMPERATURE_ADDR,
+      parameters.temperature.defaultValue
+    );
+
     Setpoint = (double)parameters.temperature.defaultValue;
     blinkTemperature(parameters.temperature);
   }
 }
 
-// ------------------------------------------------------------
-void setup() 
+// -----------------------------------------------------------------------------
+// Input handling
+// -----------------------------------------------------------------------------
+
+void handleEncoderRotation(byte leftSteps, byte rightSteps)
+{
+  const int delta =
+    ((int)rightSteps - (int)leftSteps) * ENCODER_STEP;
+
+  if (delta == 0) {
+    return;
+  }
+
+  if (activeParameter == PARAMETER_VOLUME) {
+    if (parameters.volume.adjust(delta)) {
+      drawVolume(
+        parameters.volume,
+        parameters.volume.defaultValue
+      );
+    }
+  } else if (activeParameter == PARAMETER_TEMPERATURE) {
+    if (parameters.temperature.adjust(delta)) {
+      drawTemperature(
+        parameters.temperature,
+        parameters.temperature.defaultValue
+      );
+    }
+  }
+}
+
+void handleInputs()
+{
+  byte leftSteps = 0;
+  byte rightSteps = 0;
+  PushEvent pushEvent;
+
+  // Call update on every loop pass so the encoder library can debounce and
+  // recognize short / double / long presses with its own timing.
+  if (!encoder.update(leftSteps, rightSteps, pushEvent)) {
+    return;
+  }
+
+  handleEncoderRotation(leftSteps, rightSteps);
+
+  switch (pushEvent) {
+    case PUSH_SHORT:
+      onShortPush();
+      break;
+
+    case PUSH_DOUBLE:
+      onDoublePush();
+      break;
+
+    case PUSH_LONG:
+      onLongPush();
+      break;
+
+    default:
+      break;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Extraction tasks
+// -----------------------------------------------------------------------------
+
+void updateExtractionTimer(unsigned long now)
+{
+  if (!counting) {
+    return;
+  }
+
+  // Use a while loop to account for delayed loop passes without losing ticks.
+  while ((unsigned long)(now - extractionSecondAt) >= EXTRACTION_TICK_MS) {
+    extractionSecondAt += EXTRACTION_TICK_MS;
+
+    parameters.duration.currentValue++;
+
+    if (parameters.duration.currentValue >
+        parameters.duration.maxValue) {
+      parameters.duration.currentValue = 0;
+    }
+
+    drawDuration(
+      parameters.duration,
+      parameters.duration.currentValue
+    );
+  }
+}
+
+void updateExtractionVolume(unsigned long now)
+{
+  if (!counting) {
+    return;
+  }
+
+  if ((unsigned long)(now - volumeUpdateAt) < VOLUME_UPDATE_MS) {
+    return;
+  }
+
+  // Do not replay several old display updates after a delayed loop pass.
+  volumeUpdateAt = now;
+
+  parameters.volume.currentValue =
+    getVolume(parameters.duration.currentValue);
+
+  drawVolume(
+    parameters.volume,
+    parameters.volume.currentValue
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Temperature acquisition and display
+// -----------------------------------------------------------------------------
+
+void updateTemperatureSensor(unsigned long now)
+{
+  if ((unsigned long)(now - sensorReadAt) < SENSOR_INTERVAL_MS) {
+    return;
+  }
+
+  sensorReadAt = now;
+
+  const double measuredTemperature =
+    thermo.temperature(RNOMINAL, RREF);
+
+  // A basic plausibility check. A full RTD fault strategy should also inspect
+  // thermo.readFault() and inhibit the heater on any sensor fault.
+  if (isnan(measuredTemperature) ||
+      measuredTemperature < -20.0 ||
+      measuredTemperature > 300.0) {
+    temperatureSensorValid = false;
+    digitalWrite(PID_RELAY_PIN, LOW);
+    return;
+  }
+
+  Input = measuredTemperature;
+  temperatureSensorValid = true;
+}
+
+void updateTemperatureDisplay(unsigned long now)
+{
+  if (!temperatureSensorValid ||
+      activeParameter == PARAMETER_TEMPERATURE) {
+    return;
+  }
+
+  if ((unsigned long)(now - temperatureDisplayAt) <
+      TEMPERATURE_DISPLAY_MS) {
+    return;
+  }
+
+  temperatureDisplayAt = now;
+
+  const int newValue = (int)(Input + 0.5);
+
+  if (newValue != parameters.temperature.currentValue) {
+    parameters.temperature.currentValue = newValue;
+
+    drawTemperature(
+      parameters.temperature,
+      parameters.temperature.currentValue
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Temperature control
+// -----------------------------------------------------------------------------
+
+void updateTemperatureControl(unsigned long now)
+{
+  // Never energize the heater if the temperature reading is invalid.
+  if (!temperatureSensorValid) {
+    digitalWrite(PID_RELAY_PIN, LOW);
+
+    if (!relayIndicatorInitialized || previousRelayState) {
+      blinkPIDOutputIndicator(false);
+      previousRelayState = false;
+      relayIndicatorInitialized = true;
+    }
+    return;
+  }
+
+  myPID.Compute();
+
+  // Time-proportioning relay control.
+  if ((unsigned long)(now - pidWindowStart) >=
+      (unsigned long)PID_WINDOW_MS) {
+    // Resynchronize to now rather than iterating through missed windows.
+    pidWindowStart = now;
+  }
+
+  const unsigned long elapsedInWindow = now - pidWindowStart;
+  const bool relayOn =
+    (Output > 0.0) &&
+    (elapsedInWindow < (unsigned long)constrain(
+      (int)Output, 0, PID_WINDOW_MS
+    ));
+
+  digitalWrite(PID_RELAY_PIN, relayOn ? HIGH : LOW);
+
+  // Update the screen indicator only when the relay state changes.
+  if (!relayIndicatorInitialized || relayOn != previousRelayState) {
+    blinkPIDOutputIndicator(relayOn);
+    previousRelayState = relayOn;
+    relayIndicatorInitialized = true;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Arduino setup / loop
+// -----------------------------------------------------------------------------
+
+void setup()
 {
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
 
-  // Values stored in the EEPROM
-  parameters.temperature.defaultValue = EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
-  parameters.volume.defaultValue      = EEPROM.read(PARAMETERS_VOLUME_ADDR);
-  parameters.volume.currentValue      = parameters.volume.defaultValue;
+  pinMode(PID_RELAY_PIN, OUTPUT);
+  pinMode(PUMP_RELAY_PIN, OUTPUT);
 
-  // Display setup
+  // Safe initial output states.
+  digitalWrite(PID_RELAY_PIN, LOW);
+  digitalWrite(PUMP_RELAY_PIN, LOW);
+
+  // Load saved settings.
+  parameters.temperature.defaultValue =
+    EEPROM.read(PARAMETERS_TEMPERATURE_ADDR);
+
+  parameters.volume.defaultValue =
+    EEPROM.read(PARAMETERS_VOLUME_ADDR);
+
+  parameters.volume.currentValue =
+    parameters.volume.defaultValue;
+
+  // Initialize display and encoder.
   beginDisplay();
-
-  // Setup rotary button
   encoder.begin();
 
-  // PID setup
-  windowStartTime = millis();
+  // Initialize MAX31865.
+  thermo.begin(MAX31865_2WIRE);
 
-  //initialize the variables we're linked to
+  const double initialTemperature =
+    thermo.temperature(RNOMINAL, RREF);
+
+  if (!isnan(initialTemperature) &&
+      initialTemperature >= -20.0 &&
+      initialTemperature <= 300.0) {
+    Input = initialTemperature;
+    temperatureSensorValid = true;
+    parameters.temperature.currentValue =
+      (int)(initialTemperature + 0.5);
+  } else {
+    Input = 0.0;
+    temperatureSensorValid = false;
+  }
+
+  // Initialize PID.
   Setpoint = (double)parameters.temperature.defaultValue;
-
-  //tell the PID to range between 0 and the full window size
-  myPID.SetOutputLimits(0, WindowSize);
-
-  //turn the PID on
+  myPID.SetOutputLimits(0, PID_WINDOW_MS);
+  myPID.SetSampleTime(SENSOR_INTERVAL_MS);
   myPID.SetMode(AUTOMATIC);
 
-  // Setup MAX31865
-  thermo.begin(MAX31865_2WIRE);  // set to 2WIRE or 4WIRE as necessary
-  parameters.temperature.currentValue = thermo.temperature(RNOMINAL, RREF) + 0.5;
-  
-  // Draw the 3 icons and parameters (Temperature, extraction volume setting and extraction time counter)
+  const unsigned long now = millis();
+  pidWindowStart = now;
+  sensorReadAt = now;
+  temperatureDisplayAt = now;
+  extractionSecondAt = now;
+  volumeUpdateAt = now;
+
+  // Draw the interface.
   drawIcons();
   drawCurrentParameters(parameters);
 }
 
-unsigned long previousMillisTemp = 0;
-
-void loop() 
+void loop()
 {
-  if (activeParameter == PARAMETER_VOLUME) {
-    // Duration counter: one step per second
-    unsigned long currentMillis = millis();
-    if (counting) {
-      if (currentMillis - previousMillis >= 1000) {
-        previousMillis += 1000;
-        parameters.duration.currentValue++;
-        if (parameters.duration.currentValue > parameters.duration.maxValue) {
-          parameters.duration.currentValue = 0;
-        }
-        drawDuration(parameters.duration, parameters.duration.currentValue);   // draw after counting: 1 is shown after one second
-      }
-      if (currentMillis - previousMillis200 >= 200) {
-          previousMillis200 += 200;
-          // Read volume
-          parameters.volume.currentValue = getVolume(parameters.duration.currentValue);
-          drawVolume(parameters.volume, parameters.volume.currentValue);
-        }
-    }
-  }
+  // Read the clock once per pass so all tasks use a consistent timestamp.
+  const unsigned long now = millis();
 
-  // Encoder: rotation steps and push event since the last call
-  byte leftSteps, rightSteps;
-  PushEvent pushEvent;
-  if (encoder.update(leftSteps, rightSteps, pushEvent)) {
-    // Rotation: adjust the selected parameter and draw it if it changed
-    int delta = (rightSteps - leftSteps) * ENCODER_STEP;
-    if (activeParameter == PARAMETER_VOLUME) {
-      if (parameters.volume.adjust(delta)) drawVolume(parameters.volume, parameters.volume.defaultValue);
-    } else if (activeParameter == PARAMETER_TEMPERATURE) {
-      if (parameters.temperature.adjust(delta)) drawTemperature(parameters.temperature, parameters.temperature.defaultValue);
-    }
-    // Push event
-    if (pushEvent == PUSH_SHORT) {
-      onShortPush();
-    } else if (pushEvent == PUSH_DOUBLE) {
-      onDoublePush();
-    } else if (pushEvent == PUSH_LONG) {
-      onLongPush();
-    }
-  }
+  // 1. Inputs: the encoder library is polled on every loop pass.
+  handleInputs();
 
-  // PID 
-  Input = thermo.temperature(RNOMINAL, RREF);
-  if(activeParameter != PARAMETER_TEMPERATURE){
-    int newValue = Input + 0.5;
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillisTemp >= 1000 && newValue != parameters.temperature.currentValue) {
-      previousMillisTemp += 1000;
-      parameters.temperature.currentValue = newValue;
-      drawTemperature(parameters.temperature, parameters.temperature.currentValue);
-    }
-  }
-  myPID.Compute();
+  // 2. Extraction: timer and volume are independent tasks.
+  updateExtractionTimer(now);
+  updateExtractionVolume(now);
 
-  // Turn the output pin on/off based on pid output
-  if (millis() - windowStartTime > WindowSize){ 
-    //time to shift the Relay Window
-    windowStartTime += WindowSize;
-  }
-
-  if (Output > millis() - windowStartTime){
-    digitalWrite(PID_RELAY_PIN, HIGH);
-    blinkPIDOutputIndicator(true);
-    DEBUG_PRINT("Relay on\n");
-    DEBUG_PRINT(Output);
-    DEBUG_PRINT("\n");
-  }else{
-    digitalWrite(PID_RELAY_PIN, LOW);
-    blinkPIDOutputIndicator(false);
-    DEBUG_PRINT("Relay OFF\n");
-  }
+  // 3. Temperature: acquisition, display and control are independent.
+  updateTemperatureSensor(now);
+  updateTemperatureDisplay(now);
+  updateTemperatureControl(now);
 }
