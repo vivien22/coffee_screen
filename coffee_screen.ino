@@ -53,8 +53,9 @@
 #endif
 
 // PID parameters
-#define PIN_INPUT 0
-#define RELAY_PIN 6
+#define PIN_INPUT       0
+#define RELAY_PIN       5
+#define MAX31865_CS_PIN 6
 
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
@@ -68,10 +69,10 @@ unsigned long windowStartTime;
 
 // MAX31865 parameters
 // use hardware SPI, just pass in the CS pin
-Adafruit_MAX31865 thermo = Adafruit_MAX31865(10);
+Adafruit_MAX31865 thermo = Adafruit_MAX31865(MAX31865_CS_PIN);
 
 // The value of the Rref resistor. Use 430.0 for PT100 and 4300.0 for PT1000
-#define RREF      430.0
+#define RREF      428.0
 // The 'nominal' 0-degrees-C resistance of the sensor
 #define RNOMINAL  100.0
 
@@ -209,8 +210,10 @@ void setup()
   myPID.SetMode(AUTOMATIC);
 
   // Setup MAX31865
-  thermo.begin(MAX31865_3WIRE);  // set to 2WIRE or 4WIRE as necessary
+  thermo.begin(MAX31865_2WIRE);  // set to 2WIRE or 4WIRE as necessary
 }
+
+unsigned long previousMillisTemp = 0;
 
 void loop() 
 {
@@ -258,7 +261,14 @@ void loop()
   }
 
   // PID 
-  Input = 80.0;//thermo.temperature(RNOMINAL, RREF);
+  Input = thermo.temperature(RNOMINAL, RREF);
+
+  parameters.temperature.value = Input + 0.5;
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillisTemp >= 1000) {
+    previousMillisTemp += 1000;
+    drawTemperature(parameters.temperature);
+  }
   myPID.Compute();
 
   // Turn the output pin on/off based on pid output
