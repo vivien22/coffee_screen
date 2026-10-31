@@ -201,7 +201,7 @@ static void processPendingEvents()
   if (pending & COFFEE_EVENT_SHORT) {
     if (extractionState == EXTRACTION_RUNNING) {
       stopExtraction(EXTRACTION_FINISHED);
-    } else {
+    } else if(activeParameter == PARAMETER_VOLUME) {
       startExtraction(encoder.eventPressTime());
     }
   }
