@@ -14,8 +14,7 @@
  *   volume.h/.cpp, icons.h, fonts.h
  *
  * Important:
- *   - Volume estimation is kept compatible with the current getVolume(seconds)
- *     function. The flowmeter ISR is deliberately not guessed: its pin and
+ *   - The flowmeter ISR is deliberately not guessed: its pin and
  *     pulses-per-ml calibration must come from the actual wiring/calibration.
  *   - Heater control is disabled on MAX31865 fault or implausible temperature.
  *     This is not a substitute for an independent thermal fuse/thermostat.
@@ -29,9 +28,10 @@
 #include "coffee_screen.h"
 #include "display.h"
 #include "CJMCU111.h"
-#include "volume.h"
 #include "USN_FlowSensor.h"
 #include "coffee_events.h"
+
+//#define SERIAL_DEBUG
 
 #ifdef SERIAL_DEBUG
   #define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
@@ -66,6 +66,21 @@ static const uint16_t TEMPERATURE_DISPLAY_MS = 1000;
 static const int      PID_WINDOW_MS          = 1000;
 
 // -----------------------------------------------------------------------------
+// Feedforward
+// -----------------------------------------------------------------------------
+// While water leaves the boiler, the same amount of cold water enters it. Heating that
+// water from WATER_INLET_TEMPERATURE to the setpoint takes
+//     power [W] = flow [ml/s] x 4.186 J/(g.K) x (setpoint - inlet temperature) [K]    (1 ml = 1 g)
+// The heater is switched on for the matching part of the PID window as soon as the water
+// flows, BEFORE the sensor sees the temperature drop. The PID only corrects what the
+// feedforward does not cover.
+
+#define HEATER_POWER_W           1200.0f   // power of the heating element (W): set it to your boiler
+#define WATER_INLET_TEMPERATURE  22.0f     // temperature of the water entering the boiler (degrees C)
+#define WATER_SPECIFIC_HEAT      4.186f    // J/(g.K)
+#define FEEDFORWARD_GAIN         10.0f     // 0 = feedforward off, 1 = full estimate; tune on a real extraction
+
+// -----------------------------------------------------------------------------
 // PID
 // -----------------------------------------------------------------------------
 
@@ -80,14 +95,16 @@ double Kd = 1.0;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
 
+// Part of the PID window (ms) given by the feedforward; the PID output is added to it
+int feedforwardMs = 0;
+
 // -----------------------------------------------------------------------------
 // Devices and application data
 // -----------------------------------------------------------------------------
 
 Adafruit_MAX31865 thermo(MAX31865_CS_PIN);
 
-// Pin A0 = Inflow (USN-HS06PS) | Pin A1 = Outflow (USN-HS06PB)
-USN_FlowSensor systemFlow(A0, A1);
+USN_FlowSensor systemFlow;
 
 CJMCU111 encoder(
   PIN_ENCODER_GA,
@@ -144,7 +161,9 @@ static void startExtraction(uint32_t eventTime);
 static void stopExtraction(ExtractionState finalState);
 static void updateExtraction(uint32_t now);
 static void updateTemperatureSensor(uint32_t now);
+static void updateFlowSensor();
 static void updateTemperatureControl(uint32_t now);
+static int  computeFeedforwardMs(uint32_t now);
 static void updateDisplay();
 static void selectNextParameter();
 static void saveSelectedParameter();
@@ -293,6 +312,7 @@ static void startExtraction(uint32_t eventTime)
 
   extractionState = EXTRACTION_RUNNING;
   extractionStartedAt = eventTime;
+  systemFlow.startExtraction();
 
   // If event timestamp is not usable, start timing from now.
   const uint32_t now = millis();
@@ -319,6 +339,7 @@ static void stopExtraction(ExtractionState finalState)
   }
 
   extractionState = finalState;
+  systemFlow.stopExtraction();
   digitalWrite(PUMP_RELAY_PIN, LOW);
 
   // Update elapsed time and estimated volume once at stop.
@@ -326,8 +347,7 @@ static void stopExtraction(ExtractionState finalState)
     (uint32_t)(millis() - extractionStartedAt) / 1000UL;
 
   parameters.duration.currentValue = (int)elapsedSeconds;
-  parameters.volume.currentValue =
-    getVolume(parameters.duration.currentValue);
+  parameters.volume.currentValue = systemFlow.getNetVolume();
 
   displayDirty |= DISPLAY_VOLUME | DISPLAY_DURATION;
 
@@ -356,7 +376,7 @@ static void updateExtraction(uint32_t now)
   if ((uint32_t)(now - lastVolumeUpdateAt) >= VOLUME_PERIOD_MS) {
     lastVolumeUpdateAt = now;
 
-    const int newVolume = getVolume(parameters.duration.currentValue);
+    const int newVolume = (int)(systemFlow.getOutflowVolume() + 0.5f);
     if (newVolume != parameters.volume.currentValue) {
       parameters.volume.currentValue = newVolume;
       displayDirty |= DISPLAY_VOLUME;
@@ -371,6 +391,15 @@ static void updateExtraction(uint32_t now)
   if (elapsedSeconds > (uint32_t)parameters.duration.maxValue) {
     stopExtraction(EXTRACTION_ERROR);
   }
+}
+
+// -----------------------------------------------------------------------------
+// Flow sensor acquisition
+// -----------------------------------------------------------------------------
+
+static void updateFlowSensor()
+{
+  systemFlow.update();
 }
 
 // -----------------------------------------------------------------------------
@@ -418,13 +447,42 @@ static void updateTemperatureSensor(uint32_t now)
   }
 }
 
+// Heater on-time (ms per PID window) needed to heat the water that leaves the boiler.
+// 0 outside of an extraction.
+static int computeFeedforwardMs(uint32_t now)
+{
+  if (extractionState != EXTRACTION_RUNNING) {
+    return 0;
+  }
+
+  // USN_FlowSensor returns mL/min in both physical and simulation modes.
+  const float flow = systemFlow.getOutflowRate() / 60.0f;            // mL/s
+  const float heating = (float)Setpoint - WATER_INLET_TEMPERATURE;   // degrees to give to the new water
+
+  if (flow <= 0.0f || heating <= 0.0f) {
+    return 0;
+  }
+
+  const float powerW = flow * WATER_SPECIFIC_HEAT * heating * FEEDFORWARD_GAIN;
+  const float ms = powerW / HEATER_POWER_W * (float)PID_WINDOW_MS;
+  
+  return constrain((int)(ms + 0.5f), 0, PID_WINDOW_MS);
+}
+
 static void updateTemperatureControl(uint32_t now)
 {
   if (!temperatureValid) {
+    feedforwardMs = 0;
     setHeater(false);
+    DEBUG_PRINTLN("temperatureInvalid");
     return;
   }
 
+  // The PID works around the feedforward: it can add to it or take from it, but the total
+  // always stays between 0 and the window (so the PID integral cannot wind up).
+  feedforwardMs = computeFeedforwardMs(now);
+
+  myPID.SetOutputLimits(-feedforwardMs, PID_WINDOW_MS - feedforwardMs);
   myPID.Compute();
 
   if ((uint32_t)(now - pidWindowStart) >= (uint32_t)PID_WINDOW_MS) {
@@ -432,7 +490,7 @@ static void updateTemperatureControl(uint32_t now)
   }
 
   const uint32_t elapsedInWindow = (uint32_t)(now - pidWindowStart);
-  const int outputMs = constrain((int)Output, 0, PID_WINDOW_MS);
+  const int outputMs = constrain((int)Output + feedforwardMs, 0, PID_WINDOW_MS);
   const bool requestedState = elapsedInWindow < (uint32_t)outputMs;
 
   setHeater(requestedState);
@@ -577,6 +635,7 @@ void loop()
   const uint32_t now = millis();
 
   updateExtraction(now);
+  updateFlowSensor();
   updateTemperatureSensor(now);
   updateTemperatureControl(now);
   updateDisplay();
