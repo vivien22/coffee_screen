@@ -34,11 +34,15 @@
 //#define SERIAL_DEBUG
 
 #ifdef SERIAL_DEBUG
-  #define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
-  #define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
+#define DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
 #else
-  #define DEBUG_PRINT(...) do {} while (0)
-  #define DEBUG_PRINTLN(...) do {} while (0)
+#define DEBUG_PRINT(...) \
+  do { \
+  } while (0)
+#define DEBUG_PRINTLN(...) \
+  do { \
+  } while (0)
 #endif
 
 // -----------------------------------------------------------------------------
@@ -49,8 +53,10 @@
 #define MAX31865_CS_PIN  6
 #define PUMP_RELAY_PIN   4
 
-#define RREF      428.0
-#define RNOMINAL  100.0
+#define RREF                  428.0
+#define RNOMINAL              100.0
+#define VALID_TEMPERATURE_MIN 0
+#define VALID_TEMPERATURE_MAX 199
 
 // Change to MAX31865_3WIRE or MAX31865_4WIRE if required by your sensor wiring.
 #define RTD_WIRING MAX31865_2WIRE
@@ -84,16 +90,20 @@ static const int      PID_WINDOW_MS          = 1000;
 // PID
 // -----------------------------------------------------------------------------
 
+// The PID will be activated only if the temperature is at least PID_WORKING_RANGE from the Setpoint
+#define PID_WORKING_RANGE 20
+
 double Setpoint = 0.0;
 double Input = 0.0;
 double Output = 0.0;
 
-double Kp = 2.0;
-double Ki = 5.0;
-double Kd = 1.0;
+double Kp = 35;
+double Ki = 0.05;
+double Kd = 180;
 
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
+bool PIDModeChanged = false;
 
 // Part of the PID window (ms) given by the feedforward; the PID output is added to it
 int feedforwardMs = 0;
@@ -426,7 +436,7 @@ static void updateTemperatureSensor(uint32_t now)
 
   const double measured = thermo.temperature(RNOMINAL, RREF);
 
-  if (isnan(measured) || measured < -20.0 || measured > 300.0) {
+  if (isnan(measured) || measured < VALID_TEMPERATURE_MIN || measured > VALID_TEMPERATURE_MAX) {
     temperatureValid = false;
     setHeater(false);
     return;
@@ -435,8 +445,7 @@ static void updateTemperatureSensor(uint32_t now)
   Input = measured;
   temperatureValid = true;
 
-  if (activeParameter != PARAMETER_TEMPERATURE &&
-      (uint32_t)(now - lastTemperatureDrawAt) >= TEMPERATURE_DISPLAY_MS) {
+  if (activeParameter != PARAMETER_TEMPERATURE && (uint32_t)(now - lastTemperatureDrawAt) >= TEMPERATURE_DISPLAY_MS) {
     lastTemperatureDrawAt = now;
 
     const int roundedTemperature = (int)(measured + 0.5);
@@ -456,8 +465,8 @@ static int computeFeedforwardMs(uint32_t now)
   }
 
   // USN_FlowSensor returns mL/min in both physical and simulation modes.
-  const float flow = systemFlow.getOutflowRate() / 60.0f;            // mL/s
-  const float heating = (float)Setpoint - WATER_INLET_TEMPERATURE;   // degrees to give to the new water
+  const float flow = systemFlow.getOutflowRate() / 60.0f;           // mL/s
+  const float heating = (float)Setpoint - WATER_INLET_TEMPERATURE;  // degrees to give to the new water
 
   if (flow <= 0.0f || heating <= 0.0f) {
     return 0;
@@ -465,12 +474,11 @@ static int computeFeedforwardMs(uint32_t now)
 
   const float powerW = flow * WATER_SPECIFIC_HEAT * heating * FEEDFORWARD_GAIN;
   const float ms = powerW / HEATER_POWER_W * (float)PID_WINDOW_MS;
-  
+
   return constrain((int)(ms + 0.5f), 0, PID_WINDOW_MS);
 }
 
-static void updateTemperatureControl(uint32_t now)
-{
+static void updateTemperatureControl(uint32_t now) {
   if (!temperatureValid) {
     feedforwardMs = 0;
     setHeater(false);
@@ -478,12 +486,23 @@ static void updateTemperatureControl(uint32_t now)
     return;
   }
 
-  // The PID works around the feedforward: it can add to it or take from it, but the total
-  // always stays between 0 and the window (so the PID integral cannot wind up).
-  feedforwardMs = computeFeedforwardMs(now);
+  if (parameters.temperature.defaultValue - parameters.temperature.currentValue > PID_WORKING_RANGE){
+    myPID.SetMode(MANUAL);
+    Output = PID_WINDOW_MS;
+    PIDModeChanged = true;
+  }else{
+    if(PIDModeChanged){
+      Output = 0;
+      PIDModeChanged = false;
+    }
+    // The PID works around the feedforward: it can add to it or take from it, but the total
+    // always stays between 0 and the window (so the PID integral cannot wind up).
+    feedforwardMs = computeFeedforwardMs(now);
 
-  myPID.SetOutputLimits(-feedforwardMs, PID_WINDOW_MS - feedforwardMs);
-  myPID.Compute();
+    myPID.SetMode(AUTOMATIC);
+    myPID.SetOutputLimits(-feedforwardMs, PID_WINDOW_MS - feedforwardMs);
+    myPID.Compute();
+  }
 
   if ((uint32_t)(now - pidWindowStart) >= (uint32_t)PID_WINDOW_MS) {
     pidWindowStart = now;
@@ -589,9 +608,7 @@ void setup()
   if (initialFault == 0) {
     const double initialTemperature = thermo.temperature(RNOMINAL, RREF);
 
-    if (!isnan(initialTemperature) &&
-        initialTemperature >= -20.0 &&
-        initialTemperature <= 300.0) {
+    if (!isnan(initialTemperature) && initialTemperature >= VALID_TEMPERATURE_MIN && initialTemperature <= VALID_TEMPERATURE_MAX) {
       Input = initialTemperature;
       temperatureValid = true;
       parameters.temperature.currentValue =
