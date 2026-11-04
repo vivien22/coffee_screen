@@ -31,7 +31,7 @@
 #include "USN_FlowSensor.h"
 #include "coffee_events.h"
 
-//#define SERIAL_DEBUG
+#define SERIAL_DEBUG
 
 #ifdef SERIAL_DEBUG
 #define DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
@@ -81,10 +81,10 @@ static const int      PID_WINDOW_MS          = 1000;
 // flows, BEFORE the sensor sees the temperature drop. The PID only corrects what the
 // feedforward does not cover.
 
-#define HEATER_POWER_W           1200.0f   // power of the heating element (W): set it to your boiler
+#define HEATER_POWER_W           1100.0f   // power of the heating element (W): set it to your boiler
 #define WATER_INLET_TEMPERATURE  22.0f     // temperature of the water entering the boiler (degrees C)
 #define WATER_SPECIFIC_HEAT      4.186f    // J/(g.K)
-#define FEEDFORWARD_GAIN         10.0f     // 0 = feedforward off, 1 = full estimate; tune on a real extraction
+#define FEEDFORWARD_GAIN         0.1f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
 
 // -----------------------------------------------------------------------------
 // PID
@@ -99,11 +99,11 @@ double Output = 0.0;
 
 double Kp = 35;
 double Ki = 0.05;
-double Kd = 180;
+double Kd = 200;
 
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
-bool PIDModeChanged = false;
+bool PIDModeChangedToManual = false;
 
 // Part of the PID window (ms) given by the feedforward; the PID output is added to it
 int feedforwardMs = 0;
@@ -415,6 +415,7 @@ static void updateFlowSensor()
 // -----------------------------------------------------------------------------
 // Temperature acquisition and heater control
 // -----------------------------------------------------------------------------
+double measured;
 
 static void updateTemperatureSensor(uint32_t now)
 {
@@ -434,9 +435,9 @@ static void updateTemperatureSensor(uint32_t now)
     return;
   }
 
-  const double measured = thermo.temperature(RNOMINAL, RREF);
+  measured = thermo.temperature(RNOMINAL, RREF);
 
-  if (isnan(measured) || measured < VALID_TEMPERATURE_MIN || measured > VALID_TEMPERATURE_MAX) {
+  if (isnan(measured) || measured <= VALID_TEMPERATURE_MIN || measured > VALID_TEMPERATURE_MAX) {
     temperatureValid = false;
     setHeater(false);
     return;
@@ -478,6 +479,8 @@ static int computeFeedforwardMs(uint32_t now)
   return constrain((int)(ms + 0.5f), 0, PID_WINDOW_MS);
 }
 
+uint32_t lastDisplay = 0;
+
 static void updateTemperatureControl(uint32_t now) {
   if (!temperatureValid) {
     feedforwardMs = 0;
@@ -487,13 +490,16 @@ static void updateTemperatureControl(uint32_t now) {
   }
 
   if (parameters.temperature.defaultValue - parameters.temperature.currentValue > PID_WORKING_RANGE){
-    myPID.SetMode(MANUAL);
-    Output = PID_WINDOW_MS;
-    PIDModeChanged = true;
+    if(!PIDModeChangedToManual){
+      myPID.SetMode(MANUAL);
+      Output = PID_WINDOW_MS;
+      PIDModeChangedToManual = true;
+      DEBUG_PRINTLN("PID Off, MANUAL MODE");
+    }
   }else{
-    if(PIDModeChanged){
+    if(PIDModeChangedToManual){
       Output = 0;
-      PIDModeChanged = false;
+      PIDModeChangedToManual = false;
     }
     // The PID works around the feedforward: it can add to it or take from it, but the total
     // always stays between 0 and the window (so the PID integral cannot wind up).
@@ -511,6 +517,11 @@ static void updateTemperatureControl(uint32_t now) {
   const uint32_t elapsedInWindow = (uint32_t)(now - pidWindowStart);
   const int outputMs = constrain((int)Output + feedforwardMs, 0, PID_WINDOW_MS);
   const bool requestedState = elapsedInWindow < (uint32_t)outputMs;
+
+  if((uint32_t)(now - lastDisplay) > 1000){
+    lastDisplay = now;
+    DEBUG_PRINT(millis()); DEBUG_PRINT(" Output = "); DEBUG_PRINT(Output+feedforwardMs); DEBUG_PRINT(" Temperature = "); DEBUG_PRINTLN(measured);
+  }
 
   setHeater(requestedState);
 }
@@ -631,7 +642,7 @@ void setup()
   lastVolumeUpdateAt = now;
   lastDurationDrawAt = now;
 
-  drawIcons();
+  //drawIcons();
   drawCurrentParameters(parameters);
 
   // If the sensor was invalid at startup, keep the heater off.
