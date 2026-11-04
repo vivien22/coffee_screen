@@ -84,7 +84,7 @@ static const int      PID_WINDOW_MS          = 1000;
 #define HEATER_POWER_W           1100.0f   // power of the heating element (W): set it to your boiler
 #define WATER_INLET_TEMPERATURE  22.0f     // temperature of the water entering the boiler (degrees C)
 #define WATER_SPECIFIC_HEAT      4.186f    // J/(g.K)
-#define FEEDFORWARD_GAIN         0.1f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
+#define FEEDFORWARD_GAIN         0.3f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
 
 // -----------------------------------------------------------------------------
 // PID
@@ -98,12 +98,19 @@ double Input = 0.0;
 double Output = 0.0;
 
 double Kp = 35;
-double Ki = 0.05;
-double Kd = 200;
+double Ki = 0.1;
+double Kd = 300;
 
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
 bool PIDModeChangedToManual = false;
+
+// Temperature Filtering
+#define TEMP_FILTER_TIME_CONSTANT 2.5  // Filter time constant in seconds
+
+double    filteredTemperature = 0.0;
+bool      temperatureFilterInitialized = false;
+uint32_t  lastTemperatureFilterTime = 0;
 
 // Part of the PID window (ms) given by the feedforward; the PID output is added to it
 int feedforwardMs = 0;
@@ -415,7 +422,31 @@ static void updateFlowSensor()
 // -----------------------------------------------------------------------------
 // Temperature acquisition and heater control
 // -----------------------------------------------------------------------------
-double measured;
+
+double filterTemperature(double rawTemperature)
+{
+    uint32_t now = millis();
+
+    if (!temperatureFilterInitialized)
+    {
+        filteredTemperature = rawTemperature;
+        lastTemperatureFilterTime = now;
+        temperatureFilterInitialized = true;
+        return filteredTemperature;
+    }
+
+    double dt = (now - lastTemperatureFilterTime) / 1000.0;
+    lastTemperatureFilterTime = now;
+
+    if (dt <= 0.0)
+        return filteredTemperature;
+
+    double alpha = dt / (TEMP_FILTER_TIME_CONSTANT + dt);
+
+    filteredTemperature += alpha * (rawTemperature - filteredTemperature);
+
+    return filteredTemperature;
+}
 
 static void updateTemperatureSensor(uint32_t now)
 {
@@ -435,21 +466,21 @@ static void updateTemperatureSensor(uint32_t now)
     return;
   }
 
-  measured = thermo.temperature(RNOMINAL, RREF);
+  double measuredTemp = thermo.temperature(RNOMINAL, RREF);
 
-  if (isnan(measured) || measured <= VALID_TEMPERATURE_MIN || measured > VALID_TEMPERATURE_MAX) {
+  if (isnan(measuredTemp) || measuredTemp <= VALID_TEMPERATURE_MIN || measuredTemp > VALID_TEMPERATURE_MAX) {
     temperatureValid = false;
     setHeater(false);
     return;
   }
 
-  Input = measured;
+  Input = filterTemperature(measuredTemp);
   temperatureValid = true;
 
   if (activeParameter != PARAMETER_TEMPERATURE && (uint32_t)(now - lastTemperatureDrawAt) >= TEMPERATURE_DISPLAY_MS) {
     lastTemperatureDrawAt = now;
 
-    const int roundedTemperature = (int)(measured + 0.5);
+    const int roundedTemperature = (int)(Input + 0.5);
     if (roundedTemperature != parameters.temperature.currentValue) {
       parameters.temperature.currentValue = roundedTemperature;
       displayDirty |= DISPLAY_TEMPERATURE;
@@ -520,7 +551,7 @@ static void updateTemperatureControl(uint32_t now) {
 
   if((uint32_t)(now - lastDisplay) > 1000){
     lastDisplay = now;
-    DEBUG_PRINT(millis()); DEBUG_PRINT(" Output = "); DEBUG_PRINT(Output+feedforwardMs); DEBUG_PRINT(" Temperature = "); DEBUG_PRINTLN(measured);
+    DEBUG_PRINT(" Output = "); DEBUG_PRINT(outputMs); DEBUG_PRINT(" filteredTemperature = "); DEBUG_PRINTLN(Input);
   }
 
   setHeater(requestedState);
