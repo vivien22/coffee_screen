@@ -97,16 +97,16 @@ double Setpoint = 0.0;
 double Input = 0.0;
 double Output = 0.0;
 
-double Kp = 35;
+double Kp = 40;
 double Ki = 0.1;
-double Kd = 300;
+double Kd = 200;
 
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
 bool PIDModeChangedToManual = false;
 
 // Temperature Filtering
-#define TEMP_FILTER_TIME_CONSTANT 2.5  // Filter time constant in seconds
+#define TEMP_FILTER_TIME_CONSTANT 2.0  // Filter time constant in seconds
 
 double    filteredTemperature = 0.0;
 bool      temperatureFilterInitialized = false;
