@@ -481,8 +481,14 @@ static void updateTemperatureSensor(uint32_t now)
     lastTemperatureDrawAt = now;
 
     const int roundedTemperature = (int)(Input + 0.5);
-    if (roundedTemperature != parameters.temperature.currentValue) {
-      parameters.temperature.currentValue = roundedTemperature;
+    static int lastDisplayedTemperature = -1;
+    const int displayTemperatureKey = (Input < 100)
+      ? (int)(Input * 10.0 + 0.5)
+      : roundedTemperature * 10;
+
+    if (displayTemperatureKey != lastDisplayedTemperature) {
+      lastDisplayedTemperature = displayTemperatureKey;
+      parameters.temperature.currentValue = Input;
       displayDirty |= DISPLAY_TEMPERATURE;
     }
   }
@@ -598,10 +604,10 @@ static void updateDisplay()
   }
 
   if (dirty & DISPLAY_TEMPERATURE) {
-    const int valueToDraw =
+    const double valueToDraw =
       (activeParameter == PARAMETER_TEMPERATURE)
-        ? parameters.temperature.defaultValue
-        : parameters.temperature.currentValue;
+        ? (double)parameters.temperature.defaultValue
+        : (double)parameters.temperature.currentValue;
 
     drawTemperature(parameters.temperature, valueToDraw);
   }

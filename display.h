@@ -35,7 +35,7 @@ enum TextSize {
 
 // One displayed parameter: its value, the size of the digits and its maximum value
 struct Parameter {
-  int currentValue;
+  double currentValue;
   int defaultValue;
   TextSize size;
   int maxValue;
@@ -75,7 +75,7 @@ void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uin
 void drawIcons();
 
 // Draw one parameter: the zone is erased, then the value and its unit are drawn
-void drawTemperature(const Parameter &parameter, uint16_t value);
+void drawTemperature(const Parameter &parameter, double value);
 void drawVolume(const Parameter &parameter, uint16_t value);
 void drawDuration(const Parameter &parameter, uint16_t value);
 

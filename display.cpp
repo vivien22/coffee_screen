@@ -85,11 +85,27 @@ static int16_t drawNumber(const Parameter &parameter,
   return tft.getCursorX();
 }
 
-void drawTemperature(const Parameter &parameter, uint16_t value) {
+void drawTemperature(const Parameter &parameter, double value) {
+  // Display one decimal below 100 °C; use an integer at 100 °C and above.
+  const uint16_t roundedTenths = (uint16_t)(value * 10.0 + 0.5);
+  const bool showDecimal = (value < 100 && roundedTenths < 1000);
+  const uint16_t integerValue = showDecimal
+    ? roundedTenths / 10
+    : (uint16_t)(value + 0.5);
+
   int16_t xNumberEnd = drawNumber(parameter,
-                                  value,
+                                  integerValue,
                                   TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
                                   TEMPERATURE_X, TEMPERATURE_BASELINE);
+
+  if (showDecimal) {
+    // Draw the decimal point and first decimal digit using the same digit font.
+    // The custom digit font contains no decimal-point glyph, so draw the dot directly.
+    tft.fillCircle(xNumberEnd + 2, TEMPERATURE_BASELINE - 4, 2, COLOR_TEXT);
+    tft.setCursor(xNumberEnd + 6, TEMPERATURE_BASELINE);
+    tft.print((char)('0' + (roundedTenths % 10)));
+    xNumberEnd = tft.getCursorX();
+  }
 
   // Degree sign: the fonts have no such glyph, it is drawn as a ring of 2 px (two circles)
   tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS, COLOR_TEXT);
