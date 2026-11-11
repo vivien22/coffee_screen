@@ -98,7 +98,7 @@ void drawTemperature(const Parameter &parameter, double value) {
                                   TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
                                   TEMPERATURE_X, TEMPERATURE_BASELINE);
 
-  if (showDecimal) {
+  if (showDecimal && parameter.size == TEXT_SIZE_SMALL) {
     // Draw the decimal point and first decimal digit using the same digit font.
     // The custom digit font contains no decimal-point glyph, so draw the dot directly.
     tft.fillCircle(xNumberEnd + 2, TEMPERATURE_BASELINE - 4, 2, COLOR_TEXT);
