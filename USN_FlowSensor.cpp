@@ -6,18 +6,7 @@
 #error "USN_FlowSensor PCINT1 implementation requires an ATmega328P (classic Nano)."
 #endif
 
-namespace {
-  // Cumulative simulated output volume (mL), sampled at one-second intervals.
-  // Cumulative simulated output volume (mL), sampled at one-second intervals.
-  // Keep this table cumulative: the flow rate is derived from the difference
-  // between two consecutive entries. The values reproduce the original test profile.
-  const uint8_t SIMULATED_VOLUME_TABLE[] = {
-    0x03, 0x07, 0x0A, 0x0F, 0x10, 0x14, 0x1A, 0x20, 0x29, 0x2F,
-    0x33, 0x3A, 0x40, 0x4A, 0x50, 0x5A, 0x60, 0x6A, 0x6A, 0x6A,
-  };
-  const uint8_t SIMULATED_VOLUME_TABLE_SIZE =
-    sizeof(SIMULATED_VOLUME_TABLE) / sizeof(SIMULATED_VOLUME_TABLE[0]);
-}
+#define SIMULATED_FLOW_RATE 3.87
 
 USN_FlowSensor* USN_FlowSensor::_instance = nullptr;
 float USN_FlowSensor::_lastInRate = 0.0f;
@@ -160,38 +149,6 @@ void USN_FlowSensor::updatePhysical()
     _lastOutRate = (volumeOut / seconds) * 60.0f;
 }
 
-// Return the cumulative simulated volume at an arbitrary time. Linear interpolation
-// between adjacent one-second samples avoids visible jumps in the displayed volume.
-float USN_FlowSensor::getSimulatedVolumeAt(uint32_t elapsedMs)
-{
-    const uint32_t wholeSeconds = elapsedMs / 1000UL;
-    const uint16_t fractionMs = elapsedMs % 1000UL;
-
-    if (wholeSeconds >= (uint32_t)(SIMULATED_VOLUME_TABLE_SIZE - 1)) {
-        return (float)SIMULATED_VOLUME_TABLE[SIMULATED_VOLUME_TABLE_SIZE - 1];
-    }
-
-    const float startVolume = SIMULATED_VOLUME_TABLE[wholeSeconds];
-    const float endVolume = SIMULATED_VOLUME_TABLE[wholeSeconds + 1];
-    return startVolume + (endVolume - startVolume) * (fractionMs / 1000.0f);
-}
-
-// Return the current one-second segment's volume increment, which is numerically
-// equal to the average flow in mL/s for that segment.
-float USN_FlowSensor::getSimulatedFlowRateAt(uint32_t elapsedMs)
-{
-    const uint32_t wholeSeconds = elapsedMs / 1000UL;
-
-    if (wholeSeconds >= (uint32_t)(SIMULATED_VOLUME_TABLE_SIZE - 1)) {
-        return 0.0f;
-    }
-
-    return (float)(
-        SIMULATED_VOLUME_TABLE[wholeSeconds + 1] -
-        SIMULATED_VOLUME_TABLE[wholeSeconds]
-    );
-}
-
 // Update the simulated sensor values using elapsed time since extraction start.
 // The same simulated profile feeds both the display and the temperature feedforward.
 void USN_FlowSensor::updateSimulation(uint32_t now)
@@ -204,8 +161,8 @@ void USN_FlowSensor::updateSimulation(uint32_t now)
     }
 
     const uint32_t elapsedMs = now - _extractionStartedAt;
-    _simulatedVolume = getSimulatedVolumeAt(elapsedMs);
-    _lastOutRate = getSimulatedFlowRateAt(elapsedMs) * 60.0f;
+    _simulatedVolume = SIMULATED_FLOW_RATE * elapsedMs / 1000;
+    _lastOutRate = SIMULATED_FLOW_RATE;
     _lastInRate = _lastOutRate;
     _outflowVolume = _simulatedVolume;
     _netVolume = 0.0f;

@@ -99,7 +99,7 @@ double Output = 0.0;
 
 double Kp = 40;
 double Ki = 0.1;
-double Kd = 200;
+double Kd = 500;
 
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 uint32_t pidWindowStart = 0;
@@ -503,7 +503,7 @@ static int computeFeedforwardMs(uint32_t now)
   }
 
   // USN_FlowSensor returns mL/min in both physical and simulation modes.
-  const float flow = systemFlow.getOutflowRate() / 60.0f;           // mL/s
+  const float flow = systemFlow.getOutflowRate();                   // mL/s
   const float heating = (float)Setpoint - WATER_INLET_TEMPERATURE;  // degrees to give to the new water
 
   if (flow <= 0.0f || heating <= 0.0f) {
@@ -557,7 +557,7 @@ static void updateTemperatureControl(uint32_t now) {
 
   if((uint32_t)(now - lastDisplay) > 1000){
     lastDisplay = now;
-    DEBUG_PRINT(" Output = "); DEBUG_PRINT(outputMs); DEBUG_PRINT(" filteredTemperature = "); DEBUG_PRINTLN(Input);
+    DEBUG_PRINT(" Output = "); DEBUG_PRINT(outputMs); DEBUG_PRINT(" FeedforwardMs = "); DEBUG_PRINT(computeFeedforwardMs(now)); DEBUG_PRINT(" filteredTemperature = "); DEBUG_PRINTLN(Input);
   }
 
   setHeater(requestedState);
