@@ -17,7 +17,8 @@
       finish() is the normal end of the extraction (target volume reached, or stopped by the
       user): it goes to FLUSH_WAIT, or straight to FINISHED if the flush time is 0.
       stop() ends everything at once, in any phase, without flush.
-      Safety: no flow while the pump runs (PREINFUSION, RUNNING) for NO_FLOW_TIMEOUT_MS: stop(ERROR).
+      Safety: no flow while the pump runs (PREINFUSION, RUNNING) for NO_FLOW_TIMEOUT_MS:
+      stop(ERROR_NO_WATER). No extraction can start until clearError() (long push of the user).
 
       State              Pump   3-way valve               Ends when
       -----------------  -----  ------------------------  --------------------------------
@@ -52,7 +53,8 @@ enum ExtractionState : uint8_t {
   EXTRACTION_FLUSH_WAIT,         // pump off, valve closed: waits for a short push to start the flush
   EXTRACTION_FLUSHING,           // pump on, valve open: the group head is rinsed
   EXTRACTION_FINISHED,
-  EXTRACTION_ERROR
+  EXTRACTION_ERROR,              // extraction too long
+  EXTRACTION_ERROR_NO_WATER      // no water entering the boiler: kept until clearError()
 };
 
 class ExtractionController {
@@ -88,6 +90,11 @@ class ExtractionController {
     void update(uint32_t now, uint16_t targetVolumeMl);
 
     ExtractionState state() const { return state_; }
+
+    // No-water error: the pump is stopped, the state stays EXTRACTION_ERROR_NO_WATER and start() is
+    // ignored until clearError() puts the controller back to IDLE (ignored in any other state).
+    bool hasNoWaterError() const { return state_ == EXTRACTION_ERROR_NO_WATER; }
+    void clearError();
 
     // True from start() to the end of the sequence, whatever the phase (pre-infusion and flush
     // included), even while the pump is stopped (PREINFUSION_WAIT, FLUSH_WAIT).

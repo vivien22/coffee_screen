@@ -27,8 +27,14 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
+void ExtractionController::clearError() {
+  if (state_ == EXTRACTION_ERROR_NO_WATER) {
+    state_ = EXTRACTION_IDLE;
+  }
+}
+
 void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
-  if (isActive()) {
+  if (isActive() || state_ == EXTRACTION_ERROR_NO_WATER) {
     return;
   }
 
@@ -137,7 +143,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
       flowCheckMl_ = net;
       flowCheckAt_ = now;
     } else if ((uint32_t)(now - flowCheckAt_) >= NO_FLOW_TIMEOUT_MS) {
-      stop(EXTRACTION_ERROR);
+      stop(EXTRACTION_ERROR_NO_WATER);
       return;
     }
   }

@@ -17,7 +17,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);}
 
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
@@ -71,4 +71,32 @@ static void scenario(int flush){
     printf("flush=%d: hold 10 s ok\n",flush);
   }
 }
-int main(){ scenario(0); scenario(3); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// No-water error: the drop blinks every DROP_BLINK_MS until a long push; short / double pushes do nothing
+static void noWater(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.savePreinfusionWait(0); st.saveFlush(0);
+  CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
+  calls.clear();
+  unsigned long tError=0, tHide=0, tShow=0, tHide2=0;
+  for(int i=0;i<(int)(NO_FLOW_TIMEOUT_MS/100)+40;i++){                              // no water at all
+    t+=100; calls.clear(); m.update();
+    if(!tError && m.extraction_.state()==EXTRACTION_ERROR_NO_WATER) tError=t;
+    if(tError && !tHide && has("drop(0,0,0,0)")) tHide=t;                           // hidden at once
+    else if(tHide && !tShow && has("drop(0,1,0,0)")) tShow=t;
+    else if(tShow && !tHide2 && has("drop(0,0,0,0)")) tHide2=t;
+  }
+  CHECK(tError>0 && !PUMPON);
+  CHECK(tHide==tError);                                                              // hidden when the error is detected
+  CHECK(tShow-tHide==DROP_BLINK_MS && tHide2-tShow==DROP_BLINK_MS);                  // toggled every 600 ms
+  // short and double pushes are ignored
+  m.handleShortPush(); m.handleDoublePush(); t+=100; m.update();
+  CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER && !PUMPON);
+  // a long push clears the error: the drop is shown and stops blinking, nothing is started
+  m.handleLongPush(); calls.clear(); t+=100; m.update();
+  CHECK(m.extraction_.state()==EXTRACTION_IDLE && !m.extraction_.hasNoWaterError());
+  bool hidden=false; calls.clear(); for(int i=0;i<30;i++){ t+=100; m.update(); } CHECK(!has("drop(0,0,0,0)"));
+  (void)hidden;
+  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // a new extraction is possible
+  printf("no-water: ok\n");
+}
+int main(){ scenario(0); scenario(3); noWater(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

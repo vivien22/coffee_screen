@@ -112,6 +112,8 @@
 // Not used during the flush. Keep NO_FLOW_MIN_ML well below the real flow x NO_FLOW_TIMEOUT_MS.
 #define NO_FLOW_TIMEOUT_MS           5000UL
 #define NO_FLOW_MIN_ML               2.0f
+// After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a long push resets the error;
+// a short or double push does nothing meanwhile.
 //
 // Flush: after the extraction, the group head is rinsed with hot water.
 //   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)
@@ -137,3 +139,4 @@
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
 #define SAVE_BLINK_MS            500UL     // the value disappears this long when it is saved
 #define FLUSH_BLINK_MS           600UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING
+#define DROP_BLINK_MS            600UL     // the drop icon is alternately shown and hidden this long after a no-flow error

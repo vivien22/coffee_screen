@@ -68,6 +68,10 @@ class ScreenController {
     // the tag blinks (flushing = true). The volume shown is the one of the extraction.
     void showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool flushing);
 
+    // No-water error: the drop icon blinks (DROP_BLINK_MS) while true, and is shown again when false.
+    // Call it on every pass: it only acts when the value changes.
+    void showNoWater(bool error);
+
   private:
     enum DirtyFlags : uint8_t {
       DIRTY_NONE        = 0,
@@ -99,6 +103,12 @@ class ScreenController {
     bool tagVisible_ = true;
     uint32_t tagToggleAt_ = 0;
     double temperatureShown_ = 0.0;
+
+    // Blinking of the drop icon (no-water error)
+    bool dropBlinking_ = false;
+    bool dropBlinkPending_ = false;
+    bool dropVisible_ = true;
+    uint32_t dropToggleAt_ = 0;
 
     double liveTemperature_ = 0.0;
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none

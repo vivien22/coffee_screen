@@ -39,6 +39,7 @@ void CoffeeMachine::update() {
   const uint32_t now = millis();
 
   extraction_.update(now, screen_.settings().volume);
+  screen_.showNoWater(extraction_.hasNoWaterError());   // the drop blinks until the error is cleared
   temperature_.update(now);
   heater_.update(now,
                  temperature_.isValid(),
@@ -141,6 +142,10 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
 
 void CoffeeMachine::handleShortPush() {
   switch (extraction_.state()) {
+    case EXTRACTION_ERROR_NO_WATER:
+      // No extraction until the error is cleared by a long push
+      break;
+
     case EXTRACTION_PREINFUSION:
     case EXTRACTION_PREINFUSION_WAIT:
     case EXTRACTION_RUNNING:
@@ -170,6 +175,9 @@ void CoffeeMachine::handleShortPush() {
 
 void CoffeeMachine::handleDoublePush() {
   switch (extraction_.state()) {
+    case EXTRACTION_ERROR_NO_WATER:
+      return;   // ignored until the error is cleared by a long push
+
     case EXTRACTION_PREINFUSION:
     case EXTRACTION_PREINFUSION_WAIT:
     case EXTRACTION_RUNNING:
@@ -189,6 +197,12 @@ void CoffeeMachine::handleDoublePush() {
 }
 
 void CoffeeMachine::handleLongPush() {
+  // A long push clears the no-water error (nothing is saved)
+  if (extraction_.hasNoWaterError()) {
+    extraction_.clearError();
+    return;
+  }
+
   // A long push is ignored during an extraction (any phase, pre-infusion and flush included):
   // nothing is saved and the saved-value blink is not shown.
   if (extraction_.isActive()) {

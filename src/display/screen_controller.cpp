@@ -34,7 +34,35 @@ void ScreenController::update(uint32_t now) {
     }
   }
 
+  // Blinking drop icon (no-water error): hidden at once, then toggled every DROP_BLINK_MS
+  if (dropBlinking_) {
+    if (dropBlinkPending_) {
+      dropBlinkPending_ = false;
+      dropVisible_ = false;
+      dropToggleAt_ = now + DROP_BLINK_MS;
+      drawDrop(false);
+    } else if ((int32_t)(now - dropToggleAt_) >= 0) {
+      dropVisible_ = !dropVisible_;
+      dropToggleAt_ = now + DROP_BLINK_MS;
+      drawDrop(dropVisible_);
+    }
+  }
+
   render();
+}
+
+void ScreenController::showNoWater(bool error) {
+  if (error && !dropBlinking_) {
+    dropBlinking_ = true;
+    dropBlinkPending_ = true;
+  } else if (!error && dropBlinking_) {
+    dropBlinking_ = false;
+    dropBlinkPending_ = false;
+    if (!dropVisible_) {
+      dropVisible_ = true;
+      drawDrop(true);   // the error is cleared: the drop stays on
+    }
+  }
 }
 
 // ------------------------------------------------------------

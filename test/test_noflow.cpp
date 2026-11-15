@@ -16,7 +16,11 @@ int main(){
     for(t=250;t<NO_FLOW_TIMEOUT_MS;t+=250) e.update(t,40);
     CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1);
     t=NO_FLOW_TIMEOUT_MS; e.update(t,40);
-    CHECK(e.state()==EXTRACTION_ERROR && !e.isActive() && PUMP==0 && VALVE==0); }
+    CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && e.hasNoWaterError() && !e.isActive() && PUMP==0 && VALVE==0);
+    // no new extraction until clearError()
+    e.start(t,0,0,0); CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && PUMP==0);
+    e.clearError(); CHECK(e.state()==EXTRACTION_IDLE && !e.hasNoWaterError());
+    e.start(t,0,0,0); CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1); }
   // ---- normal flow (3 ml/s): never an error
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0);
     for(t=250;t<12000;t+=250){ f.in=t*0.003f; e.update(t,200); }
@@ -26,15 +30,15 @@ int main(){
     for(t=250;t<4000;t+=250){ f.in=t*0.003f; e.update(t,200); }
     float stuck=f.in; for(;t<4000+NO_FLOW_TIMEOUT_MS-250;t+=250){ f.in=stuck; e.update(t,200); }
     CHECK(e.state()==EXTRACTION_RUNNING);
-    t+=250; e.update(t,200); CHECK(e.state()==EXTRACTION_ERROR && PUMP==0); }
+    t+=250; e.update(t,200); CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && PUMP==0); }
   // ---- sensor disconnected: water measured as nothing, even with the OPV flow cancelling In
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0);
     for(t=250;t<=NO_FLOW_TIMEOUT_MS;t+=250){ f.in=t*0.003f; f.out=f.in; e.update(t,40); }
-    CHECK(e.state()==EXTRACTION_ERROR); }
+    CHECK(e.state()==EXTRACTION_ERROR_NO_WATER); }
   // ---- PREINFUSION without flow too (before the 30 s timeout)
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,10,3,0);
     for(t=250;t<=NO_FLOW_TIMEOUT_MS;t+=250) e.update(t,40);
-    CHECK(e.state()==EXTRACTION_ERROR && PUMP==0); }
+    CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && PUMP==0); }
   // ---- the pause of PREINFUSION_WAIT (pump off) is not a no-flow: the reference restarts with RUNNING
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,10,8,0);
     for(t=250;t<4000;t+=250){ f.in=t*0.003f*2; e.update(t,200); if(e.state()!=EXTRACTION_PREINFUSION) break; }

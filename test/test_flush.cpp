@@ -16,7 +16,7 @@ void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
-void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);}
+void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);}
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
@@ -59,7 +59,7 @@ int main(){
     e.start(t,0,0,4); e.update(t,40); e.stop(EXTRACTION_FINISHED); CHECK(e.state()==EXTRACTION_FINISHED); }  // stop() = no flush
   // ---- ERROR (duration guard) does not go to flush
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,5);
-    for(t=0;t<1100000;t+=1000){ f.vol=0; e.update(t,40); if(!e.isActive()) break; }
+    for(t=0;t<1100000;t+=1000){ f.vol=t*0.0005f; e.update(t,999); if(!e.isActive()) break; }
     CHECK(e.state()==EXTRACTION_ERROR && PUMP==0 && VALVE==0); }
   // ---- valve opens before the pump when the flush starts: checked by order in code (setValve then setPump)
   // ---- settings
