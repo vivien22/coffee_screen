@@ -24,6 +24,7 @@ void CoffeeMachine::begin() {
 
   heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
   extraction_.setLossMl(settings.loss);
+  lastActivityAt_ = millis();
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(millis(), temperature_.celsius() - TEMPERATURE_OFFSET);
@@ -49,8 +50,16 @@ void CoffeeMachine::update() {
   }
   screen_.showNoWater(extraction_.hasNoWaterError());   // the drop blinks until the error is cleared
   temperature_.update(now);
+#if STANDBY_MINUTES > 0
+  if (extraction_.isActive()) {
+    lastActivityAt_ = now;
+    standby_ = false;
+  } else if (!standby_ && (uint32_t)(now - lastActivityAt_) >= STANDBY_MINUTES * 60000UL) {
+    standby_ = true;
+  }
+#endif
   heater_.update(now,
-                 temperature_.isValid(),
+                 !standby_ && temperature_.isValid(),   // standby: the heater is off (same as a probe error)
                  temperature_.celsius(),
                  extraction_.inflowMlPerSec());
 
@@ -131,6 +140,9 @@ void CoffeeMachine::pollEncoder() {
   if (!encoder_.update(leftSteps, rightSteps, pushEvent)) {
     return;
   }
+
+  lastActivityAt_ = millis();   // any action wakes the machine up
+  standby_ = false;
 
   const int16_t delta = ((int16_t)rightSteps - (int16_t)leftSteps) * ENCODER_STEP;
   if (delta != 0) {

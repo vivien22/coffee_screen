@@ -276,4 +276,15 @@ static void calibration(){
   { memset(EEPROM.mem,0xFF,64); CoffeeMachine m3; t=1000; m3.begin(); CHECK(m3.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET); }   // regulated on the probe
   printf("calibration: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); calibration(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+static void standby(){
+  memset(EEPROM.mem,0xFF,64); CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  unsigned long t0=t; bool before=false;
+  while(t<t0+STANDBY_MINUTES*60000UL-2000){ t+=1000; m.update(); before=before||m.standby_; }
+  CHECK(!before && !m.standby_);
+  while(t<t0+STANDBY_MINUTES*60000UL+3000){ t+=1000; m.update(); }
+  CHECK(m.standby_ && !m.heater_.isOn());                         // heater off
+  m.handleShortPush(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
+  CoffeeMachine m2; m2.begin(); CHECK(!m2.standby_);               // nothing is remembered
+  printf("standby: ok\n");
+}
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); calibration(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
