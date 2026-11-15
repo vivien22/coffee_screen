@@ -72,8 +72,6 @@ private:
     float _outflowVolume;
     float _lastInRate;
     float _lastOutRate;
-
-    bool _extractionActive;
 };
 
 #endif

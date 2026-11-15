@@ -24,8 +24,7 @@ USN_FlowSensor::USN_FlowSensor() :
     _netVolume(0.0f),
     _outflowVolume(0.0f),
     _lastInRate(0.0f),
-    _lastOutRate(0.0f),
-    _extractionActive(false)
+    _lastOutRate(0.0f)
 {
 }
 
@@ -85,10 +84,6 @@ void USN_FlowSensor::handlePortCChange(uint8_t currentPort)
 // Call from loop(). The actual elapsed time is used for rate calculations.
 void USN_FlowSensor::update()
 {
-    if (!_extractionActive) {
-        //return;
-    }
-
     const uint32_t now = millis();
     const uint32_t duration = now - _lastUpdateAt;
 
@@ -99,8 +94,6 @@ void USN_FlowSensor::update()
     _lastUpdateAt = now;
     updatePhysical(duration);
 }
-
-uint32_t totalPulseIn = 0;
 
 // Convert accumulated pulses into volumes and flow rates.
 void USN_FlowSensor::updatePhysical(uint32_t durationMs)
@@ -125,13 +118,8 @@ void USN_FlowSensor::updatePhysical(uint32_t durationMs)
     _volumeIn += volumeIn;
     _volumeOut += volumeOut;
 
-    totalPulseIn += pulsesIn;
-    Serial.println(totalPulseIn);
-    Serial.println(_volumeIn);
-
     // Keep the previous volume accessors working.
     _netVolume = _volumeIn - _volumeOut;
-    Serial.println(_netVolume);
     _outflowVolume = _volumeOut;
 
     _lastInRate = (volumeIn / seconds) * 60.0f;
@@ -142,13 +130,11 @@ void USN_FlowSensor::updatePhysical(uint32_t durationMs)
 void USN_FlowSensor::startExtraction()
 {
     resetVolume();
-    _extractionActive = true;
 }
 
 // Stop reporting instantaneous flow. Accumulated volumes are preserved.
 void USN_FlowSensor::stopExtraction()
 {
-    _extractionActive = false;
     _lastInRate = 0.0f;
     _lastOutRate = 0.0f;
 }
@@ -168,7 +154,6 @@ void USN_FlowSensor::resetVolume()
     _outflowVolume = 0.0f;
     _lastInRate = 0.0f;
     _lastOutRate = 0.0f;
-    totalPulseIn = 0;
 }
 
 float USN_FlowSensor::getInflowRate()

@@ -12,7 +12,7 @@
 #define FONT_UNIT  (&FontUnit)    // units: C, ml, s
 
 // The screen driver
-Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
+static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
 void beginDisplay() {
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black
@@ -31,7 +31,7 @@ void beginDisplay() {
 
 // Blend COLOR_ICON with COLOR_BG; opacity: 0 (background) to 15 (full color).
 // The colors are RGB565: 5 bits red, 6 bits green, 5 bits blue.
-uint16_t blendColor(uint8_t opacity) {
+static uint16_t blendColor(uint8_t opacity) {
   // Channels of the background
   uint8_t r = (COLOR_BG >> 11) & 0x1F, g = (COLOR_BG >> 5) & 0x3F, b = COLOR_BG & 0x1F;
   // Difference between the icon color and the background, per channel
@@ -44,7 +44,7 @@ uint16_t blendColor(uint8_t opacity) {
 
 // Draw an icon stored as 4-bit opacity (PROGMEM): two pixels per byte, the first pixel in the
 // high nibble. Background pixels (opacity 0) are not drawn: the screen is already filled with COLOR_BG.
-void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uint8_t height) {
+static void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uint8_t height) {
   tft.startWrite();
   for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
     uint8_t opacity = pgm_read_byte(&opacities[i >> 1]);
@@ -61,12 +61,12 @@ void drawIcons() {
 }
 
 // ------------------------------------------------------------
-// Parameters
+// Values
 
-// Erase the zone of a parameter, then draw its value (small or large digits) left-aligned
+// Erase the zone of a value, then draw it (small or large digits) left-aligned
 // at x, on the given baseline. Returns the x position after the number, where the unit goes.
-static int16_t drawNumber(const Parameter &parameter,
-                          int16_t value,
+static int16_t drawNumber(int16_t value,
+                          TextSize size,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
                           int16_t x, int16_t baseline) {
   char text[6];
@@ -74,7 +74,7 @@ static int16_t drawNumber(const Parameter &parameter,
 
   tft.fillRect(zoneX, zoneY, zoneWidth, zoneHeight, COLOR_BG);
   tft.setTextColor(COLOR_TEXT);
-  if (parameter.size == TEXT_SIZE_SMALL) {
+  if (size == TEXT_SIZE_SMALL) {
     tft.setFont(FONT_SMALL);
   } else {
     tft.setFont(FONT_LARGE);
@@ -85,7 +85,7 @@ static int16_t drawNumber(const Parameter &parameter,
   return tft.getCursorX();
 }
 
-void drawTemperature(const Parameter &parameter, double value) {
+void drawTemperature(double value, TextSize size) {
   // Display one decimal below 100 °C; use an integer at 100 °C and above.
   const uint16_t roundedTenths = (uint16_t)(value * 10.0 + 0.5);
   const bool showDecimal = (value < 100 && roundedTenths < 1000);
@@ -93,12 +93,12 @@ void drawTemperature(const Parameter &parameter, double value) {
     ? roundedTenths / 10
     : (uint16_t)(value + 0.5);
 
-  int16_t xNumberEnd = drawNumber(parameter,
-                                  integerValue,
+  int16_t xNumberEnd = drawNumber(integerValue,
+                                  size,
                                   TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
                                   TEMPERATURE_X, TEMPERATURE_BASELINE);
 
-  if (showDecimal && parameter.size == TEXT_SIZE_SMALL) {
+  if (showDecimal && size == TEXT_SIZE_SMALL) {
     // Draw the decimal point and first decimal digit using the same digit font.
     // The custom digit font contains no decimal-point glyph, so draw the dot directly.
     tft.fillCircle(xNumberEnd + 2, TEMPERATURE_BASELINE - 4, 2, COLOR_TEXT);
@@ -116,9 +116,9 @@ void drawTemperature(const Parameter &parameter, double value) {
   tft.print('C');
 }
 
-void drawVolume(const Parameter &parameter, uint16_t value) {
-  int16_t xNumberEnd = drawNumber(parameter,
-                                  value,
+void drawVolume(uint16_t value, TextSize size) {
+  int16_t xNumberEnd = drawNumber(value,
+                                  size,
                                   VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT,
                                   VOLUME_X, VOLUME_BASELINE);
 
@@ -127,9 +127,9 @@ void drawVolume(const Parameter &parameter, uint16_t value) {
   tft.print(F("ml"));
 }
 
-void drawDuration(const Parameter &parameter, uint16_t value) {
-  int16_t xNumberEnd = drawNumber(parameter,
-                                  value,
+void drawDuration(uint16_t value, TextSize size) {
+  int16_t xNumberEnd = drawNumber(value,
+                                  size,
                                   DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT,
                                   DURATION_X, DURATION_BASELINE);
 
@@ -138,24 +138,14 @@ void drawDuration(const Parameter &parameter, uint16_t value) {
   tft.print('s');
 }
 
-void drawCurrentParameters(const ScreenParameters &parameters) {
-  drawTemperature(parameters.temperature, parameters.temperature.currentValue);
-  drawVolume(parameters.volume, parameters.volume.currentValue);
-  drawDuration(parameters.duration, parameters.duration.currentValue);
-}
-
-void blinkTemperature(const Parameter &parameter) {
+void clearTemperature() {
   tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
-  delay(500);
-  drawTemperature(parameter, parameter.defaultValue);
 }
 
-void blinkVolume(const Parameter &parameter) {
+void clearVolume() {
   tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-  delay(500);
-  drawVolume(parameter, parameter.defaultValue);
 }
 
-void blinkPIDOutputIndicator(bool visible) {
+void drawHeaterIndicator(bool visible) {
   tft.fillCircle(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, TEMPERATURE_DOT_RADIUS, visible ? COLOR_TEXT : COLOR_BG);
 }
