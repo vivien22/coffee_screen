@@ -2,7 +2,7 @@
 #include "../config.h"
 #include "../debug.h"
 
-ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, USN_FlowSensor &flow) :
+ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, FlowSensor &flow) :
   pumpPin_(pumpPin),
   valvePin_(valvePin),
   flow_(flow),
@@ -180,7 +180,7 @@ uint16_t ExtractionController::secondsLeft(uint32_t phaseDurationMs, uint32_t no
 }
 
 float ExtractionController::inflowMlPerSec() {
-  // USN_FlowSensor returns mL/min
+  // The flow sensor returns mL/min
   return isActive() ? flow_.getInflowRate() / 60.0f : 0.0f;
 }
 

@@ -14,7 +14,7 @@
 #include <Arduino.h>
 
 #include "../lib/CJMCU111.h"
-#include "../lib/USN_FlowSensor.h"
+#include "../lib/flow_sensor.h"
 #include "../settings/settings.h"
 #include "../heating/temperature_sensor.h"
 #include "../heating/heater_controller.h"
@@ -40,7 +40,7 @@ class CoffeeMachine {
     void handleLongPush();     // save the selected parameter (ignored during an extraction)
     void adjustActiveParameter(int16_t delta);
 
-    USN_FlowSensor flow_;
+    FlowSensor flow_;
     CJMCU111 encoder_;
     SettingsStore store_;
     TemperatureSensor temperature_;

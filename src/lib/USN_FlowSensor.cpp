@@ -1,3 +1,8 @@
+#include "../config.h"
+
+// Not compiled when the flow simulator replaces the sensors (see FLOW_SIMULATOR in config.h)
+#ifndef FLOW_SIMULATOR
+
 #include "USN_FlowSensor.h"
 
 #include <avr/interrupt.h>
@@ -190,3 +195,5 @@ float USN_FlowSensor::getOutflowVolume()
 {
     return _outflowVolume;
 }
+
+#endif  // FLOW_SIMULATOR

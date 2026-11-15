@@ -41,7 +41,7 @@
 
 #pragma once
 #include <Arduino.h>
-#include "../lib/USN_FlowSensor.h"
+#include "../lib/flow_sensor.h"
 
 enum ExtractionState : uint8_t {
   EXTRACTION_IDLE,
@@ -56,7 +56,7 @@ enum ExtractionState : uint8_t {
 
 class ExtractionController {
   public:
-    ExtractionController(uint8_t pumpPin, uint8_t valvePin, USN_FlowSensor &flow);
+    ExtractionController(uint8_t pumpPin, uint8_t valvePin, FlowSensor &flow);
 
     // The pump and the valve are switched off.
     void begin();
@@ -135,7 +135,7 @@ class ExtractionController {
 
     uint8_t pumpPin_;
     uint8_t valvePin_;
-    USN_FlowSensor &flow_;
+    FlowSensor &flow_;
 
     ExtractionState state_;
     uint32_t startedAt_;        // start of the extraction (push time): total duration
