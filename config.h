@@ -16,6 +16,7 @@
 #define PIN_TFT_BL        9     // backlight
 #define PIN_HEATER_RELAY  5
 #define PIN_PUMP_RELAY    4
+#define PIN_VALVE_RELAY   A2
 #define PIN_MAX31865_CS   6
 
 // ---------- CJMCU-111 rotary encoder ----------
@@ -62,8 +63,17 @@
 #define FEEDFORWARD_GAIN         0.3f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
 
 // ---------- Extraction ----------
-#define VOLUME_PERIOD_MS         250UL     // volume check / end of extraction
-#define MAX_PRESS_TIME_AGE_MS    5000UL    // older push timestamps are ignored (timer starts "now")
+#define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
+
+// Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.
+//   PREINFUSION       pump ON  + valve open   (PREINFUSION_TIME_MS)
+//   PREINFUSION_WAIT  pump OFF + valve open   (PREINFUSION_WAITING_TIME_MS)
+//   RUNNING           pump ON  + valve open   (until the target volume is reached)
+// Set a duration to 0 to skip the matching phase (both at 0: no pre-infusion at all).
+#define PREINFUSION_TIME_MS          5000UL   // pump running, puck being wetted
+#define PREINFUSION_WAITING_TIME_MS  5000UL   // pump stopped, puck soaking
+
+#define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 
 // ---------- Screen ----------
 // Draw the three icons at startup. Disabled: the icon data (about 2.1 KB) is then not in the flash.

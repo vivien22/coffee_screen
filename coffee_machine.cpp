@@ -5,13 +5,13 @@ CoffeeMachine::CoffeeMachine() :
   encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS),
   temperature_(PIN_MAX31865_CS),
   heater_(PIN_HEATER_RELAY),
-  extraction_(PIN_PUMP_RELAY, flow_),
+  extraction_(PIN_PUMP_RELAY, PIN_VALVE_RELAY, flow_),
   wasExtracting_(false)
 {
 }
 
 void CoffeeMachine::begin() {
-  // Outputs first: heater and pump off.
+  // Outputs first: heater, pump and valve off.
   heater_.begin();
   extraction_.begin();
 
@@ -46,7 +46,7 @@ void CoffeeMachine::update() {
                  extraction_.outflowMlPerSec());
 
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
-  const bool extracting = extraction_.isRunning();
+  const bool extracting = extraction_.isActive();
   if (extracting || wasExtracting_) {
     screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
   }
@@ -87,14 +87,14 @@ void CoffeeMachine::pollEncoder() {
 
 void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   // The target volume of a running extraction cannot be changed
-  if (screen_.activeParameter() == PARAMETER_VOLUME && extraction_.isRunning()) {
+  if (screen_.activeParameter() == PARAMETER_VOLUME && extraction_.isActive()) {
     return;
   }
   screen_.adjustActiveParameter(delta);
 }
 
 void CoffeeMachine::handleShortPush() {
-  if (extraction_.isRunning()) {
+  if (extraction_.isActive()) {
     extraction_.stop(EXTRACTION_FINISHED);
   } else if (screen_.activeParameter() == PARAMETER_VOLUME) {
     extraction_.start(encoder_.eventPressTime());
@@ -103,7 +103,7 @@ void CoffeeMachine::handleShortPush() {
 }
 
 void CoffeeMachine::handleDoublePush() {
-  if (extraction_.isRunning()) {
+  if (extraction_.isActive()) {
     extraction_.stop(EXTRACTION_FINISHED);
   }
   screen_.selectNextParameter();
