@@ -14,13 +14,16 @@ static const uint8_t CONFIG_AUTO_CONVERT = 0x40;   // continuous conversion
 static const uint8_t CONFIG_3WIRE        = 0x10;
 static const uint8_t CONFIG_FAULT_CLEAR  = 0x02;
 
-// Callendar-Van Dusen coefficients of a platinum RTD (valid above 0 degrees C)
-static const float RTD_A = 3.9083e-3f;
-static const float RTD_B = -5.775e-7f;
-static const float Z1 = -RTD_A;
-static const float Z2 = RTD_A * RTD_A - 4.0f * RTD_B;
-static const float Z3 = 4.0f * RTD_B / (float)RNOMINAL;
-static const float Z4 = 2.0f * RTD_B;
+// Temperature of a platinum RTD from its resistance: polynomial of degree 2 fitted on the
+// Callendar-Van Dusen equation between 0 and 200 degrees C (it replaces the exact formula and its
+// square root, which costs flash). With x = 100 * (R / RNOMINAL - 1), in "ohms of a PT100 above 0 degrees C":
+//     T = RTD_C2 * x * x + RTD_C1 * x + RTD_C0
+// Error against the exact formula: 0.019 degrees C at most between 0 and 200 degrees C (0.002 around 93),
+// below the resolution of the MAX31865 (0.034 degrees C per step with RREF = 428). Not valid outside
+// 0..200 degrees C: those values are rejected anyway (VALID_TEMPERATURE_MIN / MAX).
+static const float RTD_C2 = 1.05828606e-3f;
+static const float RTD_C1 = 2.55580861f;
+static const float RTD_C0 = 1.83700867e-2f;
 
 // ---------- SPI access (mode 1: the screen uses mode 0, so every access is a transaction) ----------
 static void writeRegister(uint8_t csPin, uint8_t reg, uint8_t value) {
@@ -102,9 +105,10 @@ void TemperatureSensor::sample(uint32_t now) {
   }
 
   const float resistance = (float)(rtdRegister >> 1) / 32768.0f * (float)RREF;
-  const float raw = (sqrtf(Z2 + Z3 * resistance) + Z1) / Z4;
+  const float x = resistance * (100.0f / (float)RNOMINAL) - 100.0f;
+  const float raw = (RTD_C2 * x + RTD_C1) * x + RTD_C0;
 
-  if (isnan(raw) || raw <= VALID_TEMPERATURE_MIN || raw > VALID_TEMPERATURE_MAX) {
+  if (raw <= VALID_TEMPERATURE_MIN || raw > VALID_TEMPERATURE_MAX) {
     valid_ = false;
     return;
   }
