@@ -141,8 +141,11 @@ void CoffeeMachine::pollEncoder() {
     return;
   }
 
-  lastActivityAt_ = millis();   // any action wakes the machine up
-  standby_ = false;
+  lastActivityAt_ = millis();   // any action wakes the machine up...
+  if (standby_) {
+    standby_ = false;
+    return;                     // ...and is not handled
+  }
 
   const int16_t delta = ((int16_t)rightSteps - (int16_t)leftSteps) * ENCODER_STEP;
   if (delta != 0) {

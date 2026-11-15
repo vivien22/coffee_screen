@@ -38,7 +38,7 @@
 #define TEMPERATURE_OFFSET   5
 
 // Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
-// off. Nothing changes on the screen. Any action wakes the machine up (and is handled as usual). Nothing is saved:
+// off. Nothing changes on the screen. Any action wakes the machine up (that first action is ignored). Nothing is saved:
 // after a reboot the machine is awake. 0 = no standby.
 #define STANDBY_MINUTES      30
 #define DEFAULT_VOLUME       40
