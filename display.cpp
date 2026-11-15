@@ -9,7 +9,7 @@
 // ---------- Fonts (digits in two sizes, units) ----------
 #define FONT_SMALL (&FontSmall)   // digits, small size
 #define FONT_LARGE (&FontLarge)   // digits, large size
-#define FONT_UNIT  (&FontUnit)    // units: C, ml, s
+#define FONT_UNIT  (&FontUnit)    // units: C, ml, s (codes '0'..'3', see fonts.h)
 #define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
 
 // The screen driver
@@ -116,7 +116,7 @@ void drawTemperature(double value, TextSize size) {
 
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-  tft.print('C');
+  tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
 }
 
 void drawVolume(uint16_t value, TextSize size) {
@@ -127,7 +127,7 @@ void drawVolume(uint16_t value, TextSize size) {
 
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
-  tft.print(F("ml"));
+  tft.print(F("21"));
 }
 
 // Phase tag at a fixed position, above the unit. FontTag only holds the letters P R E W A I T F L U S H, under the
@@ -162,7 +162,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
 
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
-  tft.print('s');
+  tft.print('3');
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
     drawTag(tag);
