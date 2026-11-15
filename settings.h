@@ -1,9 +1,8 @@
 /*
   settings: the values the user can change and save (temperature setpoint, volume,
   pre-infusion time, wait time and flush time).
-  Stored in EEPROM with a magic byte: a blank or unknown EEPROM gives the defaults, the previous
-  layouts (without the times, or without the flush time) are migrated, and the loaded values are always clamped to
-  their valid range.
+  Stored in EEPROM with a magic byte: a blank or unknown EEPROM gives the defaults, and the
+  loaded values are always clamped to their valid range. No migration of older layouts.
 */
 
 #pragma once
