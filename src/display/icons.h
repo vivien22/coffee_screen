@@ -30,7 +30,7 @@
 #define TEMPERATURE_X                 87    // left edge of the number
 #define TEMPERATURE_BASELINE          71    // baseline of the number
 #define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
-#define TEMPERATURE_ERROR_BASELINE    64    // baseline of "ERR" (sensor fault), centered on the thermometer
+#define TEMPERATURE_ERROR_BASELINE    64    // baseline of "ERR" (sensor fault): 30 px capitals, centered on the thermometer
 #define TEMPERATURE_DEGREE_Y          53    // center of the degree sign
 #define TEMPERATURE_ZONE_X            86    // zone erased before each update: x 86 -> 220
 #define TEMPERATURE_ZONE_Y            22    // y 22 -> 74
