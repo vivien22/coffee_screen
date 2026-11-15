@@ -20,6 +20,8 @@
  * This is not a substitute for an independent thermal fuse/thermostat.
  */
 
+#include <avr/wdt.h>
+#include "src/config.h"
 #include "src/machine/coffee_machine.h"
 #include "src/debug.h"
 
@@ -27,11 +29,24 @@ CoffeeMachine machine;
 
 void setup()
 {
+#ifdef WATCHDOG_TIMEOUT
+  // After a watchdog reset the watchdog is still running: stop it while the setup runs
+  MCUSR = 0;
+  wdt_disable();
+#endif
+
   DEBUG_BEGIN(115200);
   machine.begin();
+
+#ifdef WATCHDOG_TIMEOUT
+  wdt_enable(WATCHDOG_TIMEOUT);
+#endif
 }
 
 void loop()
 {
+#ifdef WATCHDOG_TIMEOUT
+  wdt_reset();   // if loop() is blocked longer than WATCHDOG_TIMEOUT, the board resets
+#endif
   machine.update();
 }

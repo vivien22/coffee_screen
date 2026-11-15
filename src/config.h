@@ -121,6 +121,14 @@
 
 #define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 
+// ---------- Watchdog ----------
+// If loop() does not run for WATCHDOG_TIMEOUT, the ATmega328P resets itself: the pump, the valve
+// and the heater relays are released (pins back to inputs) until the setup runs again.
+// Comment the line out to disable it. Choose WDTO_4S or WDTO_8S: a Nano with the OLD bootloader
+// does not disable the watchdog after a reset and can stay in a reset loop with a short timeout
+// (flash the Optiboot bootloader, or select "ATmega328P (Old Bootloader)" only if you do not use this).
+#define WATCHDOG_TIMEOUT   WDTO_4S
+
 // ---------- Screen ----------
 // Draw the three icons at startup. Disabled: the icon data (about 1 KB) is then not in the flash.
 #define DISPLAY_ICONS
