@@ -105,6 +105,13 @@
 // in the cup. Safety: the pre-infusion ends after PREINFUSION_TIMEOUT_MS even if the volume is not
 // reached (flow sensor or pump problem).
 #define PREINFUSION_TIMEOUT_MS       30000UL
+
+// No-flow safety: while the pump runs (PREINFUSION and RUNNING), the water that enters the boiler
+// (In - Out) must increase by at least NO_FLOW_MIN_ML every NO_FLOW_TIMEOUT_MS. Otherwise the
+// pump is stopped and the extraction ends in ERROR (empty tank, pump or flow sensor problem).
+// Not used during the flush. Keep NO_FLOW_MIN_ML well below the real flow x NO_FLOW_TIMEOUT_MS.
+#define NO_FLOW_TIMEOUT_MS           5000UL
+#define NO_FLOW_MIN_ML               2.0f
 //
 // Flush: after the extraction, the group head is rinsed with hot water.
 //   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)

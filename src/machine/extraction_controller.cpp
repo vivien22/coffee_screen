@@ -130,6 +130,18 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   const uint32_t elapsedSeconds = (uint32_t)(now - startedAt_) / 1000UL;
   durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
 
+  // ----- No-flow safety: the pump runs but the water does not enter the boiler -----
+  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_RUNNING) {
+    const float net = flow_.getNetVolume();
+    if (net - flowCheckMl_ >= NO_FLOW_MIN_ML) {
+      flowCheckMl_ = net;
+      flowCheckAt_ = now;
+    } else if ((uint32_t)(now - flowCheckAt_) >= NO_FLOW_TIMEOUT_MS) {
+      stop(EXTRACTION_ERROR);
+      return;
+    }
+  }
+
   // ----- Phase sequencing: PREINFUSION -> PREINFUSION_WAIT -> RUNNING -----
   // PREINFUSION ends on the volume that entered the boiler (In - Out), with a time limit as a safety.
   if (state_ == EXTRACTION_PREINFUSION &&
@@ -195,6 +207,12 @@ uint16_t ExtractionController::cupVolumeMl() {
 void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   state_ = phase;
   phaseStartedAt_ = now;
+
+  // The no-flow safety watches the pump phases: its reference restarts each time the pump starts
+  if (phase == EXTRACTION_PREINFUSION || phase == EXTRACTION_RUNNING) {
+    flowCheckMl_ = flow_.getNetVolume();
+    flowCheckAt_ = now;
+  }
 
   switch (phase) {
     case EXTRACTION_PREINFUSION:

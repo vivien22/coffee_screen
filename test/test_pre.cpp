@@ -42,11 +42,11 @@ int main(){
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,50,0,0);
     f.in=50; t=300; e.update(t,100); CHECK(e.state()==EXTRACTION_RUNNING);                      // 50 - 30 = 20 < 100
     f.in=130; t=600; e.update(t,100); CHECK(e.state()==EXTRACTION_FINISHED && e.volumeMl()==100); }
-  // ---- safety: no flow, the pre-infusion ends after PREINFUSION_TIMEOUT_MS
+  // ---- safety: very low flow (0.5 ml/s: not a no-flow error), the pre-infusion ends after PREINFUSION_TIMEOUT_MS
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,20,3,0);
-    for(t=250;t<PREINFUSION_TIMEOUT_MS;t+=250) e.update(t,40);
+    for(t=250;t<PREINFUSION_TIMEOUT_MS;t+=250){ f.in=t*0.0005f; e.update(t,40); }
     CHECK(e.state()==EXTRACTION_PREINFUSION);
-    t=PREINFUSION_TIMEOUT_MS; e.update(t,40); CHECK(e.state()==EXTRACTION_PREINFUSION_WAIT && PUMP==0); }
+    t=PREINFUSION_TIMEOUT_MS; f.in=t*0.0005f; e.update(t,40); CHECK(e.state()==EXTRACTION_PREINFUSION_WAIT && PUMP==0); }
   // ---- pre-infusion volume 0: neither pre-infusion nor wait
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,5,0); CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1); }
   // ---- settings

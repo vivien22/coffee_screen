@@ -17,6 +17,7 @@
       finish() is the normal end of the extraction (target volume reached, or stopped by the
       user): it goes to FLUSH_WAIT, or straight to FINISHED if the flush time is 0.
       stop() ends everything at once, in any phase, without flush.
+      Safety: no flow while the pump runs (PREINFUSION, RUNNING) for NO_FLOW_TIMEOUT_MS: stop(ERROR).
 
       State              Pump   3-way valve               Ends when
       -----------------  -----  ------------------------  --------------------------------
@@ -148,4 +149,6 @@ class ExtractionController {
     uint16_t preinfusionMlLeft_;
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
+    float flowCheckMl_;         // In - Out at the last progress seen (no-flow safety)
+    uint32_t flowCheckAt_;      // time of that progress
 };
