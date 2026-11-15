@@ -71,6 +71,7 @@ class ScreenController {
     void showPreinfusionWait(uint16_t volumeMl, uint16_t secondsLeft);
 
     // Ready for the next extraction: the target volume and a duration of 0 s are shown, no tag.
+    // In MANUAL mode the duration is the MANUAL time (what will be counted down), 0 if it is 0.
     void showReady();
 
     // Flush: the "FLUSH" tag is shown after the duration. While waiting for the push the duration is
@@ -98,6 +99,7 @@ class ScreenController {
     void render();
     void activate(ActiveParameter next);        // select a parameter and show it
     bool availableInMode(ActiveParameter p) const;
+    uint16_t readyDuration() const;
     void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);
 
     Settings settings_;

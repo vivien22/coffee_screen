@@ -178,10 +178,16 @@ static void manualTime(){
   CHECK(t-t0>=6900 && t-t0<=7300);
   calls.clear(); t+=100; m.update();
   // the final values: elapsed time (7 s), kept 10 s
-  { bool dur7=false; calls.clear(); for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)")); (void)dur7; }
-  // time 0: the old behaviour, the pump runs until the second push
-  m.handleDoublePush(); m.screen_.adjustActiveParameter(-7); m.handleLongPush(); CHECK(EEPROM.mem[9]==0);
-  m.handleDoublePush(); m.handleDoublePush();
+  { calls.clear(); for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)") && !has("dur(7,0,0,1)"));   // the values of the extraction stay
+    calls.clear(); for(int i=0;i<60;i++){ t+=100; m.update(); }
+    CHECK(has("dur(7,0,0,1)") && !has("dur(0,0,0,1)")); }                  // then the MANUAL time (7 s), not 0
+  // the time set stays shown when another parameter is selected, and after a mode change
+  m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME); m.screen_.adjustActiveParameter(3);
+  calls.clear(); m.handleDoublePush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));
+  calls.clear(); m.handleVeryLongPush(); m.handleVeryLongPush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));   // AUTO then MANUAL again
+  m.handleDoublePush(); m.screen_.adjustActiveParameter(-10); m.handleLongPush(); m.handleDoublePush(); m.handleDoublePush();
+  // time 0: the old behaviour, the pump runs until the second push, and 0 s is shown
+  CHECK(EEPROM.mem[9]==0 && m.screen_.activeParameter()==PARAMETER_VOLUME);
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   for(int i=0;i<300;i++){ t+=100; m.flow_.in+=0.3f; m.update(); } CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
   printf("manual time: ok\n");
