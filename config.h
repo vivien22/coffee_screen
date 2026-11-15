@@ -36,6 +36,8 @@
 #define PREINFUSION_MAX_SECONDS           10
 #define DEFAULT_PREINFUSION_SECONDS       5
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
+#define FLUSH_MAX_SECONDS                 10
+#define DEFAULT_FLUSH_SECONDS             5
 
 // ---------- Temperature sensor (MAX31865 + PT100) ----------
 #define RREF                       428.0
@@ -76,6 +78,12 @@
 // Both times are settings (0 to PREINFUSION_MAX_SECONDS, saved in EEPROM):
 //   pre-infusion time = 0: no pre-infusion at all (the wait is skipped too)
 //   wait time = 0:         only the wait is skipped
+//
+// Flush: after the extraction, the group head is rinsed with hot water.
+//   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)
+//   FLUSHING          pump ON  + valve open   (flush time, set on the screen)
+// The flush time is a setting (0 to FLUSH_MAX_SECONDS, saved in EEPROM):
+//   flush time = 0:  no flush at all (FLUSH_WAIT is skipped too, the extraction ends in FINISHED)
 
 #define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 

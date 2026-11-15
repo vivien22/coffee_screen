@@ -63,13 +63,12 @@
 #define DURATION_ZONE_WIDTH           (240 - DURATION_ZONE_X)
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
-#define DURATION_TAG_X                (DURATION_X + 45)   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
-                                            // not move when the digit of the countdown changes width
-#define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
-// When the duration field shows a selected pre-infusion setting (large digits, up to "10"), the tag
-// moves to the top right of the field, above the "s": it cannot sit next to the large number.
-#define DURATION_TAG_LARGE_X          (DURATION_X + 66)
-#define DURATION_TAG_LARGE_BASELINE   172
+// Phase tag ("PRE", "WAIT", "FLUSH"): top right of the field, above the "s". Its position is fixed,
+// small or large digits (countdown, or setting being edited): it does not move when the number
+// changes width, and it clears "10s" in both sizes (a tag next to the small "10s" would overlap it,
+// and "FLUSH" would not fit on the round screen there).
+#define DURATION_TAG_X                (DURATION_X + 66)   // left edge of the tag
+#define DURATION_TAG_BASELINE         172                 // baseline of the tag
 
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.

@@ -56,6 +56,11 @@ void CoffeeMachine::update() {
                                 extraction_.phaseSecondsLeft(),
                                 extraction_.state() == EXTRACTION_PREINFUSION_WAIT);
         break;
+      case EXTRACTION_FLUSH_WAIT:
+      case EXTRACTION_FLUSHING:
+        // Flush time (then countdown), with the "FLUSH" tag; the volume is the extraction's
+        screen_.showFlush(extraction_.volumeMl(), extraction_.phaseSecondsLeft());
+        break;
       default:
         // Main extraction, or final values of an extraction that just stopped
         screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
@@ -98,8 +103,8 @@ void CoffeeMachine::pollEncoder() {
 }
 
 void CoffeeMachine::adjustActiveParameter(int16_t delta) {
-  // Only the temperature can be changed during an extraction: the volume and the pre-infusion
-  // times are read when it starts
+  // Only the temperature can be changed during an extraction (flush included): the volume and
+  // the times are read when it starts
   if (screen_.activeParameter() != PARAMETER_TEMPERATURE && extraction_.isActive()) {
     return;
   }
@@ -107,16 +112,36 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
 }
 
 void CoffeeMachine::handleShortPush() {
-  if (extraction_.isActive()) {
-    extraction_.stop(EXTRACTION_FINISHED);
-  } else if (screen_.activeParameter() == PARAMETER_VOLUME) {
-    const Settings &settings = screen_.settings();
-    extraction_.start(encoder_.eventPressTime(), settings.preinfusion, settings.preinfusionWait);
-    screen_.showExtractionStarted();
+  switch (extraction_.state()) {
+    case EXTRACTION_PREINFUSION:
+    case EXTRACTION_PREINFUSION_WAIT:
+    case EXTRACTION_RUNNING:
+      // The user ends the extraction: next is the flush (if its time is not 0)
+      extraction_.finish(millis());
+      break;
+
+    case EXTRACTION_FLUSH_WAIT:
+      extraction_.startFlush(millis());
+      break;
+
+    case EXTRACTION_FLUSHING:
+      // Stop the flush before its time
+      extraction_.stop(EXTRACTION_FINISHED);
+      break;
+
+    default:   // IDLE, FINISHED, ERROR
+      if (screen_.activeParameter() == PARAMETER_VOLUME) {
+        const Settings &settings = screen_.settings();
+        extraction_.start(encoder_.eventPressTime(),
+                          settings.preinfusion, settings.preinfusionWait, settings.flush);
+        screen_.showExtractionStarted();
+      }
+      break;
   }
 }
 
 void CoffeeMachine::handleDoublePush() {
+  // Stops everything at once, in any phase (no flush)
   if (extraction_.isActive()) {
     extraction_.stop(EXTRACTION_FINISHED);
   }
@@ -124,7 +149,7 @@ void CoffeeMachine::handleDoublePush() {
 }
 
 void CoffeeMachine::handleLongPush() {
-  // A long push is ignored during an extraction (any phase, pre-infusion included):
+  // A long push is ignored during an extraction (any phase, pre-infusion and flush included):
   // nothing is saved and the saved-value blink is not shown.
   if (extraction_.isActive()) {
     return;
@@ -141,6 +166,9 @@ void CoffeeMachine::handleLongPush() {
       break;
     case PARAMETER_PREINFUSION_WAIT:
       store_.savePreinfusionWait(settings.preinfusionWait);
+      break;
+    case PARAMETER_FLUSH:
+      store_.saveFlush(settings.flush);
       break;
     default:
       store_.saveTemperature(settings.temperature);

@@ -1,8 +1,8 @@
 /*
   settings: the values the user can change and save (temperature setpoint, volume,
-  pre-infusion time and wait time).
+  pre-infusion time, wait time and flush time).
   Stored in EEPROM with a magic byte: a blank or unknown EEPROM gives the defaults, the previous
-  layout (without the two times) is migrated, and the loaded values are always clamped to
+  layouts (without the times, or without the flush time) are migrated, and the loaded values are always clamped to
   their valid range.
 */
 
@@ -14,6 +14,7 @@ struct Settings {
   int16_t volume;        // ml
   int16_t preinfusion;       // s, 0 = no pre-infusion
   int16_t preinfusionWait;   // s, 0 = no wait
+  int16_t flush;             // s, 0 = no flush
 };
 
 class SettingsStore {
@@ -23,4 +24,5 @@ class SettingsStore {
     void saveVolume(int16_t value);
     void savePreinfusion(int16_t seconds);
     void savePreinfusionWait(int16_t seconds);
+    void saveFlush(int16_t seconds);
 };

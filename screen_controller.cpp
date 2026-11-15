@@ -28,7 +28,7 @@ void ScreenController::update(uint32_t now) {
 // User actions
 
 void ScreenController::selectNextParameter() {
-  // Volume -> pre-infusion -> wait -> temperature -> volume
+  // Volume -> pre-infusion -> wait -> flush -> temperature -> volume
   const ActiveParameter previous = active_;
   active_ = (ActiveParameter)((active_ + 1) % PARAMETER_COUNT);
 
@@ -61,6 +61,9 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
     case PARAMETER_PREINFUSION_WAIT:
       value = &settings_.preinfusionWait; maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
       break;
+    case PARAMETER_FLUSH:
+      value = &settings_.flush;           maxValue = FLUSH_MAX_SECONDS;       dirtyField = DIRTY_DURATION_NUMBER;
+      break;
     default:
       value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
       break;
@@ -92,7 +95,7 @@ void ScreenController::confirmSave(uint32_t now) {
       clearTemperature();
       blinkField_ = DIRTY_TEMPERATURE;
       break;
-    default:   // pre-infusion or wait: both are shown in the duration field
+    default:   // pre-infusion, wait or flush: all are shown in the duration field
       clearDuration();
       blinkField_ = DIRTY_DURATION;
       break;
@@ -152,6 +155,10 @@ void ScreenController::showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, 
   showExtractionValues(volumeMl, secondsLeft, waiting ? PHASE_TAG_PREINFUSION_WAIT : PHASE_TAG_PREINFUSION);
 }
 
+void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft) {
+  showExtractionValues(volumeMl, secondsLeft, PHASE_TAG_FLUSH);
+}
+
 // The whole duration field is redrawn when its tag changes; when only the number changes
 // (countdown, elapsed time), the tag is left alone.
 void ScreenController::showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag) {
@@ -190,12 +197,14 @@ void ScreenController::render() {
     // The tag is redrawn only if the whole field is dirty (not when only the number changed).
     const bool redrawTag = (dirty & DIRTY_DURATION) != 0;
 
-    // While a pre-infusion time is selected, the field shows that setting (large digits, with its tag).
+    // While a pre-infusion, wait or flush time is selected, the field shows that setting (large digits, with its tag).
     // Otherwise it shows the duration of the extraction (or the countdown of its pre-infusion).
     if (active_ == PARAMETER_PREINFUSION) {
       drawDuration(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
     } else if (active_ == PARAMETER_PREINFUSION_WAIT) {
       drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
+    } else if (active_ == PARAMETER_FLUSH) {
+      drawDuration(settings_.flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
     } else {
       drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_, redrawTag);
     }

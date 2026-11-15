@@ -14,11 +14,13 @@
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
-// The two pre-infusion times are shown in the duration field, with the "PRE" / "WAIT" tag.
+// The pre-infusion, wait and flush times are shown in the duration field, with the "PRE" / "WAIT" /
+// "FLUSH" tag.
 enum ActiveParameter {
   PARAMETER_VOLUME,
   PARAMETER_PREINFUSION,        // pre-infusion time (s)
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
+  PARAMETER_FLUSH,              // flush time after the extraction (s)
   PARAMETER_TEMPERATURE,
   PARAMETER_COUNT
 };
@@ -38,7 +40,7 @@ class ScreenController {
     void selectNextParameter();
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
-    // (VOLUME_MAX, PREINFUSION_MAX_SECONDS, TEMPERATURE_MAX).
+    // (VOLUME_MAX, PREINFUSION_MAX_SECONDS, FLUSH_MAX_SECONDS, TEMPERATURE_MAX).
     // Returns true if the value changed.
     bool adjustActiveParameter(int16_t delta);
 
@@ -54,6 +56,10 @@ class ScreenController {
     // Pre-infusion: the duration counts down the seconds left in the phase and a tag is shown
     // after it ("PRE" while the pump runs, "WAIT" while the puck soaks).
     void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
+
+    // Flush: the duration shows the flush time (while waiting for the push) then counts it down,
+    // with the "FLUSH" tag. The volume shown is the one of the extraction.
+    void showFlush(uint16_t volumeMl, uint16_t secondsLeft);
 
   private:
     enum DirtyFlags : uint8_t {

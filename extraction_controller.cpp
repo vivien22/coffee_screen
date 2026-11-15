@@ -14,7 +14,8 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, US
   durationSeconds_(0),
   phaseSecondsLeft_(0),
   preinfusionMs_(0),
-  waitMs_(0)
+  waitMs_(0),
+  flushMs_(0)
 {
 }
 
@@ -25,7 +26,7 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
-void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds) {
+void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds, uint16_t flushSeconds) {
   if (isActive()) {
     return;
   }
@@ -41,6 +42,7 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds
 
   preinfusionMs_ = (uint16_t)(preinfusionSeconds * 1000UL);
   waitMs_ = (uint16_t)(waitSeconds * 1000UL);
+  flushMs_ = (uint16_t)(flushSeconds * 1000UL);
 
   flow_.startExtraction();
   volumeMl_ = 0;
@@ -53,10 +55,34 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds
   enterPhase(preinfusionMs_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
 }
 
+void ExtractionController::finish(uint32_t now) {
+  if (state_ != EXTRACTION_PREINFUSION &&
+      state_ != EXTRACTION_PREINFUSION_WAIT &&
+      state_ != EXTRACTION_RUNNING) {
+    return;
+  }
+
+  stop(EXTRACTION_FINISHED);
+
+  // Flush time 0: no flush, the extraction is over
+  if (flushMs_ > 0) {
+    enterPhase(EXTRACTION_FLUSH_WAIT, now);
+  }
+}
+
+void ExtractionController::startFlush(uint32_t now) {
+  if (state_ == EXTRACTION_FLUSH_WAIT) {
+    enterPhase(EXTRACTION_FLUSHING, now);
+  }
+}
+
 void ExtractionController::stop(ExtractionState finalState) {
   if (!isActive()) {
     return;
   }
+
+  // During the flush the extraction is already over: its final values are kept
+  const bool flushing = isFlush();
 
   state_ = finalState;
   phaseSecondsLeft_ = 0;
@@ -65,11 +91,14 @@ void ExtractionController::stop(ExtractionState finalState) {
   // stopped. Closing the valve before the pump would dead-head it.
   setPump(false);
   setValve(false);
-  flow_.stopExtraction();
 
-  // Final values
-  durationSeconds_ = (uint16_t)((uint32_t)(millis() - startedAt_) / 1000UL);
-  volumeMl_ = (uint16_t)(flow_.getOutflowVolume() + 0.5f);
+  if (!flushing) {
+    flow_.stopExtraction();
+
+    // Final values
+    durationSeconds_ = (uint16_t)((uint32_t)(millis() - startedAt_) / 1000UL);
+    volumeMl_ = (uint16_t)(flow_.getOutflowVolume() + 0.5f);
+  }
 
   DEBUG_PRINTLN(F("Extraction stopped"));
 }
@@ -81,12 +110,25 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     return;
   }
 
+  const uint32_t phaseElapsedMs = (uint32_t)(now - phaseStartedAt_);
+
+  // ----- Flush: the extraction is over, its volume and duration are not updated any more -----
+  if (state_ == EXTRACTION_FLUSH_WAIT) {
+    return;   // waits for startFlush()
+  }
+  if (state_ == EXTRACTION_FLUSHING) {
+    if (phaseElapsedMs >= flushMs_) {
+      stop(EXTRACTION_FINISHED);
+    } else {
+      phaseSecondsLeft_ = secondsLeft(flushMs_, now);
+    }
+    return;
+  }
+
   const uint32_t elapsedSeconds = (uint32_t)(now - startedAt_) / 1000UL;
   durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
 
   // ----- Phase sequencing: PREINFUSION -> PREINFUSION_WAIT -> RUNNING -----
-  const uint32_t phaseElapsedMs = (uint32_t)(now - phaseStartedAt_);
-
   if (state_ == EXTRACTION_PREINFUSION && phaseElapsedMs >= preinfusionMs_) {
     // Skip the soak phase if its duration is 0
     enterPhase(waitMs_ > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
@@ -96,12 +138,10 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
 
   // ----- Countdown shown on the screen during the pre-infusion (rounded up: 5, 4, 3...) -----
   phaseSecondsLeft_ = 0;
-  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_PREINFUSION_WAIT) {
-    const uint32_t phaseDurationMs = (state_ == EXTRACTION_PREINFUSION) ? preinfusionMs_ : waitMs_;
-    const uint32_t phaseElapsed = (uint32_t)(now - phaseStartedAt_);
-    if (phaseElapsed < phaseDurationMs) {
-      phaseSecondsLeft_ = (uint16_t)((phaseDurationMs - phaseElapsed + 999UL) / 1000UL);
-    }
+  if (state_ == EXTRACTION_PREINFUSION) {
+    phaseSecondsLeft_ = secondsLeft(preinfusionMs_, now);
+  } else if (state_ == EXTRACTION_PREINFUSION_WAIT) {
+    phaseSecondsLeft_ = secondsLeft(waitMs_, now);
   }
 
   // ----- Target volume (checked in every phase: the pre-infusion water is counted) -----
@@ -110,7 +150,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     volumeMl_ = (uint16_t)(flow_.getOutflowVolume() + 0.5f);
 
     if (volumeMl_ >= targetVolumeMl) {
-      stop(EXTRACTION_FINISHED);
+      finish(now);
       return;
     }
   }
@@ -119,6 +159,15 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   if (elapsedSeconds > (uint32_t)DURATION_MAX) {
     stop(EXTRACTION_ERROR);
   }
+}
+
+// Seconds left in a phase that started at phaseStartedAt_, rounded up; 0 once it has elapsed
+uint16_t ExtractionController::secondsLeft(uint32_t phaseDurationMs, uint32_t now) const {
+  const uint32_t phaseElapsedMs = (uint32_t)(now - phaseStartedAt_);
+  if (phaseElapsedMs >= phaseDurationMs) {
+    return 0;
+  }
+  return (uint16_t)((phaseDurationMs - phaseElapsedMs + 999UL) / 1000UL);
 }
 
 float ExtractionController::outflowMlPerSec() {
@@ -148,6 +197,20 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
       DEBUG_PRINTLN(F("Extraction running: pump on, valve open"));
       setValve(true);   // already open after a pre-infusion; needed if the pre-infusion is skipped
       setPump(true);
+      break;
+
+    case EXTRACTION_FLUSH_WAIT:
+      DEBUG_PRINTLN(F("Flush wait: pump off, valve closed"));
+      setPump(false);
+      setValve(false);
+      phaseSecondsLeft_ = (uint16_t)(flushMs_ / 1000UL);   // the screen shows what the flush will last
+      break;
+
+    case EXTRACTION_FLUSHING:
+      DEBUG_PRINTLN(F("Flushing: pump on, valve open"));
+      setValve(true);
+      setPump(true);
+      phaseSecondsLeft_ = secondsLeft(flushMs_, now);
       break;
 
     default:

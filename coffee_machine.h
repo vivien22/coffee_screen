@@ -34,8 +34,8 @@ class CoffeeMachine {
   private:
     // User actions
     void pollEncoder();
-    void handleShortPush();    // start / stop the extraction
-    void handleDoublePush();   // stop the extraction, select the next parameter (volume, pre-infusion, wait, temperature)
+    void handleShortPush();    // start the extraction / end it / start the flush / stop the flush
+    void handleDoublePush();   // stop everything, select the next parameter (volume, pre-infusion, wait, flush, temperature)
     void handleLongPush();     // save the selected parameter (ignored during an extraction)
     void adjustActiveParameter(int16_t delta);
 
