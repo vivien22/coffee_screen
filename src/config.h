@@ -57,7 +57,7 @@
 #define PID_KI               0.1
 #define PID_KD               500.0
 
-// While water leaves the boiler, the same amount of cold water enters it. Heating that
+// The water that enters the boiler (inflow sensor) is cold. Heating that
 // water from WATER_INLET_TEMPERATURE to the setpoint takes
 //     power [W] = flow [ml/s] x 4.186 J/(g.K) x (setpoint - inlet temperature) [K]    (1 ml = 1 g)
 // The heater is switched on for the matching part of the PID window as soon as the water
@@ -70,6 +70,17 @@
 
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
+
+// The target volume is the volume wanted in the cup. The flow sensors measure the water that
+// enters the boiler (In) and the water that comes back through the OPV valve (Out); the water
+// that really stays in the system is In - Out. Not all of it ends in the cup:
+//   PUCK_RETAINED_ML  water that stays in the puck (depends on the dose and on the coffee)
+//   BACKFLUSH_ML      water sent to the drip tray when the valve opens at the end of the extraction
+// Volume shown on the screen = (In - Out) - PUCK_RETAINED_ML - BACKFLUSH_ML, never below 0.
+// The extraction ends when it reaches the target volume, i.e. when In - Out reaches
+// target + PUCK_RETAINED_ML + BACKFLUSH_ML. Tune both values by weighing the cups.
+#define PUCK_RETAINED_ML             24.0f
+#define BACKFLUSH_ML                 6.0f
 #define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // an extraction without flush: its volume and duration stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 

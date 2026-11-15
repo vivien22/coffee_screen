@@ -32,7 +32,7 @@ void HeaterController::setSetpoint(double celsius) {
   setpoint_ = celsius;
 }
 
-void HeaterController::update(uint32_t now, bool temperatureValid, double temperature, float outflowMlPerSec) {
+void HeaterController::update(uint32_t now, bool temperatureValid, double temperature, float inflowMlPerSec) {
   if (!temperatureValid) {
     feedforwardMs_ = 0;
     setRelay(false);
@@ -58,7 +58,7 @@ void HeaterController::update(uint32_t now, bool temperatureValid, double temper
 
     // The PID works around the feedforward: it can add to it or take from it, but the total
     // always stays between 0 and the window (so the PID integral cannot wind up).
-    feedforwardMs_ = computeFeedforwardMs(outflowMlPerSec);
+    feedforwardMs_ = computeFeedforwardMs(inflowMlPerSec);
     pid_.SetMode(AUTOMATIC);
     pid_.SetOutputLimits(-feedforwardMs_, PID_WINDOW_MS - feedforwardMs_);
     pid_.Compute();
@@ -81,14 +81,14 @@ void HeaterController::update(uint32_t now, bool temperatureValid, double temper
 }
 
 // Heater on-time (ms per PID window) needed to heat the water that leaves the boiler.
-int HeaterController::computeFeedforwardMs(float outflowMlPerSec) const {
+int HeaterController::computeFeedforwardMs(float inflowMlPerSec) const {
   const float heating = (float)setpoint_ - WATER_INLET_TEMPERATURE;   // degrees to give to the new water
 
-  if (outflowMlPerSec <= 0.0f || heating <= 0.0f) {
+  if (inflowMlPerSec <= 0.0f || heating <= 0.0f) {
     return 0;
   }
 
-  const float powerW = outflowMlPerSec * WATER_SPECIFIC_HEAT * heating * FEEDFORWARD_GAIN;
+  const float powerW = inflowMlPerSec * WATER_SPECIFIC_HEAT * heating * FEEDFORWARD_GAIN;
   const float ms = powerW / HEATER_POWER_W * (float)PID_WINDOW_MS;
 
   return constrain((int)(ms + 0.5f), 0, PID_WINDOW_MS);

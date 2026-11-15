@@ -1,6 +1,6 @@
 /*
   heater_controller: time-proportional heater control.
-  PID + feedforward on the flow of water leaving the boiler, over a PID_WINDOW_MS window.
+  PID + feedforward on the flow of water entering the boiler, over a PID_WINDOW_MS window.
   Takes its inputs as parameters (temperature, flow): it does not know the sensor,
   the extraction or the screen.
 */
@@ -20,13 +20,13 @@ class HeaterController {
 
     // Call on every loop pass.
     // If the temperature is not valid, the heater is switched off.
-    // outflowMlPerSec: flow of the water leaving the boiler (0 when nothing flows).
-    void update(uint32_t now, bool temperatureValid, double temperature, float outflowMlPerSec);
+    // inflowMlPerSec: flow of the water entering the boiler (0 when nothing flows).
+    void update(uint32_t now, bool temperatureValid, double temperature, float inflowMlPerSec);
 
     bool isOn() const { return on_; }
 
   private:
-    int computeFeedforwardMs(float outflowMlPerSec) const;
+    int computeFeedforwardMs(float inflowMlPerSec) const;
     void setRelay(bool on);
 
     uint8_t relayPin_;

@@ -43,7 +43,7 @@ void CoffeeMachine::update() {
   heater_.update(now,
                  temperature_.isValid(),
                  temperature_.celsius(),
-                 extraction_.outflowMlPerSec());
+                 extraction_.inflowMlPerSec());
 
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();

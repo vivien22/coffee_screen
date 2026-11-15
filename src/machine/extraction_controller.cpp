@@ -97,7 +97,7 @@ void ExtractionController::stop(ExtractionState finalState) {
 
     // Final values
     durationSeconds_ = (uint16_t)((uint32_t)(millis() - startedAt_) / 1000UL);
-    volumeMl_ = (uint16_t)(flow_.getOutflowVolume() + 0.5f);
+    volumeMl_ = cupVolumeMl();
   }
 
   DEBUG_PRINTLN(F("Extraction stopped"));
@@ -144,12 +144,14 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     phaseSecondsLeft_ = secondsLeft(waitMs_, now);
   }
 
-  // ----- Target volume (checked in every phase: the pre-infusion water is counted) -----
+  // ----- Volume in the cup, and target volume -----
+  // The volume is updated in every phase (the pre-infusion water is counted), but only RUNNING ends
+  // on the volume: the pre-infusion phases are controlled by time only.
   if ((uint32_t)(now - lastVolumeAt_) >= VOLUME_PERIOD_MS) {
     lastVolumeAt_ = now;
-    volumeMl_ = (uint16_t)(flow_.getOutflowVolume() + 0.5f);
+    volumeMl_ = cupVolumeMl();
 
-    if (volumeMl_ >= targetVolumeMl) {
+    if (state_ == EXTRACTION_RUNNING && volumeMl_ >= targetVolumeMl) {
       finish(now);
       return;
     }
@@ -170,9 +172,15 @@ uint16_t ExtractionController::secondsLeft(uint32_t phaseDurationMs, uint32_t no
   return (uint16_t)((phaseDurationMs - phaseElapsedMs + 999UL) / 1000UL);
 }
 
-float ExtractionController::outflowMlPerSec() {
+float ExtractionController::inflowMlPerSec() {
   // USN_FlowSensor returns mL/min
-  return isActive() ? flow_.getOutflowRate() / 60.0f : 0.0f;
+  return isActive() ? flow_.getInflowRate() / 60.0f : 0.0f;
+}
+
+// In - Out is the water that stays in the system; the part that does not end in the cup is removed.
+uint16_t ExtractionController::cupVolumeMl() {
+  const float cup = flow_.getNetVolume() - (PUCK_RETAINED_ML + BACKFLUSH_ML);
+  return (cup > 0.0f) ? (uint16_t)(cup + 0.5f) : 0;
 }
 
 // Set the actuators of a phase. The valve is opened BEFORE the pump is started, so the pump

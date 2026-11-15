@@ -1,7 +1,8 @@
 /*
   extraction_controller: the extraction state machine and its actuators:
   the pump relay and the 3-way solenoid valve relay.
-  It uses the flow sensor to know the volume and the flow.
+  It uses the flow sensors to know the volume in the cup (estimated, see config.h) and the flow
+  of the water entering the boiler.
   Knows nothing about the encoder, the heater or the screen.
 
   Phases of an extraction (the pre-infusion and flush phases are optional, see config.h):
@@ -23,7 +24,7 @@
       ERROR                     vented to the drip tray)
       PREINFUSION        ON     open (water to the puck)  pre-infusion time elapsed
       PREINFUSION_WAIT   OFF    open (pressure is held)   wait time elapsed
-      RUNNING            ON     open                      target volume reached
+      RUNNING            ON     open                      target volume (in the cup) reached
       FLUSH_WAIT         OFF    closed                    startFlush() (short push of the user)
       FLUSHING           ON     open                      flush time elapsed
 
@@ -31,9 +32,9 @@
   whole pre-infusion (the wait too), a wait time of 0 skips only PREINFUSION_WAIT, a flush time
   of 0 skips the whole flush (FLUSH_WAIT too).
 
-  Until RUNNING ends, the extraction also ends if the target volume is reached
-  (the volume counts the water of the pre-infusion too), after DURATION_MAX seconds,
-  or when stop() is called. The volume and the duration of the extraction are final at the end
+  The pre-infusion phases are controlled by time only: the target volume is checked in RUNNING
+  only (the water of the pre-infusion is counted in the volume, as it stays in the puck).
+  RUNNING also ends after DURATION_MAX seconds, or when stop() is called. The volume and the duration of the extraction are final at the end
   of RUNNING: the flush does not change them.
 */
 
@@ -111,8 +112,8 @@ class ExtractionController {
     // timed phases.
     uint16_t phaseSecondsLeft() const { return phaseSecondsLeft_; }
 
-    // Flow of the water leaving the boiler, 0 when no extraction is in progress
-    float outflowMlPerSec();
+    // Flow of the water entering the boiler (the water to heat), 0 when no extraction is in progress
+    float inflowMlPerSec();
 
   private:
     // Seconds left of a phase (rounded up), given its duration
@@ -120,6 +121,9 @@ class ExtractionController {
 
     // Enter a phase: set the pump and the valve, restart the phase timer.
     void enterPhase(ExtractionState phase, uint32_t now);
+
+    // Volume in the cup estimated from the flow sensors: (In - Out) - PUCK_RETAINED_ML - BACKFLUSH_ML, >= 0
+    uint16_t cupVolumeMl();
 
     void setPump(bool on);
     void setValve(bool open);
@@ -132,7 +136,7 @@ class ExtractionController {
     uint32_t startedAt_;        // start of the extraction (push time): total duration
     uint32_t phaseStartedAt_;   // start of the current phase: PREINFUSION / PREINFUSION_WAIT / FLUSHING timers
     uint32_t lastVolumeAt_;
-    uint16_t volumeMl_;
+    uint16_t volumeMl_;         // estimated volume in the cup
     uint16_t durationSeconds_;
     uint16_t phaseSecondsLeft_;
     uint16_t preinfusionMs_;    // duration of PREINFUSION, from the settings at start()
