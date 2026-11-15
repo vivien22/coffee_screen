@@ -114,7 +114,7 @@ static void temperatureError(){
   sc.showLiveTemperature(5000,90.0); calls.clear(); sc.update(5000); CHECK(!has("temperr(0,0,0,0)") && !calls.empty());
   printf("temperature error: ok\n");
 }
-// MANUAL mode: a very long push switches the mode (saved), a push starts the pump, the next one stops it
+// MANUAL mode: a long push switches the mode (saved), a push starts the pump, the next one stops it
 static void manualMode(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
