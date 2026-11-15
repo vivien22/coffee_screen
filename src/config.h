@@ -32,9 +32,10 @@
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
-// Pre-infusion times (seconds). 0 skips the matching step, see "Extraction" below.
-#define PREINFUSION_MAX_SECONDS           10
-#define DEFAULT_PREINFUSION_SECONDS       5
+// Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step, see "Extraction" below.
+#define PREINFUSION_MAX_ML                50
+#define DEFAULT_PREINFUSION_ML            10
+#define PREINFUSION_WAIT_MAX_SECONDS      10
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
 #define FLUSH_MAX_SECONDS                 10
 #define DEFAULT_FLUSH_SECONDS             5
@@ -85,12 +86,17 @@
                                                // this long, then the screen shows the target volume and 0 s again
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.
-//   PREINFUSION       pump ON  + valve open   (pre-infusion time, set on the screen)
-//   PREINFUSION_WAIT  pump OFF + valve open   (wait time, set on the screen)
+//   PREINFUSION       pump ON  + valve open   (until the pre-infusion VOLUME has entered the boiler)
+//   PREINFUSION_WAIT  pump OFF + valve open   (wait TIME, set on the screen)
 //   RUNNING           pump ON  + valve open   (until the target volume is reached)
-// Both times are settings (0 to PREINFUSION_MAX_SECONDS, saved in EEPROM):
-//   pre-infusion time = 0: no pre-infusion at all (the wait is skipped too)
-//   wait time = 0:         only the wait is skipped
+// The pre-infusion volume (0 to PREINFUSION_MAX_ML) and the wait time (0 to PREINFUSION_WAIT_MAX_SECONDS)
+// are settings saved in EEPROM:
+//   pre-infusion volume = 0: no pre-infusion at all (the wait is skipped too)
+//   wait time = 0:           only the wait is skipped
+// The pre-infusion volume is the water counted by the flow sensors (In - Out), not the volume
+// in the cup. Safety: the pre-infusion ends after PREINFUSION_TIMEOUT_MS even if the volume is not
+// reached (flow sensor or pump problem).
+#define PREINFUSION_TIMEOUT_MS       30000UL
 //
 // Flush: after the extraction, the group head is rinsed with hot water.
 //   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)

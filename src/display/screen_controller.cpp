@@ -69,10 +69,10 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       value = &settings_.volume;          maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME;
       break;
     case PARAMETER_PREINFUSION:
-      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
+      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_ML;      dirtyField = DIRTY_VOLUME_NUMBER;
       break;
     case PARAMETER_PREINFUSION_WAIT:
-      value = &settings_.preinfusionWait; maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
+      value = &settings_.preinfusionWait; maxValue = PREINFUSION_WAIT_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
       break;
     case PARAMETER_FLUSH:
       value = &settings_.flush;           maxValue = FLUSH_MAX_SECONDS;       dirtyField = DIRTY_DURATION_NUMBER;
@@ -101,6 +101,7 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
 void ScreenController::confirmSave(uint32_t now) {
   switch (active_) {
     case PARAMETER_VOLUME:
+    case PARAMETER_PREINFUSION:   // the pre-infusion volume is shown in the volume field
       clearVolume();
       blinkField_ = DIRTY_VOLUME;
       break;
@@ -108,7 +109,7 @@ void ScreenController::confirmSave(uint32_t now) {
       clearTemperature();
       blinkField_ = DIRTY_TEMPERATURE;
       break;
-    default:   // pre-infusion, wait or flush: all are shown in the duration field
+    default:   // wait or flush: shown in the duration field
       clearDuration();
       blinkField_ = DIRTY_DURATION;
       break;
@@ -157,28 +158,37 @@ void ScreenController::showHeaterState(bool on) {
 void ScreenController::showExtractionStarted() {
   volumeShown_ = 0;
   durationShown_ = 0;
+  volumeTagShown_ = PHASE_TAG_NONE;
+  durationTagShown_ = PHASE_TAG_NONE;
+  tagBlinking_ = false;
+  tagVisible_ = true;
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
 void ScreenController::showReady() {
   volumeShown_ = settings_.volume;   // the target volume, not the last extraction
   durationShown_ = 0;
-  tagShown_ = PHASE_TAG_NONE;
+  volumeTagShown_ = PHASE_TAG_NONE;
+  durationTagShown_ = PHASE_TAG_NONE;
   tagBlinking_ = false;
   tagVisible_ = true;
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
 void ScreenController::showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds) {
-  showExtractionValues(volumeMl, durationSeconds, PHASE_TAG_NONE);
+  showExtractionValues(volumeMl, PHASE_TAG_NONE, durationSeconds, PHASE_TAG_NONE);
 }
 
-void ScreenController::showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting) {
-  showExtractionValues(volumeMl, secondsLeft, waiting ? PHASE_TAG_PREINFUSION_WAIT : PHASE_TAG_PREINFUSION);
+void ScreenController::showPreinfusion(uint16_t mlLeft, uint16_t durationSeconds) {
+  showExtractionValues(mlLeft, PHASE_TAG_PREINFUSION, durationSeconds, PHASE_TAG_NONE);
+}
+
+void ScreenController::showPreinfusionWait(uint16_t volumeMl, uint16_t secondsLeft) {
+  showExtractionValues(volumeMl, PHASE_TAG_NONE, secondsLeft, PHASE_TAG_PREINFUSION_WAIT);
 }
 
 void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool flushing) {
-  showExtractionValues(volumeMl, secondsLeft, PHASE_TAG_FLUSH);
+  showExtractionValues(volumeMl, PHASE_TAG_NONE, secondsLeft, PHASE_TAG_FLUSH);
 
   // The tag blinks while flushing; it is shown again (and stops blinking) otherwise
   if (flushing && !tagBlinking_) {
@@ -193,16 +203,20 @@ void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool f
   }
 }
 
-// The whole duration field is redrawn when its tag changes; when only the number changes
-// (countdown, elapsed time), the tag is left alone.
-void ScreenController::showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag) {
-  if ((int16_t)volumeMl != volumeShown_) {
-    volumeShown_ = (int16_t)volumeMl;
+// A whole field is redrawn when its tag changes; when only the number changes (countdown,
+// elapsed time, volume), the tag is left alone.
+void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag) {
+  if (volumeTag != volumeTagShown_) {
+    volumeShown_ = (int16_t)volumeValue;
+    volumeTagShown_ = volumeTag;
     dirty_ |= DIRTY_VOLUME;
+  } else if ((int16_t)volumeValue != volumeShown_) {
+    volumeShown_ = (int16_t)volumeValue;
+    dirty_ |= DIRTY_VOLUME_NUMBER;
   }
-  if (tag != tagShown_) {
+  if (durationTag != durationTagShown_) {
     durationShown_ = (int16_t)durationValue;
-    tagShown_ = tag;
+    durationTagShown_ = durationTag;
     tagBlinking_ = false;     // a new tag is drawn whole, and visible
     tagVisible_ = true;
     dirty_ |= DIRTY_DURATION;
@@ -226,28 +240,35 @@ void ScreenController::render() {
   if (dirty & DIRTY_TEMPERATURE) {
     drawTemperature(temperatureShown_, active_ == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
   }
-  if (dirty & DIRTY_VOLUME) {
-    drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
+  if (dirty & (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)) {
+    // The tag is redrawn only if the whole field is dirty (not when only the number changed).
+    const bool redrawTag = (dirty & DIRTY_VOLUME) != 0;
+
+    // While the pre-infusion volume is selected, the field shows that setting (large digits, with its tag).
+    // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
+    if (active_ == PARAMETER_PREINFUSION) {
+      drawVolume(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
+    } else {
+      drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag);
+    }
   }
   if (dirty & (DIRTY_DURATION | DIRTY_DURATION_NUMBER)) {
     // The tag is redrawn only if the whole field is dirty (not when only the number changed).
     const bool redrawTag = (dirty & DIRTY_DURATION) != 0;
 
-    // While a pre-infusion, wait or flush time is selected, the field shows that setting (large digits, with its tag).
-    // Otherwise it shows the duration of the extraction (or the countdown of its pre-infusion).
-    if (active_ == PARAMETER_PREINFUSION) {
-      drawDuration(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
-    } else if (active_ == PARAMETER_PREINFUSION_WAIT) {
+    // While the wait or flush time is selected, the field shows that setting (large digits, with its tag).
+    // Otherwise it shows the duration of the extraction (or the countdown of the wait or of the flush).
+    if (active_ == PARAMETER_PREINFUSION_WAIT) {
       drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
     } else if (active_ == PARAMETER_FLUSH) {
       drawDuration(settings_.flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
     } else {
-      drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_, redrawTag);
+      drawDuration(durationShown_, TEXT_SIZE_SMALL, durationTagShown_, redrawTag);
     }
   }
   // The blinking tag, after the duration: it also gives the right state to a tag just redrawn
-  if ((dirty & DIRTY_TAG) && tagShown_ == PHASE_TAG_FLUSH && active_ != PARAMETER_FLUSH) {
-    drawPhaseTag(tagShown_, tagVisible_);
+  if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && active_ != PARAMETER_FLUSH) {
+    drawPhaseTag(durationTagShown_, tagVisible_);
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);

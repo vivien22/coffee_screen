@@ -8,8 +8,8 @@
   Phases of an extraction (the pre-infusion and flush phases are optional, see config.h):
 
       IDLE ──start()──> PREINFUSION ──> PREINFUSION_WAIT ──> RUNNING ──finish()──> FLUSH_WAIT
-                        (wetting)       (soaking)             (main                (waits for
-                                                               extraction)          startFlush())
+                        (wetting,       (soaking,             (main                (waits for
+                         by volume)      by time)              extraction)          startFlush())
                                                                                        │
                                                          FINISHED <── FLUSHING <───────┘
                                                          (or ERROR)   (rinsing)
@@ -22,20 +22,21 @@
       -----------------  -----  ------------------------  --------------------------------
       IDLE / FINISHED /  OFF    closed (group head is     -
       ERROR                     vented to the drip tray)
-      PREINFUSION        ON     open (water to the puck)  pre-infusion time elapsed
+      PREINFUSION        ON     open (water to the puck)  pre-infusion volume reached
       PREINFUSION_WAIT   OFF    open (pressure is held)   wait time elapsed
       RUNNING            ON     open                      target volume (in the cup) reached
       FLUSH_WAIT         OFF    closed                    startFlush() (short push of the user)
       FLUSHING           ON     open                      flush time elapsed
 
-  The three times are settings given to start(): a pre-infusion time of 0 skips the
-  whole pre-infusion (the wait too), a wait time of 0 skips only PREINFUSION_WAIT, a flush time
-  of 0 skips the whole flush (FLUSH_WAIT too).
+  The settings given to start(): a pre-infusion volume of 0 skips the whole pre-infusion (the wait
+  too), a wait time of 0 skips only PREINFUSION_WAIT, a flush time of 0 skips the whole flush
+  (FLUSH_WAIT too).
 
-  The pre-infusion phases are controlled by time only: the target volume is checked in RUNNING
-  only (the water of the pre-infusion is counted in the volume, as it stays in the puck).
-  RUNNING also ends after DURATION_MAX seconds, or when stop() is called. The volume and the duration of the extraction are final at the end
-  of RUNNING: the flush does not change them.
+  PREINFUSION ends when the pre-infusion volume has entered the boiler (In - Out of the flow
+  sensors, see config.h), or after PREINFUSION_TIMEOUT_MS. The target volume (in the cup) is
+  checked in RUNNING only; the water of the pre-infusion is counted in the volume, as it stays in
+  the puck. RUNNING also ends after DURATION_MAX seconds, or when stop() is called. The volume and
+  the duration of the extraction are final at the end of RUNNING: the flush does not change them.
 */
 
 #pragma once
@@ -63,9 +64,10 @@ class ExtractionController {
     // Start a new extraction: first phase is PREINFUSION (or RUNNING if the pre-infusion time is 0).
     // Ignored if an extraction is already in progress.
     // pressTime: millis() value of the push that started the extraction (timer start).
-    // preinfusionSeconds, waitSeconds: durations of PREINFUSION and PREINFUSION_WAIT (0 = skipped).
+    // preinfusionMl: water to send during PREINFUSION (0 = no pre-infusion, the wait is skipped too).
+    // waitSeconds: duration of PREINFUSION_WAIT (0 = skipped).
     // flushSeconds: duration of FLUSHING (0 = no flush).
-    void start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds, uint16_t flushSeconds);
+    void start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds);
 
     // Normal end of the extraction, from PREINFUSION, PREINFUSION_WAIT or RUNNING: the pump is
     // switched off, then the valve closes, the final values are kept. Next phase is FLUSH_WAIT,
@@ -106,11 +108,14 @@ class ExtractionController {
     uint16_t durationSeconds() const { return durationSeconds_; }
 
     // Seconds left in the timed phase in progress, rounded up (5, 4, 3, 2, 1), updated by
-    // update(): PREINFUSION, PREINFUSION_WAIT and FLUSHING. In FLUSH_WAIT it is the flush time
-    // (what the flush will last): the screen does not show it, it keeps the duration of the
-    // extraction. 0 in the other states. The screen shows it instead of the duration during the
-    // timed phases.
+    // update(): PREINFUSION_WAIT and FLUSHING. In FLUSH_WAIT it is the flush time (what the flush
+    // will last): the screen does not show it, it keeps the duration of the extraction. 0 in the
+    // other states. The screen shows it instead of the duration during these phases.
     uint16_t phaseSecondsLeft() const { return phaseSecondsLeft_; }
+
+    // Millilitres left to send in PREINFUSION, rounded up (10, 9, ... 1), updated by update().
+    // 0 in the other states. The screen shows it instead of the volume during the pre-infusion.
+    uint16_t preinfusionMlLeft() const { return preinfusionMlLeft_; }
 
     // Flow of the water entering the boiler (the water to heat), 0 when no extraction is in progress
     float inflowMlPerSec();
@@ -139,7 +144,8 @@ class ExtractionController {
     uint16_t volumeMl_;         // estimated volume in the cup
     uint16_t durationSeconds_;
     uint16_t phaseSecondsLeft_;
-    uint16_t preinfusionMs_;    // duration of PREINFUSION, from the settings at start()
+    uint16_t preinfusionMl_;    // volume of PREINFUSION, from the settings at start()
+    uint16_t preinfusionMlLeft_;
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
 };

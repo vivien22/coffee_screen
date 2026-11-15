@@ -13,7 +13,8 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, US
   volumeMl_(0),
   durationSeconds_(0),
   phaseSecondsLeft_(0),
-  preinfusionMs_(0),
+  preinfusionMl_(0),
+  preinfusionMlLeft_(0),
   waitMs_(0),
   flushMs_(0)
 {
@@ -26,7 +27,7 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
-void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds, uint16_t flushSeconds) {
+void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
   if (isActive()) {
     return;
   }
@@ -40,7 +41,7 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds
     startedAt_ = now;
   }
 
-  preinfusionMs_ = (uint16_t)(preinfusionSeconds * 1000UL);
+  preinfusionMl_ = preinfusionMl;
   waitMs_ = (uint16_t)(waitSeconds * 1000UL);
   flushMs_ = (uint16_t)(flushSeconds * 1000UL);
 
@@ -51,8 +52,8 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds
 
   DEBUG_PRINTLN(F("Extraction started"));
 
-  // The pre-infusion timers start now (the pump really starts now), not at the push time.
-  enterPhase(preinfusionMs_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
+  // The phase timers start now (the pump really starts now), not at the push time.
+  enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
 }
 
 void ExtractionController::finish(uint32_t now) {
@@ -86,6 +87,7 @@ void ExtractionController::stop(ExtractionState finalState) {
 
   state_ = finalState;
   phaseSecondsLeft_ = 0;
+  preinfusionMlLeft_ = 0;
 
   // Pump first, valve second: the pressure is released to the drip tray once the pump is
   // stopped. Closing the valve before the pump would dead-head it.
@@ -129,24 +131,29 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
 
   // ----- Phase sequencing: PREINFUSION -> PREINFUSION_WAIT -> RUNNING -----
-  if (state_ == EXTRACTION_PREINFUSION && phaseElapsedMs >= preinfusionMs_) {
+  // PREINFUSION ends on the volume that entered the boiler (In - Out), with a time limit as a safety.
+  if (state_ == EXTRACTION_PREINFUSION &&
+      (flow_.getNetVolume() >= (float)preinfusionMl_ || phaseElapsedMs >= PREINFUSION_TIMEOUT_MS)) {
     // Skip the soak phase if its duration is 0
     enterPhase(waitMs_ > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
   } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= waitMs_) {
     enterPhase(EXTRACTION_RUNNING, now);
   }
 
-  // ----- Countdown shown on the screen during the pre-infusion (rounded up: 5, 4, 3...) -----
+  // ----- Countdowns shown on the screen (rounded up: 5, 4, 3...) -----
+  // PREINFUSION: millilitres left to send. PREINFUSION_WAIT: seconds left.
   phaseSecondsLeft_ = 0;
+  preinfusionMlLeft_ = 0;
   if (state_ == EXTRACTION_PREINFUSION) {
-    phaseSecondsLeft_ = secondsLeft(preinfusionMs_, now);
+    const float left = (float)preinfusionMl_ - flow_.getNetVolume();
+    preinfusionMlLeft_ = (left > 0.0f) ? (uint16_t)(left + 0.999f) : 0;
   } else if (state_ == EXTRACTION_PREINFUSION_WAIT) {
     phaseSecondsLeft_ = secondsLeft(waitMs_, now);
   }
 
   // ----- Volume in the cup, and target volume -----
   // The volume is updated in every phase (the pre-infusion water is counted), but only RUNNING ends
-  // on the volume: the pre-infusion phases are controlled by time only.
+  // on the target volume.
   if ((uint32_t)(now - lastVolumeAt_) >= VOLUME_PERIOD_MS) {
     lastVolumeAt_ = now;
     volumeMl_ = cupVolumeMl();
@@ -194,6 +201,7 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
       DEBUG_PRINTLN(F("Pre-infusion: pump on, valve open"));
       setValve(true);
       setPump(true);
+      preinfusionMlLeft_ = preinfusionMl_;
       break;
 
     case EXTRACTION_PREINFUSION_WAIT:

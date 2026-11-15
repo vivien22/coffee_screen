@@ -51,6 +51,10 @@
 #define VOLUME_ZONE_WIDTH             161
 #define VOLUME_ZONE_HEIGHT            52
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
+// "PRE" tag (pre-infusion volume): top right of the volume field, above the "ml". Fixed position,
+// small or large digits (up to "50", pre-infusion maximum).
+#define VOLUME_TAG_X                  164   // left edge of the tag
+#define VOLUME_TAG_BASELINE           113   // baseline of the tag
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
 #define DURATION_X                    (ICON_CLOCK_X + 43)   // left edge of the number

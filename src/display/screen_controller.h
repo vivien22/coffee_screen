@@ -14,11 +14,11 @@
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
-// The pre-infusion, wait and flush times are shown in the duration field, with the "PRE" / "WAIT" /
-// "FLUSH" tag.
+// The pre-infusion volume is shown in the volume field with the "PRE" tag; the wait and flush times
+// are shown in the duration field with the "WAIT" / "FLUSH" tag.
 enum ActiveParameter {
   PARAMETER_VOLUME,
-  PARAMETER_PREINFUSION,        // pre-infusion time (s)
+  PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
   PARAMETER_FLUSH,              // flush time after the extraction (s)
   PARAMETER_TEMPERATURE,
@@ -40,7 +40,7 @@ class ScreenController {
     void selectNextParameter();
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
-    // (VOLUME_MAX, PREINFUSION_MAX_SECONDS, FLUSH_MAX_SECONDS, TEMPERATURE_MAX).
+    // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, TEMPERATURE_MAX).
     // Returns true if the value changed.
     bool adjustActiveParameter(int16_t delta);
 
@@ -53,9 +53,12 @@ class ScreenController {
     void showExtractionStarted();
     void showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds);
 
-    // Pre-infusion: the duration counts down the seconds left in the phase and a tag is shown
-    // after it ("PRE" while the pump runs, "WAIT" while the puck soaks).
-    void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
+    // Pre-infusion: the volume field counts down the millilitres left to send, with the "PRE" tag;
+    // the duration of the extraction runs as usual.
+    void showPreinfusion(uint16_t mlLeft, uint16_t durationSeconds);
+
+    // Pre-infusion wait: the duration field counts down the seconds left, with the "WAIT" tag.
+    void showPreinfusionWait(uint16_t volumeMl, uint16_t secondsLeft);
 
     // Ready for the next extraction: the target volume and a duration of 0 s are shown, no tag.
     void showReady();
@@ -68,17 +71,18 @@ class ScreenController {
   private:
     enum DirtyFlags : uint8_t {
       DIRTY_NONE        = 0,
-      DIRTY_VOLUME      = 1 << 0,
+      DIRTY_VOLUME      = 1 << 0,   // the whole field: number, unit and tag
       DIRTY_TEMPERATURE = 1 << 1,
       DIRTY_DURATION    = 1 << 2,   // the whole field: number, unit and tag
       DIRTY_HEATER      = 1 << 3,
       DIRTY_DURATION_NUMBER = 1 << 4,   // the number only: the tag already on the screen is kept
-      DIRTY_TAG         = 1 << 5,   // the tag only: it blinks
+      DIRTY_TAG         = 1 << 5,   // the tag of the duration only: it blinks
+      DIRTY_VOLUME_NUMBER = 1 << 6,   // the number of the volume only: the tag already on the screen is kept
       DIRTY_ALL_VALUES  = DIRTY_VOLUME | DIRTY_TEMPERATURE | DIRTY_DURATION
     };
 
     void render();
-    void showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag);
+    void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);
 
     Settings settings_;
     ActiveParameter active_ = PARAMETER_VOLUME;
@@ -86,7 +90,8 @@ class ScreenController {
     // What each field shows
     int16_t volumeShown_ = 0;
     int16_t durationShown_ = 0;
-    PhaseTag tagShown_ = PHASE_TAG_NONE;   // tag drawn after the duration
+    PhaseTag volumeTagShown_ = PHASE_TAG_NONE;     // tag drawn in the volume field
+    PhaseTag durationTagShown_ = PHASE_TAG_NONE;   // tag drawn in the duration field
 
     // Blinking of the "FLUSH" tag (during FLUSHING)
     bool tagBlinking_ = false;

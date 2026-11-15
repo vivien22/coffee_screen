@@ -24,13 +24,14 @@ enum TextSize {
   TEXT_SIZE_LARGE
 };
 
-// Phase tag drawn after the duration while the pre-infusion or the flush is in progress
-// (the duration then counts down the seconds left in the phase).
+// Phase tag drawn in the volume field ("PRE": the volume then counts down the millilitres left
+// to send) or in the duration field ("WAIT", "FLUSH": the duration then counts down the seconds
+// left in the phase).
 enum PhaseTag : uint8_t {
   PHASE_TAG_NONE,              // nothing: normal extraction or no extraction
-  PHASE_TAG_PREINFUSION,       // "PRE":  the puck is being wetted
-  PHASE_TAG_PREINFUSION_WAIT,  // "WAIT": the puck is soaking
-  PHASE_TAG_FLUSH              // "FLUSH": the group head is rinsed (or waits to be)
+  PHASE_TAG_PREINFUSION,       // "PRE":  the puck is being wetted (volume field)
+  PHASE_TAG_PREINFUSION_WAIT,  // "WAIT": the puck is soaking (duration field)
+  PHASE_TAG_FLUSH              // "FLUSH": the group head is rinsed, or waits to be (duration field)
 };
 
 // Initialize the screen and fill it with the background color.
@@ -44,13 +45,17 @@ void drawIcons();
 
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);
-void drawVolume(uint16_t value, TextSize size);
+// tag: top right of the field, above the unit (PHASE_TAG_PREINFUSION in the volume field).
+// redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
+// screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
+void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 // tag: top right of the field, above the unit, whatever the size of the digits.
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 
-// Show or hide the phase tag alone (blinking tag): drawn again at its place, or erased.
+// Show or hide the phase tag of the duration field alone (blinking tag): drawn again at its
+// place, or erased.
 void drawPhaseTag(PhaseTag tag, bool visible);
 
 // Erase the zone of a value

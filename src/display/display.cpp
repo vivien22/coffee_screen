@@ -118,24 +118,44 @@ void drawTemperature(double value, TextSize size) {
   tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
 }
 
-void drawVolume(uint16_t value, TextSize size) {
+// Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
+// codes '0'..';' (see fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
+static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
+  tft.setFont(FONT_TAG);
+  tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
+  tft.setCursor(x, baseline);
+  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456")));
+}
+
+void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
+  // The tag already drawn is kept when only the number changes: the zone erased before the
+  // number stops where the tag starts.
+  const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
+  int16_t zoneWidth = VOLUME_ZONE_WIDTH;
+  if (keepTag) {
+    zoneWidth = VOLUME_TAG_X - VOLUME_ZONE_X;
+  }
+
   int16_t xNumberEnd = drawNumber(value,
                                   size,
-                                  VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT,
+                                  VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
                                   VOLUME_X, VOLUME_BASELINE);
+
+  // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone
+  // above does not cover: erased too, below the tag.
+  if (keepTag) {
+    tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
+                 VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
+                 VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+  }
 
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
   tft.print(F("21"));
-}
 
-// Phase tag at a fixed position, above the unit. FontTag only holds the letters P R E W A I T F L U S H, under the
-// codes '0'..';' (see fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
-static void drawTag(PhaseTag tag) {
-  tft.setFont(FONT_TAG);
-  tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-  tft.setCursor(DURATION_TAG_X, DURATION_TAG_BASELINE);
-  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456")));
+  if (tag != PHASE_TAG_NONE && redrawTag) {
+    drawTag(tag, VOLUME_TAG_X, VOLUME_TAG_BASELINE);
+  }
 }
 
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
@@ -164,13 +184,13 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   tft.print('3');
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
-    drawTag(tag);
+    drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
   }
 }
 
 void drawPhaseTag(PhaseTag tag, bool visible) {
   if (visible) {
-    drawTag(tag);
+    drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
   } else {
     // Only the rows of the letters: the number and its unit are not touched
     tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE - DURATION_TAG_HEIGHT,

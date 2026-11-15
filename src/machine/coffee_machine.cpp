@@ -56,11 +56,12 @@ void CoffeeMachine::update() {
   } else if (extracting || wasExtracting_) {
     switch (extraction_.state()) {
       case EXTRACTION_PREINFUSION:
+        // Millilitres left to send, with the "PRE" tag; the duration runs as usual
+        screen_.showPreinfusion(extraction_.preinfusionMlLeft(), extraction_.durationSeconds());
+        break;
       case EXTRACTION_PREINFUSION_WAIT:
-        // Countdown of the phase, with the "PRE" / "WAIT" tag
-        screen_.showPreinfusion(extraction_.volumeMl(),
-                                extraction_.phaseSecondsLeft(),
-                                extraction_.state() == EXTRACTION_PREINFUSION_WAIT);
+        // Seconds left of the wait, with the "WAIT" tag
+        screen_.showPreinfusionWait(extraction_.volumeMl(), extraction_.phaseSecondsLeft());
         break;
       case EXTRACTION_FLUSH_WAIT:
         // Waiting for the push: the duration of the extraction stays on the screen, with the "FLUSH" tag
