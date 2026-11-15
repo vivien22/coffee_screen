@@ -94,4 +94,4 @@
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
 #define SAVE_BLINK_MS            500UL     // the value disappears this long when it is saved
-#define FLUSH_BLINK_MS           500UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING
+#define FLUSH_BLINK_MS           1000UL    // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING
