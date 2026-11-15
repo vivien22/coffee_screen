@@ -5,7 +5,7 @@
 void ScreenController::begin(const Settings &settings) {
   settings_ = settings;
   active_ = PARAMETER_VOLUME;
-  volumeShown_ = settings_.volume;
+  volumeShown_ = readyVolume();
   durationShown_ = readyDuration();
   temperatureShown_ = 0.0;
   dirty_ = DIRTY_ALL_VALUES;
@@ -106,7 +106,7 @@ void ScreenController::activate(ActiveParameter next) {
     temperatureShown_ = settings_.temperature;   // the setpoint is shown while it is edited
   }
   if (active_ == PARAMETER_VOLUME) {
-    volumeShown_ = settings_.volume;             // the target volume, not the last extraction
+    volumeShown_ = readyVolume();                // the target volume, not the last extraction
   }
   if (previous == PARAMETER_MANUAL_TIME) {
     durationShown_ = settings_.manualSeconds;    // the time just set is the one that stays shown
@@ -116,6 +116,10 @@ void ScreenController::activate(ActiveParameter next) {
 }
 
 bool ScreenController::adjustActiveParameter(int16_t delta) {
+  if (settings_.manual && active_ == PARAMETER_VOLUME) {
+    return false;   // MANUAL mode: the volume is not a target, the field shows 0
+  }
+
   int16_t *value;
   int16_t maxValue;
   uint8_t dirtyField;
@@ -235,13 +239,18 @@ void ScreenController::showExtractionStarted() {
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
+// The volume shown when nothing is going on: the target volume, or 0 in MANUAL mode (no target)
+uint16_t ScreenController::readyVolume() const {
+  return settings_.manual ? 0 : settings_.volume;
+}
+
 // The duration shown when nothing is going on: 0 s, or the MANUAL time that will be counted down
 uint16_t ScreenController::readyDuration() const {
   return settings_.manual ? settings_.manualSeconds : 0;
 }
 
 void ScreenController::showReady() {
-  volumeShown_ = settings_.volume;   // the target volume, not the last extraction
+  volumeShown_ = readyVolume();   // the target volume, not the last extraction
   durationShown_ = readyDuration();
   volumeTagShown_ = PHASE_TAG_NONE;
   durationTagShown_ = PHASE_TAG_NONE;

@@ -136,7 +136,8 @@ static void manualMode(){
   while(t<t0+9900){ t+=100; m.update(); }
   CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
   while(t<t0+10300){ t+=100; m.update(); }
-  CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));    // then the target volume and 0 s
+  CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
+  CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
   m.handleShortPush();                                   // stop: the values of this extraction are shown
   t+=100; m.update(); calls.clear();
@@ -180,7 +181,7 @@ static void manualTime(){
   // the final values: elapsed time (7 s), kept 10 s
   { calls.clear(); for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)") && !has("dur(7,0,0,1)"));   // the values of the extraction stay
     calls.clear(); for(int i=0;i<60;i++){ t+=100; m.update(); }
-    CHECK(has("dur(7,0,0,1)") && !has("dur(0,0,0,1)")); }                  // then the MANUAL time (7 s), not 0
+    CHECK(has("dur(7,0,0,1)") && !has("dur(0,0,0,1)") && has("vol(0,1,0,1)")); }   // then 0 ml and the MANUAL time (7 s), not 0
   // the time set stays shown when another parameter is selected, and after a mode change
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME); m.screen_.adjustActiveParameter(3);
   calls.clear(); m.handleDoublePush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));
