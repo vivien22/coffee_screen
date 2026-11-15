@@ -31,18 +31,14 @@ void beginDisplay() {
 // ------------------------------------------------------------
 // Icons
 
-// Blend COLOR_ICON with COLOR_BG; opacity: 0 (background) to 15 (full color).
-// The colors are RGB565: 5 bits red, 6 bits green, 5 bits blue.
-static uint16_t blendColor(uint8_t opacity) {
-  // Channels of the background
-  uint8_t r = (COLOR_BG >> 11) & 0x1F, g = (COLOR_BG >> 5) & 0x3F, b = COLOR_BG & 0x1F;
-  // Difference between the icon color and the background, per channel
-  int8_t dr = ((COLOR_ICON >> 11) & 0x1F) - r;
-  int8_t dg = ((COLOR_ICON >> 5) & 0x3F) - g;
-  int8_t db = (COLOR_ICON & 0x1F) - b;
-  // background + difference * opacity / 15, packed back to RGB565
-  return ((uint16_t)(r + dr * opacity / 15) << 11) | ((uint16_t)(g + dg * opacity / 15) << 5) | (uint16_t)(b + db * opacity / 15);
-}
+// COLOR_ICON blended with COLOR_BG, opacity 0 (background) to 15 (full color), computed by the
+// compiler: nothing is calculated on the board. The colors are RGB565 (5 bits red, 6 green, 5 blue);
+// each channel is background + (icon - background) * opacity / 15.
+#define BLEND_CHANNEL(shift, mask, opacity) \
+  ((int)((COLOR_BG >> (shift)) & (mask)) + \
+   ((int)((COLOR_ICON >> (shift)) & (mask)) - (int)((COLOR_BG >> (shift)) & (mask))) * (opacity) / 15)
+#define BLEND_COLOR(opacity) \
+  ((uint16_t)((BLEND_CHANNEL(11, 0x1F, opacity) << 11) | (BLEND_CHANNEL(5, 0x3F, opacity) << 5) | BLEND_CHANNEL(0, 0x1F, opacity)))
 
 // Draw an icon stored as 2-bit opacity (PROGMEM): four pixels per byte, the first pixel in the
 // high bits. Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
@@ -51,7 +47,10 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *levels, uint8_t width,
   tft.startWrite();
   for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
     const uint8_t level = (pgm_read_byte(&levels[i >> 2]) >> (6 - 2 * (i & 3))) & 0x03;
-    if (level) tft.writePixel(x + i % width, y + i / width, blendColor(level * 5));
+    if (level) {
+      tft.writePixel(x + i % width, y + i / width,
+                     level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)));
+    }
   }
   tft.endWrite();
 }
