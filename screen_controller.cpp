@@ -160,6 +160,15 @@ void ScreenController::showExtractionStarted() {
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
+void ScreenController::showReady() {
+  volumeShown_ = settings_.volume;   // the target volume, not the last extraction
+  durationShown_ = 0;
+  tagShown_ = PHASE_TAG_NONE;
+  tagBlinking_ = false;
+  tagVisible_ = true;
+  dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+}
+
 void ScreenController::showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds) {
   showExtractionValues(volumeMl, durationSeconds, PHASE_TAG_NONE);
 }

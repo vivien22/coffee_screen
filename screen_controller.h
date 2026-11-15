@@ -57,6 +57,9 @@ class ScreenController {
     // after it ("PRE" while the pump runs, "WAIT" while the puck soaks).
     void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
 
+    // Ready for the next extraction: the target volume and a duration of 0 s are shown, no tag.
+    void showReady();
+
     // Flush: the "FLUSH" tag is shown after the duration. While waiting for the push the duration is
     // the one of the extraction; while flushing it counts down the seconds left in the flush and
     // the tag blinks (flushing = true). The volume shown is the one of the extraction.

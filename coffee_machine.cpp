@@ -47,7 +47,13 @@ void CoffeeMachine::update() {
 
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();
-  if (extracting || wasExtracting_) {
+  const bool justStopped = wasExtracting_ && !extracting;
+  const bool flushJustEnded = justStopped && (lastState_ == EXTRACTION_FLUSH_WAIT || lastState_ == EXTRACTION_FLUSHING);
+
+  if (flushJustEnded) {
+    // End of the flush: the screen is ready for the next extraction at once
+    screen_.showReady();
+  } else if (extracting || wasExtracting_) {
     switch (extraction_.state()) {
       case EXTRACTION_PREINFUSION:
       case EXTRACTION_PREINFUSION_WAIT:
@@ -71,6 +77,24 @@ void CoffeeMachine::update() {
     }
   }
   wasExtracting_ = extracting;
+  if (extracting) {
+    lastState_ = extraction_.state();
+  }
+
+  // An extraction that ended without flush: its values stay RESULT_HOLD_MS, then the target volume
+  // and 0 s are shown. A new extraction cancels it.
+  if (justStopped && !flushJustEnded) {
+    resultHoldEndsAt_ = now + RESULT_HOLD_MS;
+    resultHold_ = true;
+  }
+  if (resultHold_) {
+    if (extracting) {
+      resultHold_ = false;
+    } else if ((int32_t)(now - resultHoldEndsAt_) >= 0) {
+      resultHold_ = false;
+      screen_.showReady();
+    }
+  }
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(now, temperature_.celsius());

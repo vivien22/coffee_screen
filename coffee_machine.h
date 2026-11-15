@@ -48,4 +48,7 @@ class CoffeeMachine {
     ScreenController screen_;
 
     bool wasExtracting_;   // to show the final values of an extraction
+    ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
+    bool resultHold_ = false;         // the values of an extraction without flush are held on the screen
+    uint32_t resultHoldEndsAt_ = 0;
 };
