@@ -15,6 +15,7 @@ struct Settings {
   int16_t preinfusionWait;   // s, 0 = no wait
   int16_t flush;             // s, 0 = no flush
   int16_t manualSeconds;     // s, MANUAL mode: 0 = the pump runs until the second push
+  float loss;                // ml, water that does not end in the cup (puck, backflush), see config.h
   bool manual;               // MANUAL mode (the pump runs between two pushes), false = AUTO
 };
 

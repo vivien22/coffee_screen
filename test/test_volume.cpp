@@ -12,7 +12,7 @@ static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
 #define PUMP pins[4]
 int main(){
-  const float LOSS=PUCK_RETAINED_ML+BACKFLUSH_ML;   // 30
+  const float LOSS=DEFAULT_LOSS_ML;   // 30
   // ---- cup volume estimate = In - Out - 30, never below 0
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0);
     f.in=20; f.out=0; t=300; e.update(t,40); CHECK(e.volumeMl()==0);               // priming: nothing in the cup yet

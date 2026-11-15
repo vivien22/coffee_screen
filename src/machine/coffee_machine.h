@@ -51,6 +51,7 @@ class CoffeeMachine {
 
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
+    bool calibrationOffered_ = false; // CAL was offered for the last extraction
     bool resultShown_ = false;        // the values of an extraction without flush are still on the screen
     uint32_t resultShownUntil_ = 0;   // end of that display (EXTRACTION_RESULT_DISPLAY_MS after the end)
 };

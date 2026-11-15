@@ -14,7 +14,7 @@
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
-// AUTO mode: volume, pre-infusion, wait, flush, temperature. MANUAL mode: volume, MANUAL time,
+// AUTO mode: volume, pre-infusion, wait, flush, CAL (only after an extraction), temperature. MANUAL mode: volume, MANUAL time,
 // temperature (the other parameters are skipped).
 // The pre-infusion volume is shown in the volume field with the "PRE" tag; the wait and flush times
 // are shown in the duration field with the "WAIT" / "FLUSH" tag.
@@ -23,6 +23,7 @@ enum ActiveParameter {
   PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
   PARAMETER_FLUSH,              // flush time after the extraction (s)
+  PARAMETER_CALIBRATION,        // AUTO mode, after an extraction: the real weight of the cup (g), corrects the loss
   PARAMETER_MANUAL_TIME,        // MANUAL mode: time of the extraction (s), 0 = until the second push
   PARAMETER_TEMPERATURE,
   PARAMETER_COUNT
@@ -45,6 +46,15 @@ class ScreenController {
     // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode).
     // The volume is selected again.
     void toggleMode();
+
+    // Calibration of the loss (see config.h). offerCalibration(): an AUTO extraction that gave
+    // estimateMl is over, the CAL parameter joins the cycle of the double push, starting at estimateMl
+    // (the cup weight is entered there). withdrawCalibration(): it leaves the cycle (new extraction).
+    // applyCalibration(netMl): the double push that validates CAL; netMl is In - Out of the extraction;
+    // corrects settings().loss, unless the value was not changed, and returns it. CAL leaves the cycle.
+    void offerCalibration(uint16_t estimateMl);
+    void withdrawCalibration();
+    float applyCalibration(float netMl);
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
     // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, MANUAL_MAX_SECONDS, TEMPERATURE_MAX).
@@ -98,6 +108,9 @@ class ScreenController {
     void render();
     void activate(ActiveParameter next);        // select a parameter and show it
     bool availableInMode(ActiveParameter p) const;
+    bool calibrationAvailable_ = false;
+    int16_t calibrationValue_ = 0;   // the cup weight entered (starts at the estimate)
+    int16_t calibrationStart_ = 0;   // the estimate of the extraction
     uint16_t readyVolume() const;
     uint16_t readyDuration() const;
     void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);

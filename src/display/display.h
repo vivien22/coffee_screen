@@ -31,7 +31,8 @@ enum PhaseTag : uint8_t {
   PHASE_TAG_NONE,              // nothing: normal extraction or no extraction
   PHASE_TAG_PREINFUSION,       // "PRE":  the puck is being wetted (volume field)
   PHASE_TAG_PREINFUSION_WAIT,  // "WAIT": the puck is soaking (duration field)
-  PHASE_TAG_FLUSH              // "FLUSH": the group head is rinsed, or waits to be (duration field)
+  PHASE_TAG_FLUSH,             // "FLUSH": the group head is rinsed, or waits to be (duration field)
+  PHASE_TAG_CALIBRATION        // "CAL": the weight of the cup is entered (volume field)
 };
 
 // Initialize the screen and fill it with the background color.

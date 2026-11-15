@@ -23,6 +23,7 @@ void CoffeeMachine::begin() {
   flow_.begin();
 
   heater_.setSetpoint(settings.temperature);
+  extraction_.setLossMl(settings.loss);
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(millis(), temperature_.celsius());
@@ -41,6 +42,11 @@ void CoffeeMachine::update() {
   const uint32_t now = millis();
 
   extraction_.update(now, screen_.settings().volume);
+  // An extraction that ended normally can be used to calibrate the loss (CAL parameter)
+  if (extraction_.calibratable() && !calibrationOffered_) {
+    calibrationOffered_ = true;
+    screen_.offerCalibration(extraction_.volumeMl());
+  }
   screen_.showNoWater(extraction_.hasNoWaterError());   // the drop blinks until the error is cleared
   temperature_.update(now);
   heater_.update(now,
@@ -180,6 +186,8 @@ void CoffeeMachine::handleShortPush() {
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
         const Settings &settings = screen_.settings();
         saveSettings();   // the volume that was just set is validated by the start (written only if it changed)
+        calibrationOffered_ = false;   // the previous extraction can no longer be used to calibrate
+        screen_.withdrawCalibration();
         if (settings.manual) {
           extraction_.startManual(encoder_.eventPressTime(), settings.manualSeconds);
         } else {
@@ -212,6 +220,10 @@ void CoffeeMachine::handleDoublePush() {
 
     default:
       break;
+  }
+  if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
+    // The cup weight entered corrects the loss, used by the next extractions
+    extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
   }
   saveSettings();   // the parameter that was edited is validated (written only if it changed)
   screen_.selectNextParameter();

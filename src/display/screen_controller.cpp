@@ -76,7 +76,25 @@ bool ScreenController::availableInMode(ActiveParameter p) const {
   if (settings_.manual) {
     return p == PARAMETER_VOLUME || p == PARAMETER_MANUAL_TIME || p == PARAMETER_TEMPERATURE;
   }
-  return p != PARAMETER_MANUAL_TIME;
+  return p != PARAMETER_MANUAL_TIME && (p != PARAMETER_CALIBRATION || calibrationAvailable_);
+}
+
+void ScreenController::offerCalibration(uint16_t estimateMl) {
+  calibrationAvailable_ = true;
+  calibrationValue_ = calibrationStart_ = estimateMl;
+}
+
+void ScreenController::withdrawCalibration() {
+  calibrationAvailable_ = false;
+}
+
+float ScreenController::applyCalibration(float netMl) {
+  if (calibrationValue_ != calibrationStart_) {
+    const float loss = settings_.loss + CALIBRATION_GAIN * (netMl - calibrationValue_ - settings_.loss);
+    settings_.loss = constrain(loss, 0.0f, LOSS_MAX_ML);
+  }
+  calibrationAvailable_ = false;
+  return settings_.loss;
 }
 
 void ScreenController::selectNextParameter() {
@@ -134,6 +152,9 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       break;
     case PARAMETER_MANUAL_TIME:
       value = &settings_.manualSeconds;   maxValue = MANUAL_MAX_SECONDS;      dirtyField = DIRTY_DURATION;
+      break;
+    case PARAMETER_CALIBRATION:
+      value = &calibrationValue_;         maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME_NUMBER;
       break;
     default:
       value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
@@ -305,10 +326,13 @@ void ScreenController::render() {
     // The tag is redrawn only if the whole field is dirty (not when only the number changed).
     const bool redrawTag = (dirty & DIRTY_VOLUME) != 0;
 
-    // While the pre-infusion volume is selected, the field shows that setting (large digits, with its tag).
+    // While the pre-infusion volume (or the cup weight of the calibration) is selected, the field shows that
+    // setting (large digits, with its tag).
     // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
     if (active_ == PARAMETER_PREINFUSION) {
       drawVolume(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
+    } else if (active_ == PARAMETER_CALIBRATION) {
+      drawVolume(calibrationValue_, TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
     } else {
       drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag);
     }

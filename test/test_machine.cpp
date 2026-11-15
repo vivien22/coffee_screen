@@ -43,7 +43,7 @@ static void scenario(int flush){
     m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();      // flush: a double push skips it
       CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[4]==0 && pins[16]==0); }
-    m.screen_.selectNextParameter(); m.screen_.selectNextParameter(); m.screen_.selectNextParameter(); m.screen_.selectNextParameter();   // back to volume
+    for(int i=0;i<8 && m.screen_.activeParameter()!=PARAMETER_VOLUME;i++) m.screen_.selectNextParameter();   // back to volume
     CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
     m.handleShortPush(); for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-1000)/1000.0f*100; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; }
     m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
@@ -222,4 +222,57 @@ static void autoSave(){
   w=EEPROM.writes; m.handleLongPush(); CHECK(EEPROM.mem[8]==0 && EEPROM.writes==w+1);
   printf("auto save: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// Calibration of the loss: CAL appears after a normal AUTO extraction, the cup weight corrects the loss
+static float savedLoss(){ float f; memcpy(&f,EEPROM.mem+10,4); return f; }
+static void runAuto(CoffeeMachine&m){   // 3 ml/s, nothing back through the OPV, until the end of the extraction
+  m.handleShortPush(); unsigned long t0=t;
+  for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
+  t+=100; m.update();
+}
+static void gotoParam(CoffeeMachine&m,ActiveParameter p){ for(int i=0;i<8 && m.screen_.activeParameter()!=p;i++) m.handleDoublePush(); }
+static void calibration(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
+  CoffeeMachine m; t=1000; m.begin();
+  CHECK(savedLoss()==DEFAULT_LOSS_ML);                    // written by the defaults
+  runAuto(m);
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && m.extraction_.calibratable());
+  float net=m.extraction_.netVolumeMl(); CHECK(net>=DEFAULT_LOSS_ML+40 && net<DEFAULT_LOSS_ML+43);
+  CHECK(m.screen_.calibrationAvailable_);
+  gotoParam(m,PARAMETER_CALIBRATION); CHECK(m.screen_.activeParameter()==PARAMETER_CALIBRATION);
+  { char b[40]; snprintf(b,40,"vol(%d,1,%d,1)",m.screen_.calibrationValue_,(int)PHASE_TAG_CALIBRATION);
+    calls.clear(); t+=100; m.update(); CHECK(has(b)); }
+  CHECK(m.screen_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
+  m.screen_.adjustActiveParameter(-(m.screen_.calibrationValue_-30)); // the cup really holds 30 g
+  m.handleDoublePush();                                  // validates
+  float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
+  CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
+  CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);        // saved
+  CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE && !m.screen_.calibrationAvailable_);
+  { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().loss>expect-0.01f && m2.screen_.settings().loss<expect+0.01f); }
+  gotoParam(m,PARAMETER_VOLUME);
+  for(int i=0;i<8;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION); }   // gone from the cycle
+  gotoParam(m,PARAMETER_VOLUME);
+  // the next extraction stops with the new loss (net volume = 40 + loss)
+  runAuto(m); net=m.extraction_.netVolumeMl(); CHECK(net>=40+expect-0.5f && net<40+expect+3);
+  // CAL not touched: the loss stays
+  gotoParam(m,PARAMETER_CALIBRATION); float before=m.screen_.settings().loss; m.handleDoublePush();
+  CHECK(m.screen_.settings().loss==before);
+  // an extraction under CALIBRATION_MIN_ML is not offered
+  gotoParam(m,PARAMETER_VOLUME); m.screen_.adjustActiveParameter(5-m.screen_.settings().volume); runAuto(m);
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !m.extraction_.calibratable());
+  gotoParam(m,PARAMETER_FLUSH); for(int i=0;i<2;i++) m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION);
+  // MANUAL extraction: not offered
+  m.handleLongPush(); m.handleShortPush(); for(int i=0;i<60;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  m.handleShortPush(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.calibrationAvailable_);
+  // the clamp and the validity of the EEPROM value
+  { ScreenController sc; Settings in={93,40,10,5,5,0,50.0f,false}; sc.begin(in); sc.offerCalibration(40); sc.selectNextParameter();
+    for(int i=0;i<8 && sc.activeParameter()!=PARAMETER_CALIBRATION;i++) sc.selectNextParameter();
+    sc.adjustActiveParameter(-40);   // 0 g in the cup: measured loss = net, 100 -> clamp
+    CHECK(sc.applyCalibration(300.0f)==LOSS_MAX_ML); }
+  memset(EEPROM.mem,0xFF,64); { SettingsStore s2; s2.load(); }
+  float bad=1000.0f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==DEFAULT_LOSS_ML); }
+  bad=-3.0f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==DEFAULT_LOSS_ML); }
+  bad=42.5f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==42.5f); }
+  printf("calibration: ok\n");
+}
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); calibration(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

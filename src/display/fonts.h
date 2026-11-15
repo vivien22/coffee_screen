@@ -288,10 +288,10 @@ const GFXglyph FontUnitGlyphs[] PROGMEM = {
 
 const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x30, 0x35, 42};
 
-// Phase tag of the duration ("PRE", "WAIT", "FLUSH"), mode letters, "ERR": 15 px capitals, only the 13 letters needed.
+// Phase tag of the duration ("PRE", "WAIT", "FLUSH"), mode letters, "ERR": 15 px capitals, only the 14 letters needed.
 // The letters use the consecutive codes '0'..';' instead of their ASCII codes, so the glyph
-// table has 13 entries instead of 23 (A..W): '0'=P '1'=R '2'=E '3'=W '4'=A '5'=I '6'=T
-// '7'=F '8'=L '9'=U ':'=S ';'=H '<'=M (mode letter in the drop: "4" = A, "<" = M).
+// table has 14 entries instead of 23 (A..W): '0'=P '1'=R '2'=E '3'=W '4'=A '5'=I '6'=T
+// '7'=F '8'=L '9'=U ':'=S ';'=H '<'=M '='=C (mode letter in the drop: "4" = A, "<" = M; "=48" = CAL).
 //   "PRE" = "012"      "WAIT" = "3456"      "FLUSH" = "789:;"
 const uint8_t FontTagBitmaps[] PROGMEM = {
   0xFF, 0x1F, 0xFB, 0xFF, 0x78, 0xFF, 0x1F, 0xE3, 0xFC, 0x7F, 0xFE, 0xFF,
@@ -318,6 +318,7 @@ const uint8_t FontTagBitmaps[] PROGMEM = {
   0x83, 0xFC, 0x1F, 0xE0, 0xFF, 0x07, 0xF8, 0x3F, 0xC1, 0xE0,
   0xF0, 0x7F, 0xC7, 0xFF, 0x7F, 0xFB, 0xFF, 0x77, 0xFB, 0xBF, 0xDD, 0xFE, 0xEF, 0xF7, 0x7F, 0x93,
   0xFC, 0x1F, 0xE0, 0xFF, 0x07, 0xF8, 0x3F, 0xC1, 0xE0,
+  0x1F, 0x87, 0xFC, 0xF0, 0xFF, 0x0F, 0xF0, 0x0F, 0x00, 0xF0, 0x0F, 0x00, 0xF0, 0x0F, 0x00, 0xF0, 0x0F, 0x0F, 0xF0, 0xF7, 0xFC, 0x1F, 0x80,
 };
 
 const GFXglyph FontTagGlyphs[] PROGMEM = {
@@ -334,6 +335,7 @@ const GFXglyph FontTagGlyphs[] PROGMEM = {
   { 216, 11, 15, 13, 1, -15 }, // 0x3A ':' = S
   { 237, 13, 15, 15, 1, -15 }, // 0x3B ';' = H
   { 262, 13, 15, 15, 1, -15 }, // 0x3C '<' = M
+  { 287, 12, 15, 13, 1, -15 }, // 0x3D '=' = C
 };
 
-const GFXfont FontTag PROGMEM = {(uint8_t *)FontTagBitmaps, (GFXglyph *)FontTagGlyphs, 0x30, 0x3C, 20};
+const GFXfont FontTag PROGMEM = {(uint8_t *)FontTagBitmaps, (GFXglyph *)FontTagGlyphs, 0x30, 0x3D, 20};

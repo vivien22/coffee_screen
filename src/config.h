@@ -100,14 +100,21 @@
 
 // The target volume is the volume wanted in the cup. The flow sensors measure the water that
 // enters the boiler (In) and the water that comes back through the OPV valve (Out); the water
-// that really stays in the system is In - Out. Not all of it ends in the cup:
-//   PUCK_RETAINED_ML  water that stays in the puck (depends on the dose and on the coffee)
-//   BACKFLUSH_ML      water sent to the drip tray when the valve opens at the end of the extraction
-// Volume shown on the screen = (In - Out) - PUCK_RETAINED_ML - BACKFLUSH_ML, never below 0.
-// The extraction ends when it reaches the target volume, i.e. when In - Out reaches
-// target + PUCK_RETAINED_ML + BACKFLUSH_ML. Tune both values by weighing the cups.
-#define PUCK_RETAINED_ML             24.0f
-#define BACKFLUSH_ML                 6.0f
+// that really stays in the system is In - Out. Not all of it ends in the cup: the puck retains some
+// (it depends on the dose and on the coffee) and some is sent to the drip tray when the valve opens
+// at the end of the extraction (backflush). The sum is the "loss":
+//   volume shown on the screen = (In - Out) - loss, never below 0
+// The extraction ends when it reaches the target volume, i.e. when In - Out reaches target + loss.
+// The loss is a setting (saved in EEPROM), corrected by the machine itself: after an AUTO extraction
+// the CAL parameter appears in the cycle of the double push, the real weight of the cup is entered
+// there (1 g = 1 ml), and the double push that validates it corrects the loss:
+//     measured loss = (In - Out) - real volume
+//     new loss = loss + CALIBRATION_GAIN * (measured loss - loss)        (kept between 0 and LOSS_MAX_ML)
+// An extraction that gave less than CALIBRATION_MIN_ML (stopped at once...) is not offered.
+#define DEFAULT_LOSS_ML              30.0f     // used when the EEPROM has never been written
+#define LOSS_MAX_ML                  60.0f
+#define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
+#define CALIBRATION_MIN_ML           10
 #define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // an extraction without flush: its volume and duration stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 
@@ -127,7 +134,7 @@
 // MANUAL mode: a short push starts the pump (valve open), the next short push stops it. With a MANUAL
 // time above 0 the pump also stops by itself after that time, and the screen counts it down to 0
 // instead of showing the elapsed time. No target volume, no pre-infusion, no flush. The screen shows the water that stays in the system (In - Out,
-// without the PUCK_RETAINED_ML / BACKFLUSH_ML losses) and the elapsed time; they stay
+// without the loss) and the elapsed time; they stay
 // EXTRACTION_RESULT_DISPLAY_MS at the end, like an extraction without flush. The no-flow safety and
 // the DURATION_MAX limit are active.
 

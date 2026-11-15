@@ -44,6 +44,7 @@
 
 #pragma once
 #include <Arduino.h>
+#include "../config.h"
 #include "../lib/flow_sensor.h"
 
 enum ExtractionState : uint8_t {
@@ -76,7 +77,7 @@ class ExtractionController {
 
     // MANUAL mode: pump on and valve open until stop(EXTRACTION_FINISHED), or until seconds have
     // elapsed if seconds > 0 (then FINISHED too). No target volume, no pre-infusion, no flush.
-    // The volume is In - Out (no PUCK_RETAINED_ML / BACKFLUSH_ML losses).
+    // The volume is In - Out (no loss).
     // Ignored if an extraction is in progress or after a no-water error.
     void startManual(uint32_t pressTime, uint16_t seconds);
 
@@ -137,6 +138,16 @@ class ExtractionController {
     // Flow of the water entering the boiler (the water to heat), 0 when no extraction is in progress
     float inflowMlPerSec();
 
+    // Water that does not end in the cup (puck, backflush), see config.h: the setting of the user,
+    // given by the machine. Used to estimate the volume in the cup.
+    void setLossMl(float ml) { lossMl_ = ml; }
+
+    // In - Out at the end of the extraction (final like volumeMl()), and whether this extraction can be
+    // used to correct the loss: an AUTO extraction ended normally (finish()) that gave at least
+    // CALIBRATION_MIN_ML. False after an abort, an error, a MANUAL extraction, until the next start().
+    float netVolumeMl() const { return netMl_; }
+    bool calibratable() const { return finishedNormally_ && !manual_ && volumeMl_ >= CALIBRATION_MIN_ML; }
+
   private:
     // Seconds left of a phase (rounded up), given its duration
     uint16_t secondsLeft(uint32_t phaseDurationMs, uint32_t now) const;
@@ -147,7 +158,7 @@ class ExtractionController {
     // Enter a phase: set the pump and the valve, restart the phase timer.
     void enterPhase(ExtractionState phase, uint32_t now);
 
-    // Volume in the cup estimated from the flow sensors: (In - Out) - PUCK_RETAINED_ML - BACKFLUSH_ML, >= 0
+    // Volume in the cup estimated from the flow sensors: (In - Out) - loss, >= 0 (also keeps In - Out in netMl_)
     uint16_t cupVolumeMl();
 
     void setPump(bool on);
@@ -169,6 +180,9 @@ class ExtractionController {
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
     bool manual_;               // the extraction in progress (or the last one) is a MANUAL one
+    float lossMl_;              // water that does not end in the cup (setting)
+    float netMl_;               // In - Out when volumeMl_ was last computed
+    bool finishedNormally_;     // the last extraction ended with finish()
     uint32_t manualMs_;         // MANUAL time, 0 = until stop()
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress

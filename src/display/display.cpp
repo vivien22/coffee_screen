@@ -147,7 +147,9 @@ static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
   tft.setFont(FONT_TAG);
   tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
   tft.setCursor(x, baseline);
-  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456")));
+  // FontTag codes: P R E = "012", C A L = "=48", F L U S H = "789:;", W A I T = "3456"
+  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") :
+            (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
 }
 
 void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {

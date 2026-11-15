@@ -18,6 +18,9 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   waitMs_(0),
   flushMs_(0),
   manual_(false),
+  lossMl_(DEFAULT_LOSS_ML),
+  netMl_(0.0f),
+  finishedNormally_(false),
   manualMs_(0)
 {
 }
@@ -51,6 +54,8 @@ bool ExtractionController::begin_(uint32_t pressTime) {
 
   flow_.startExtraction();
   volumeMl_ = 0;
+  netMl_ = 0.0f;
+  finishedNormally_ = false;
   durationSeconds_ = 0;
   lastVolumeAt_ = now;
 
@@ -90,6 +95,7 @@ void ExtractionController::finish(uint32_t now) {
   }
 
   stop(EXTRACTION_FINISHED);
+  finishedNormally_ = true;
 
   // Flush time 0: no flush, the extraction is over
   if (flushMs_ > 0) {
@@ -230,7 +236,8 @@ float ExtractionController::inflowMlPerSec() {
 // In - Out is the water that stays in the system; the part that does not end in the cup is removed.
 uint16_t ExtractionController::cupVolumeMl() {
   // MANUAL mode: the water that stays in the system, nothing is removed
-  const float cup = flow_.getNetVolume() - (manual_ ? 0.0f : (PUCK_RETAINED_ML + BACKFLUSH_ML));
+  netMl_ = flow_.getNetVolume();
+  const float cup = netMl_ - (manual_ ? 0.0f : lossMl_);
   return (cup > 0.0f) ? (uint16_t)(cup + 0.5f) : 0;
 }
 
