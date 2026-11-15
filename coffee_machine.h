@@ -35,7 +35,8 @@ class CoffeeMachine {
     // User actions
     void pollEncoder();
     void handleShortPush();    // start the extraction / end it / start the flush / stop the flush
-    void handleDoublePush();   // stop everything, select the next parameter (volume, pre-infusion, wait, flush, temperature)
+    void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
+                               // the extraction, skips the flush if it is waiting or running
     void handleLongPush();     // save the selected parameter (ignored during an extraction)
     void adjustActiveParameter(int16_t delta);
 
@@ -49,6 +50,6 @@ class CoffeeMachine {
 
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
-    bool resultHold_ = false;         // the values of an extraction without flush are held on the screen
-    uint32_t resultHoldEndsAt_ = 0;
+    bool resultShown_ = false;        // the values of an extraction without flush are still on the screen
+    uint32_t resultShownUntil_ = 0;   // end of that display (EXTRACTION_RESULT_DISPLAY_MS after the end)
 };

@@ -70,7 +70,7 @@
 
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
-#define RESULT_HOLD_MS               10000UL   // an extraction without flush: its volume and duration stay on the screen
+#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // an extraction without flush: its volume and duration stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.

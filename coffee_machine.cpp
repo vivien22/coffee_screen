@@ -81,17 +81,17 @@ void CoffeeMachine::update() {
     lastState_ = extraction_.state();
   }
 
-  // An extraction that ended without flush: its values stay RESULT_HOLD_MS, then the target volume
+  // An extraction that ended without flush: its values stay EXTRACTION_RESULT_DISPLAY_MS, then the target volume
   // and 0 s are shown. A new extraction cancels it.
   if (justStopped && !flushJustEnded) {
-    resultHoldEndsAt_ = now + RESULT_HOLD_MS;
-    resultHold_ = true;
+    resultShownUntil_ = now + EXTRACTION_RESULT_DISPLAY_MS;
+    resultShown_ = true;
   }
-  if (resultHold_) {
+  if (resultShown_) {
     if (extracting) {
-      resultHold_ = false;
-    } else if ((int32_t)(now - resultHoldEndsAt_) >= 0) {
-      resultHold_ = false;
+      resultShown_ = false;
+    } else if ((int32_t)(now - resultShownUntil_) >= 0) {
+      resultShown_ = false;
       screen_.showReady();
     }
   }
@@ -168,9 +168,21 @@ void CoffeeMachine::handleShortPush() {
 }
 
 void CoffeeMachine::handleDoublePush() {
-  // Stops everything at once, in any phase (no flush)
-  if (extraction_.isActive()) {
-    extraction_.stop(EXTRACTION_FINISHED);
+  switch (extraction_.state()) {
+    case EXTRACTION_PREINFUSION:
+    case EXTRACTION_PREINFUSION_WAIT:
+    case EXTRACTION_RUNNING:
+      // Ignored during the extraction (pre-infusion included): a short push stops it
+      return;
+
+    case EXTRACTION_FLUSH_WAIT:
+    case EXTRACTION_FLUSHING:
+      // The extraction is over: the flush is skipped / stopped, then the next parameter is selected
+      extraction_.stop(EXTRACTION_FINISHED);
+      break;
+
+    default:
+      break;
   }
   screen_.selectNextParameter();
 }
