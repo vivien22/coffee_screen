@@ -3,18 +3,9 @@
 
 #include <Arduino.h>
 
-// Minimum interval between flow calculations.
-#define USN_FLOW_SENSOR_UPDATE_INTERVAL_MS   250UL
-
-// Inputs must be analog pins A0..A5 on the classic ATmega328P Nano/Uno.
-#define USN_FLOW_SENSOR_IN_PIN               A0
-#define USN_FLOW_SENSOR_OUT_PIN              A1
-
-// Calibration factors in pulses per millilitre.
-#define USN_FLOW_SENSOR_K_FACTOR_IN          12.56f
-#define USN_FLOW_SENSOR_K_FACTOR_OUT         50.0f
-
-// ATmega328P implementation using PCINT1 (A0..A5).
+// Two pulse flow sensors on the classic ATmega328P Nano/Uno, counted by PCINT1.
+// The inputs (PIN_FLOW_IN, PIN_FLOW_OUT: two different pins of A0..A5), the calibration
+// (FLOW_K_FACTOR_IN / OUT, pulses per millilitre) and FLOW_UPDATE_MS are in config.h.
 // Only one instance is supported because this library owns PCINT1_vect.
 class USN_FlowSensor {
 public:
@@ -34,15 +25,13 @@ public:
     void resetVolume();
 
     // Flow rates are returned in mL/min.
-    float getInflowRate();
-    float getOutflowRate();
-    float getNetFlowRate();
+    float getInflowRate() { return _lastInRate; }
+    float getOutflowRate() { return _lastOutRate; }
 
     // Accumulated volumes are returned in mL.
-    float getVolumeIn();
-    float getVolumeOut();
-    float getNetVolume();       // inflow minus outflow (kept for compatibility)
-    float getOutflowVolume();   // equivalent to getVolumeOut() (kept for compatibility)
+    float getVolumeIn() { return _volumeIn; }
+    float getVolumeOut() { return _volumeOut; }
+    float getNetVolume() { return _volumeIn - _volumeOut; }   // inflow minus outflow
 
     // Called by the PCINT1 interrupt handler; do not call from application code.
     void handlePortCChange(uint8_t currentPort);
@@ -51,25 +40,16 @@ public:
     static USN_FlowSensor* _instance;
 
 private:
-    void updatePhysical(uint32_t durationMs);
-
-    uint8_t _inflowBit;
-    uint8_t _outflowBit;
-
-    float _kFactorIn;
-    float _kFactorOut;
-
     // Modified by the ISR and copied/reset atomically in update().
-    volatile uint32_t _pulsesIn;
-    volatile uint32_t _pulsesOut;
+    // 16 bits are enough: the counters are emptied every FLOW_UPDATE_MS.
+    volatile uint16_t _pulsesIn;
+    volatile uint16_t _pulsesOut;
     volatile uint8_t _lastPortC;
 
     uint32_t _lastUpdateAt;
 
     float _volumeIn;
     float _volumeOut;
-    float _netVolume;
-    float _outflowVolume;
     float _lastInRate;
     float _lastOutRate;
 };

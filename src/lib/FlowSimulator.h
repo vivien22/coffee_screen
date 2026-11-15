@@ -21,7 +21,7 @@ class FlowSimulator {
     void update() {
       const uint32_t now = millis();
       const uint32_t durationMs = now - lastUpdateAt_;
-      if (durationMs < FLOW_SIM_UPDATE_MS) {
+      if (durationMs < FLOW_UPDATE_MS) {
         return;
       }
       lastUpdateAt_ = now;
@@ -47,11 +47,9 @@ class FlowSimulator {
     // Flow rates in mL/min, volumes in mL
     float getInflowRate() { return lastInRate_; }
     float getOutflowRate() { return lastOutRate_; }
-    float getNetFlowRate() { return lastInRate_ - lastOutRate_; }
     float getVolumeIn() { return volumeIn_; }
     float getVolumeOut() { return volumeOut_; }
     float getNetVolume() { return volumeIn_ - volumeOut_; }
-    float getOutflowVolume() { return volumeOut_; }
 
   private:
     uint32_t lastUpdateAt_ = 0;

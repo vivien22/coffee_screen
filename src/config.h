@@ -1,7 +1,5 @@
 /*
   config.h: every pin, limit, timing and tuning constant of the machine, in one place.
-  (The flow sensor inputs A0/A1 and its calibration stay in USN_FlowSensor.h: they are
-  tied to the PCINT1 implementation of that library.)
 */
 
 #pragma once
@@ -18,6 +16,8 @@
 #define PIN_PUMP_RELAY    4
 #define PIN_VALVE_RELAY   A2
 #define PIN_MAX31865_CS   6
+#define PIN_FLOW_IN       A0    // flow sensors: both on A0..A5 (PCINT1), see USN_FlowSensor
+#define PIN_FLOW_OUT      A1
 
 // ---------- CJMCU-111 rotary encoder ----------
 #define ENCODER_STEP      1     // value change per detent
@@ -69,6 +69,12 @@
 #define WATER_SPECIFIC_HEAT      4.186f    // J/(g.K)
 #define FEEDFORWARD_GAIN         0.3f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
 
+// ---------- Flow sensors ----------
+// Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
+#define FLOW_K_FACTOR_IN             12.56f
+#define FLOW_K_FACTOR_OUT            50.0f
+#define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
+
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
@@ -78,7 +84,6 @@
 #define FLOW_SIMULATOR
 #define FLOW_SIM_PUMP_ML_PER_S       3.0f      // water entering the boiler while the pump is on (ml/s)
 #define FLOW_SIM_OPV_RATIO           0.1f      // part of it returning through the OPV (0 = none, 0.1 = 10 %)
-#define FLOW_SIM_UPDATE_MS           100UL     // period of the simulated measurement
 
 // The target volume is the volume wanted in the cup. The flow sensors measure the water that
 // enters the boiler (In) and the water that comes back through the OPV valve (Out); the water
