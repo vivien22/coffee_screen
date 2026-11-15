@@ -144,6 +144,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
   // '0'..'6' (see fonts.h): "012" is PRE and "3456" is WAIT.
   if (tag != PHASE_TAG_NONE) {
     tft.setFont(FONT_TAG);
+    tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
     tft.setCursor(DURATION_TAG_X, DURATION_TAG_BASELINE);
     tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : F("3456"));
   }

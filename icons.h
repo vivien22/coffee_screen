@@ -9,8 +9,9 @@
 
 // ============================== 1. Colors ==============================
 #define COLOR_BG                      0x1040 // mockup background (21,8,1)
+#define COLOR_TEXT                    0xFFBC // cream (254,245,228)
 #define COLOR_ICON                    0xFDCD // icon orange (255,186,107); edges are blended with COLOR_BG
-#define COLOR_TEXT                    COLOR_ICON // texts use the same orange as the icons (was 0xFFBC, cream (254,245,228))
+#define COLOR_TAG                     COLOR_ICON // phase tag (PRE, WAIT): same orange as the icons
 
 // ========================== 2. Positions ============================
 // Icons: X, Y = top-left corner
