@@ -19,7 +19,7 @@
 #define ICON_THERMOMETER_Y            35
 #define ICON_DROP_X                   38
 #define ICON_DROP_Y                   99
-#define ICON_CLOCK_X                  65
+#define ICON_CLOCK_X                  46   // ink x 46 -> 84: centred on the thermometer (centre x 65)
 #define ICON_CLOCK_Y                  167
 
 // For texts, Y is the baseline of the GFX font (_BASELINE).
@@ -55,20 +55,20 @@
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
-#define DURATION_X                    105   // left edge of the number
+#define DURATION_X                    (ICON_CLOCK_X + 45)   // left edge of the number
 #define DURATION_BASELINE             201   // baseline of the number
 #define DURATION_UNIT_BASELINE        201   // baseline of the "s"
-#define DURATION_ZONE_X               104   // zone erased before each update: x 104 -> 240 (the clock, up to x 103, is not touched)
+#define DURATION_ZONE_X               (DURATION_X - 1)   // zone erased before each update: x 90 -> 240 (the clock, up to x 84, is not touched)
 #define DURATION_ZONE_Y               152   // y 152 -> 204
-#define DURATION_ZONE_WIDTH           136
+#define DURATION_ZONE_WIDTH           (240 - DURATION_ZONE_X)
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
-#define DURATION_TAG_X                150   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
+#define DURATION_TAG_X                (DURATION_X + 45)   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
                                             // not move when the digit of the countdown changes width
 #define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
 // When the duration field shows a selected pre-infusion setting (large digits, up to "10"), the tag
 // moves to the top right of the field, above the "s": it cannot sit next to the large number.
-#define DURATION_TAG_LARGE_X          171
+#define DURATION_TAG_LARGE_X          (DURATION_X + 66)
 #define DURATION_TAG_LARGE_BASELINE   172
 
 // ============================ 3. Icons (4-bit opacity) ============================
