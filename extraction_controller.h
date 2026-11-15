@@ -72,6 +72,11 @@ class ExtractionController {
     uint16_t volumeMl() const { return volumeMl_; }
     uint16_t durationSeconds() const { return durationSeconds_; }
 
+    // Seconds left in the pre-infusion phase in progress, rounded up (5, 4, 3, 2, 1), updated by
+    // update(). 0 outside PREINFUSION and PREINFUSION_WAIT: the screen shows it instead of the
+    // duration while the pre-infusion is in progress.
+    uint16_t phaseSecondsLeft() const { return phaseSecondsLeft_; }
+
     // Flow of the water leaving the boiler, 0 when no extraction is in progress
     float outflowMlPerSec();
 
@@ -92,4 +97,5 @@ class ExtractionController {
     uint32_t lastVolumeAt_;
     uint16_t volumeMl_;
     uint16_t durationSeconds_;
+    uint16_t phaseSecondsLeft_;
 };

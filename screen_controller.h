@@ -10,6 +10,7 @@
 #pragma once
 #include <Arduino.h>
 #include "settings.h"
+#include "display.h"   // PhaseTag
 
 // Parameter selected on the screen (large digits), adjusted by the encoder
 enum ActiveParameter {
@@ -44,6 +45,10 @@ class ScreenController {
     void showExtractionStarted();
     void showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds);
 
+    // Pre-infusion: the duration counts down the seconds left in the phase and a tag is shown
+    // after it ("PRE" while the pump runs, "WAIT" while the puck soaks).
+    void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
+
   private:
     enum DirtyFlags : uint8_t {
       DIRTY_NONE        = 0,
@@ -55,6 +60,7 @@ class ScreenController {
     };
 
     void render();
+    void showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag);
 
     Settings settings_;
     ActiveParameter active_ = PARAMETER_VOLUME;
@@ -62,6 +68,7 @@ class ScreenController {
     // What each field shows
     int16_t volumeShown_ = 0;
     int16_t durationShown_ = 0;
+    PhaseTag tagShown_ = PHASE_TAG_NONE;   // tag drawn after the duration
     double temperatureShown_ = 0.0;
 
     double liveTemperature_ = 0.0;

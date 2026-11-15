@@ -48,7 +48,19 @@ void CoffeeMachine::update() {
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();
   if (extracting || wasExtracting_) {
-    screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
+    switch (extraction_.state()) {
+      case EXTRACTION_PREINFUSION:
+      case EXTRACTION_PREINFUSION_WAIT:
+        // Countdown of the phase, with the "PRE" / "WAIT" tag
+        screen_.showPreinfusion(extraction_.volumeMl(),
+                                extraction_.phaseSecondsLeft(),
+                                extraction_.state() == EXTRACTION_PREINFUSION_WAIT);
+        break;
+      default:
+        // Main extraction, or final values of an extraction that just stopped
+        screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
+        break;
+    }
   }
   wasExtracting_ = extracting;
 

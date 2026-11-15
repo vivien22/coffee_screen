@@ -24,6 +24,14 @@ enum TextSize {
   TEXT_SIZE_LARGE
 };
 
+// Phase tag drawn after the duration while the pre-infusion is in progress
+// (the duration then counts down the seconds left in the phase).
+enum PhaseTag : uint8_t {
+  PHASE_TAG_NONE,              // nothing: normal extraction or no extraction
+  PHASE_TAG_PREINFUSION,       // "PRE":  the puck is being wetted
+  PHASE_TAG_PREINFUSION_WAIT   // "WAIT": the puck is soaking
+};
+
 // Initialize the screen and fill it with the background color.
 // The backlight stays off until the screen is filled, to avoid artefacts at power-on.
 void beginDisplay();
@@ -36,7 +44,7 @@ void drawIcons();
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);
 void drawVolume(uint16_t value, TextSize size);
-void drawDuration(uint16_t value, TextSize size);
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag);   // tag is drawn after the unit
 
 // Erase the zone of a value
 void clearTemperature();

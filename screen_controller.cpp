@@ -118,12 +118,22 @@ void ScreenController::showExtractionStarted() {
 }
 
 void ScreenController::showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds) {
+  showExtractionValues(volumeMl, durationSeconds, PHASE_TAG_NONE);
+}
+
+void ScreenController::showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting) {
+  showExtractionValues(volumeMl, secondsLeft, waiting ? PHASE_TAG_PREINFUSION_WAIT : PHASE_TAG_PREINFUSION);
+}
+
+// The duration field is redrawn when its number or its tag changes.
+void ScreenController::showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag) {
   if ((int16_t)volumeMl != volumeShown_) {
     volumeShown_ = (int16_t)volumeMl;
     dirty_ |= DIRTY_VOLUME;
   }
-  if ((int16_t)durationSeconds != durationShown_) {
-    durationShown_ = (int16_t)durationSeconds;
+  if ((int16_t)durationValue != durationShown_ || tag != tagShown_) {
+    durationShown_ = (int16_t)durationValue;
+    tagShown_ = tag;
     dirty_ |= DIRTY_DURATION;
   }
 }
@@ -146,7 +156,7 @@ void ScreenController::render() {
     drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
   }
   if (dirty & DIRTY_DURATION) {
-    drawDuration(durationShown_, TEXT_SIZE_SMALL);
+    drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_);
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);

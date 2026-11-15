@@ -11,7 +11,8 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, US
   phaseStartedAt_(0),
   lastVolumeAt_(0),
   volumeMl_(0),
-  durationSeconds_(0)
+  durationSeconds_(0),
+  phaseSecondsLeft_(0)
 {
 }
 
@@ -53,6 +54,7 @@ void ExtractionController::stop(ExtractionState finalState) {
   }
 
   state_ = finalState;
+  phaseSecondsLeft_ = 0;
 
   // Pump first, valve second: the pressure is released to the drip tray once the pump is
   // stopped. Closing the valve before the pump would dead-head it.
@@ -85,6 +87,16 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     enterPhase(PREINFUSION_WAITING_TIME_MS > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
   } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= PREINFUSION_WAITING_TIME_MS) {
     enterPhase(EXTRACTION_RUNNING, now);
+  }
+
+  // ----- Countdown shown on the screen during the pre-infusion (rounded up: 5, 4, 3...) -----
+  phaseSecondsLeft_ = 0;
+  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_PREINFUSION_WAIT) {
+    const uint32_t phaseDurationMs = (state_ == EXTRACTION_PREINFUSION) ? PREINFUSION_TIME_MS : PREINFUSION_WAITING_TIME_MS;
+    const uint32_t phaseElapsed = (uint32_t)(now - phaseStartedAt_);
+    if (phaseElapsed < phaseDurationMs) {
+      phaseSecondsLeft_ = (uint16_t)((phaseDurationMs - phaseElapsed + 999UL) / 1000UL);
+    }
   }
 
   // ----- Target volume (checked in every phase: the pre-infusion water is counted) -----

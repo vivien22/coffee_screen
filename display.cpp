@@ -10,6 +10,7 @@
 #define FONT_SMALL (&FontSmall)   // digits, small size
 #define FONT_LARGE (&FontLarge)   // digits, large size
 #define FONT_UNIT  (&FontUnit)    // units: C, ml, s
+#define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
 
 // The screen driver
 static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
@@ -129,7 +130,7 @@ void drawVolume(uint16_t value, TextSize size) {
   tft.print(F("ml"));
 }
 
-void drawDuration(uint16_t value, TextSize size) {
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
   int16_t xNumberEnd = drawNumber(value,
                                   size,
                                   DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT,
@@ -138,6 +139,14 @@ void drawDuration(uint16_t value, TextSize size) {
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
   tft.print('s');
+
+  // Phase tag after the unit. FontTag only holds the letters P R E W A I T, under the codes
+  // '0'..'6' (see fonts.h): "012" is PRE and "3456" is WAIT.
+  if (tag != PHASE_TAG_NONE) {
+    tft.setFont(FONT_TAG);
+    tft.setCursor(tft.getCursorX() + DURATION_TAG_DX, DURATION_TAG_BASELINE);
+    tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : F("3456"));
+  }
 }
 
 void clearTemperature() {

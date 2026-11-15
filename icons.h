@@ -62,6 +62,8 @@
 #define DURATION_ZONE_WIDTH           131
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
+#define DURATION_TAG_DX               4     // offset of the phase tag ("PRE", "WAIT") from the end of the "s"
+#define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
 
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.
