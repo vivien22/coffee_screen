@@ -106,8 +106,9 @@ class ExtractionController {
 
     // Seconds left in the timed phase in progress, rounded up (5, 4, 3, 2, 1), updated by
     // update(): PREINFUSION, PREINFUSION_WAIT and FLUSHING. In FLUSH_WAIT it is the flush time
-    // (what the flush will last). 0 in the other states. The screen shows it instead of the
-    // duration during these phases.
+    // (what the flush will last): the screen does not show it, it keeps the duration of the
+    // extraction. 0 in the other states. The screen shows it instead of the duration during the
+    // timed phases.
     uint16_t phaseSecondsLeft() const { return phaseSecondsLeft_; }
 
     // Flow of the water leaving the boiler, 0 when no extraction is in progress

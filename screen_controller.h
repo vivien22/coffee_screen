@@ -57,8 +57,9 @@ class ScreenController {
     // after it ("PRE" while the pump runs, "WAIT" while the puck soaks).
     void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
 
-    // Flush: the duration shows the flush time (while waiting for the push) then counts it down,
-    // with the "FLUSH" tag. The volume shown is the one of the extraction.
+    // Flush: the "FLUSH" tag is shown after the duration. While waiting for the push the duration is
+    // the one of the extraction; while flushing it counts down the seconds left in the flush.
+    // The volume shown is the one of the extraction.
     void showFlush(uint16_t volumeMl, uint16_t secondsLeft);
 
   private:
