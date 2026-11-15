@@ -1,5 +1,5 @@
 #include "screen_controller.h"
-#include "config.h"
+#include "../config.h"
 #include "display.h"
 
 void ScreenController::begin(const Settings &settings) {

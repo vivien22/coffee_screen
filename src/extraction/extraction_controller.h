@@ -39,7 +39,7 @@
 
 #pragma once
 #include <Arduino.h>
-#include "USN_FlowSensor.h"
+#include "../lib/USN_FlowSensor.h"
 
 enum ExtractionState : uint8_t {
   EXTRACTION_IDLE,

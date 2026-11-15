@@ -1,5 +1,5 @@
 #include "coffee_machine.h"
-#include "config.h"
+#include "../config.h"
 
 CoffeeMachine::CoffeeMachine() :
   encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS),

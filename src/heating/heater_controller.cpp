@@ -1,6 +1,6 @@
 #include "heater_controller.h"
-#include "config.h"
-#include "debug.h"
+#include "../config.h"
+#include "../debug.h"
 
 HeaterController::HeaterController(uint8_t relayPin) :
   relayPin_(relayPin),

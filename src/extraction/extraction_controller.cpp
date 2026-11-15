@@ -1,6 +1,6 @@
 #include "extraction_controller.h"
-#include "config.h"
-#include "debug.h"
+#include "../config.h"
+#include "../debug.h"
 
 ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, USN_FlowSensor &flow) :
   pumpPin_(pumpPin),

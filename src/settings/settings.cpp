@@ -1,5 +1,5 @@
 #include "settings.h"
-#include "config.h"
+#include "../config.h"
 #include <EEPROM.h>
 
 // EEPROM layout: [magic: 1 byte][temperature: int16][volume: int16][pre-infusion: 1 byte][wait: 1 byte][flush: 1 byte]

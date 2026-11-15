@@ -20,8 +20,8 @@
  * This is not a substitute for an independent thermal fuse/thermostat.
  */
 
-#include "coffee_machine.h"
-#include "debug.h"
+#include "src/app/coffee_machine.h"
+#include "src/debug.h"
 
 CoffeeMachine machine;
 

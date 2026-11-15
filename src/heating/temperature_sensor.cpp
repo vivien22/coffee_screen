@@ -1,6 +1,6 @@
 #include "temperature_sensor.h"
-#include "config.h"
-#include "debug.h"
+#include "../config.h"
+#include "../debug.h"
 #include <SPI.h>
 
 // ---------- MAX31865 registers and bits ----------

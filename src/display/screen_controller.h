@@ -9,7 +9,7 @@
 
 #pragma once
 #include <Arduino.h>
-#include "settings.h"
+#include "../settings/settings.h"
 #include "display.h"   // PhaseTag
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.

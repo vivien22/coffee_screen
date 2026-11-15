@@ -16,7 +16,7 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
-#include "config.h"
+#include "../config.h"
 
 // Size of the digits of a value
 enum TextSize {
