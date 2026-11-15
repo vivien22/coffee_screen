@@ -22,11 +22,11 @@ void CoffeeMachine::begin() {
   temperature_.begin();
   flow_.begin();
 
-  heater_.setSetpoint(settings.temperature);
+  heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
   extraction_.setLossMl(settings.loss);
 
   if (temperature_.isValid()) {
-    screen_.showLiveTemperature(millis(), temperature_.celsius());
+    screen_.showLiveTemperature(millis(), temperature_.celsius() - TEMPERATURE_OFFSET);
   } else {
     screen_.showTemperatureError();
   }
@@ -112,7 +112,7 @@ void CoffeeMachine::update() {
   }
 
   if (temperature_.isValid()) {
-    screen_.showLiveTemperature(now, temperature_.celsius());
+    screen_.showLiveTemperature(now, temperature_.celsius() - TEMPERATURE_OFFSET);
   } else {
     screen_.showTemperatureError();   // the heater is off (see HeaterController)
   }
@@ -233,7 +233,7 @@ void CoffeeMachine::handleDoublePush() {
 void CoffeeMachine::saveSettings() {
   const Settings &settings = screen_.settings();
   store_.save(settings);
-  heater_.setSetpoint(settings.temperature);
+  heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
 }
 
 void CoffeeMachine::handleLongPush() {

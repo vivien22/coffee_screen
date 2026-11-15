@@ -32,6 +32,10 @@
 #define VOLUME_MAX           999
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
+// The boiler probe is hotter than the water that reaches the group head. The setpoint and the temperature shown
+// are the temperature of the water: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the
+// screen shows probe - TEMPERATURE_OFFSET (degrees C).
+#define TEMPERATURE_OFFSET   5
 #define DEFAULT_VOLUME       40
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step, see "Extraction" below.
 #define PREINFUSION_MAX_ML                50

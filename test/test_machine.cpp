@@ -273,6 +273,7 @@ static void calibration(){
   float bad=1000.0f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==DEFAULT_LOSS_ML); }
   bad=-3.0f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==DEFAULT_LOSS_ML); }
   bad=42.5f; memcpy(EEPROM.mem+10,&bad,4); { SettingsStore s2; CHECK(s2.load().loss==42.5f); }
+  { memset(EEPROM.mem,0xFF,64); CoffeeMachine m3; t=1000; m3.begin(); CHECK(m3.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET); }   // regulated on the probe
   printf("calibration: ok\n");
 }
 int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); calibration(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
