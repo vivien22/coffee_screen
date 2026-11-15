@@ -21,6 +21,19 @@ void ScreenController::update(uint32_t now) {
     blinking_ = false;
     dirty_ |= blinkField_;
   }
+
+  // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
+  if (tagBlinking_) {
+    if (tagBlinkPending_) {
+      tagBlinkPending_ = false;
+      tagToggleAt_ = now + FLUSH_BLINK_MS;
+    } else if ((int32_t)(now - tagToggleAt_) >= 0) {
+      tagVisible_ = !tagVisible_;
+      tagToggleAt_ = now + FLUSH_BLINK_MS;
+      dirty_ |= DIRTY_TAG;
+    }
+  }
+
   render();
 }
 
@@ -155,8 +168,20 @@ void ScreenController::showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, 
   showExtractionValues(volumeMl, secondsLeft, waiting ? PHASE_TAG_PREINFUSION_WAIT : PHASE_TAG_PREINFUSION);
 }
 
-void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft) {
+void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool flushing) {
   showExtractionValues(volumeMl, secondsLeft, PHASE_TAG_FLUSH);
+
+  // The tag blinks while flushing; it is shown again (and stops blinking) otherwise
+  if (flushing && !tagBlinking_) {
+    tagBlinking_ = true;
+    tagBlinkPending_ = true;
+  } else if (!flushing && tagBlinking_) {
+    tagBlinking_ = false;
+    if (!tagVisible_) {
+      tagVisible_ = true;
+      dirty_ |= DIRTY_TAG;
+    }
+  }
 }
 
 // The whole duration field is redrawn when its tag changes; when only the number changes
@@ -169,6 +194,8 @@ void ScreenController::showExtractionValues(uint16_t volumeMl, uint16_t duration
   if (tag != tagShown_) {
     durationShown_ = (int16_t)durationValue;
     tagShown_ = tag;
+    tagBlinking_ = false;     // a new tag is drawn whole, and visible
+    tagVisible_ = true;
     dirty_ |= DIRTY_DURATION;
   } else if ((int16_t)durationValue != durationShown_) {
     durationShown_ = (int16_t)durationValue;
@@ -208,6 +235,10 @@ void ScreenController::render() {
     } else {
       drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_, redrawTag);
     }
+  }
+  // The blinking tag, after the duration: it also gives the right state to a tag just redrawn
+  if ((dirty & DIRTY_TAG) && tagShown_ == PHASE_TAG_FLUSH && active_ != PARAMETER_FLUSH) {
+    drawPhaseTag(tagShown_, tagVisible_);
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);

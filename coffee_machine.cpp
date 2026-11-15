@@ -58,11 +58,11 @@ void CoffeeMachine::update() {
         break;
       case EXTRACTION_FLUSH_WAIT:
         // Waiting for the push: the duration of the extraction stays on the screen, with the "FLUSH" tag
-        screen_.showFlush(extraction_.volumeMl(), extraction_.durationSeconds());
+        screen_.showFlush(extraction_.volumeMl(), extraction_.durationSeconds(), false);
         break;
       case EXTRACTION_FLUSHING:
-        // Countdown of the flush, with the "FLUSH" tag
-        screen_.showFlush(extraction_.volumeMl(), extraction_.phaseSecondsLeft());
+        // Countdown of the flush, with the blinking "FLUSH" tag
+        screen_.showFlush(extraction_.volumeMl(), extraction_.phaseSecondsLeft(), true);
         break;
       default:
         // Main extraction, or final values of an extraction that just stopped

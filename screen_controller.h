@@ -58,9 +58,9 @@ class ScreenController {
     void showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, bool waiting);
 
     // Flush: the "FLUSH" tag is shown after the duration. While waiting for the push the duration is
-    // the one of the extraction; while flushing it counts down the seconds left in the flush.
-    // The volume shown is the one of the extraction.
-    void showFlush(uint16_t volumeMl, uint16_t secondsLeft);
+    // the one of the extraction; while flushing it counts down the seconds left in the flush and
+    // the tag blinks (flushing = true). The volume shown is the one of the extraction.
+    void showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool flushing);
 
   private:
     enum DirtyFlags : uint8_t {
@@ -70,6 +70,7 @@ class ScreenController {
       DIRTY_DURATION    = 1 << 2,   // the whole field: number, unit and tag
       DIRTY_HEATER      = 1 << 3,
       DIRTY_DURATION_NUMBER = 1 << 4,   // the number only: the tag already on the screen is kept
+      DIRTY_TAG         = 1 << 5,   // the tag only: it blinks
       DIRTY_ALL_VALUES  = DIRTY_VOLUME | DIRTY_TEMPERATURE | DIRTY_DURATION
     };
 
@@ -83,6 +84,12 @@ class ScreenController {
     int16_t volumeShown_ = 0;
     int16_t durationShown_ = 0;
     PhaseTag tagShown_ = PHASE_TAG_NONE;   // tag drawn after the duration
+
+    // Blinking of the "FLUSH" tag (during FLUSHING)
+    bool tagBlinking_ = false;
+    bool tagBlinkPending_ = false;   // blinking just started: the first toggle time is set by update()
+    bool tagVisible_ = true;
+    uint32_t tagToggleAt_ = 0;
     double temperatureShown_ = 0.0;
 
     double liveTemperature_ = 0.0;

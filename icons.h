@@ -69,6 +69,7 @@
 // and "FLUSH" would not fit on the round screen there).
 #define DURATION_TAG_X                (DURATION_X + 64)   // left edge of the tag
 #define DURATION_TAG_BASELINE         169                 // baseline of the tag
+#define DURATION_TAG_HEIGHT           15                  // height of the letters of the tag (erased when the tag blinks)
 
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.
