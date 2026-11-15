@@ -9,7 +9,7 @@
 // ---------- Fonts (digits in two sizes, units) ----------
 #define FONT_SMALL (&FontSmall)   // digits, small size
 #define FONT_LARGE (&FontLarge)   // digits, large size
-#define FONT_UNIT  (&FontUnit)    // units: C, ml, s (codes '0'..'3', see fonts.h)
+#define FONT_UNIT  (&FontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', see fonts.h)
 #define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
 
 // The screen driver
@@ -102,19 +102,18 @@ void drawTemperature(double value, TextSize size) {
                                   TEMPERATURE_X, TEMPERATURE_BASELINE);
 
   if (showDecimal && size == TEXT_SIZE_SMALL) {
-    // Draw the decimal point and first decimal digit using the same digit font.
-    // The custom digit font contains no decimal-point glyph, so draw the dot directly.
-    tft.fillCircle(xNumberEnd + 2, TEMPERATURE_BASELINE - 4, 2, COLOR_TEXT);
-    tft.setCursor(xNumberEnd + 6, TEMPERATURE_BASELINE);
-    tft.print((char)('0' + (roundedTenths % 10)));
+    // Decimal point and first decimal digit, in the digit font still selected by drawNumber():
+    // the decimal point is the glyph ':' of FontSmall (see fonts.h).
+    const char decimal[3] = { ':', (char)('0' + (roundedTenths % 10)), 0 };
+    tft.setCursor(xNumberEnd, TEMPERATURE_BASELINE);
+    tft.print(decimal);
     xNumberEnd = tft.getCursorX();
   }
 
-  // Degree sign: the fonts have no such glyph, it is drawn as a ring of 2 px (two circles)
-  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS, COLOR_TEXT);
-  tft.drawCircle(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, TEMPERATURE_DEGREE_RADIUS - 1, COLOR_TEXT);
-
+  // Degree sign (glyph '4' of FontUnit, centered on the cursor), then the unit
   tft.setFont(FONT_UNIT);
+  tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
+  tft.print('4');
   tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
   tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
 }
@@ -192,5 +191,9 @@ void clearDuration() {
 }
 
 void drawHeaterIndicator(bool visible) {
-  tft.fillCircle(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, TEMPERATURE_DOT_RADIUS, visible ? COLOR_TEXT : COLOR_BG);
+  // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
+  tft.setFont(FONT_UNIT);
+  tft.setTextColor(visible ? COLOR_TEXT : COLOR_BG);
+  tft.setCursor(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y);
+  tft.print('5');
 }

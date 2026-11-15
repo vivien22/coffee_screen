@@ -62,6 +62,7 @@ const uint8_t FontSmallBitmaps[] PROGMEM = {
   0xF3, 0xFF, 0xFF, 0x3F, 0xFF, 0xF0, 0xFF, 0x3F, 0x03, 0xC3, 0xF0, 0x00,
   0x3F, 0x00, 0x07, 0xE7, 0xE0, 0x7E, 0x7F, 0x0F, 0xE7, 0xFF, 0xFE, 0x3F,
   0xFF, 0xC1, 0xFF, 0xFC, 0x1F, 0xFF, 0x80, 0x7F, 0xF0, 0x01, 0xFC, 0x00,
+  0x77, 0xFF, 0xF7, 0x00,
 };
 
 const GFXglyph FontSmallGlyphs[] PROGMEM = {
@@ -75,9 +76,10 @@ const GFXglyph FontSmallGlyphs[] PROGMEM = {
   { 481, 18, 28, 20, 1, -28 }, // 0x37 '7'
   { 544, 21, 30, 25, 2, -30 }, // 0x38 '8'
   { 623, 20, 29, 23, 2, -29 }, // 0x39 '9'
+  { 696, 5, 5, 6, 0, -6 }, // 0x3A ':' = decimal point (disc of radius 2)
 };
 
-const GFXfont FontSmall PROGMEM = {(uint8_t *)FontSmallBitmaps, (GFXglyph *)FontSmallGlyphs, 0x30, 0x39, 49};
+const GFXfont FontSmall PROGMEM = {(uint8_t *)FontSmallBitmaps, (GFXglyph *)FontSmallGlyphs, 0x30, 0x3A, 49};
 
 const uint8_t FontLargeBitmaps[] PROGMEM = {
   0x00, 0x07, 0xFC, 0x00, 0x00, 0x07, 0xFF, 0xF0, 0x00, 0x03, 0xFF, 0xFF,
@@ -268,18 +270,23 @@ const uint8_t FontUnitBitmaps[] PROGMEM = {
   0x0F, 0xC0, 0xFF, 0xC7, 0xFF, 0xBF, 0xFE, 0xF8, 0xFF, 0xE1, 0xFF, 0xC0,
   0x1F, 0xF0, 0x3F, 0xF0, 0x3F, 0xE0, 0x0F, 0xFE, 0x1F, 0xFC, 0x7F, 0xFF,
   0xF7, 0xFF, 0x8F, 0xFC, 0x0F, 0xC0,
+  0x1C, 0x3F, 0x98, 0xD8, 0x3C, 0x1E, 0x0D, 0x8C, 0xFE, 0x1C, 0x00, 0x38, 0xFB, 0xFF, 0xFF, 0xEF, 0x8E, 0x00,
 };
 
 // The units use the consecutive codes '0'..'3' instead of their ASCII codes (C, l, m, s), so the
 // glyph table has 4 entries instead of 49: '0'=C '1'=l '2'=m '3'=s.   "C" = "0"   "ml" = "21"   "s" = "3"
+// Two round symbols follow, centered on the cursor (they replace drawCircle / fillCircle, which cost
+// more flash than their bitmaps): '4' = degree sign, '5' = dot of the heater indicator.
 const GFXglyph FontUnitGlyphs[] PROGMEM = {
   { 0, 20, 21, 22, 1, -21 }, // 0x30 '0' = C
   { 53, 6, 25, 10, 2, -25 }, // 0x31 '1' = l
   { 72, 30, 19, 34, 2, -19 }, // 0x32 '2' = m
   { 144, 14, 17, 16, 1, -17 }, // 0x33 '3' = s
+  { 174, 9, 9, 10, -4, -4 }, // 0x34 '4' = degree sign, centered on the cursor (ring of 2 px, radius 4)
+  { 185, 7, 7, 8, -3, -3 }, // 0x35 '5' = heater dot, centered on the cursor (disc of radius 3)
 };
 
-const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x30, 0x33, 42};
+const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x30, 0x35, 42};
 
 // Phase tag of the duration ("PRE", "WAIT", "FLUSH"): 15 px capitals, only the 12 letters needed.
 // The letters use the consecutive codes '0'..';' instead of their ASCII codes, so the glyph

@@ -30,19 +30,17 @@
 #define TEMPERATURE_X                 87    // left edge of the number
 #define TEMPERATURE_BASELINE          71    // baseline of the number
 #define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
-#define TEMPERATURE_DEGREE_Y          53    // center of the small degree circle
+#define TEMPERATURE_DEGREE_Y          53    // center of the degree sign
 #define TEMPERATURE_ZONE_X            86    // zone erased before each update: x 86 -> 220
 #define TEMPERATURE_ZONE_Y            22    // y 22 -> 74
 #define TEMPERATURE_ZONE_WIDTH        134
 #define TEMPERATURE_ZONE_HEIGHT       52
 #define TEMPERATURE_DEGREE_DX         6     // offset of the degree center from the end of the number
-#define TEMPERATURE_DEGREE_RADIUS     4     // outer radius of the degree sign (2 px ring)
 #define TEMPERATURE_UNIT_DX           11    // offset of the "C" from the end of the number
 
 // --------------------- Blinking dot for PID output ---------------------
 #define TEMPERATURE_DOT_X       80
 #define TEMPERATURE_DOT_Y       39
-#define TEMPERATURE_DOT_RADIUS  3
 
 // ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
 #define VOLUME_X                      80    // left edge of the number
