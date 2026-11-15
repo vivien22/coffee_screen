@@ -19,7 +19,7 @@
 #define ICON_THERMOMETER_Y            35
 #define ICON_DROP_X                   38
 #define ICON_DROP_Y                   99
-#define ICON_CLOCK_X                  46   // ink x 46 -> 84: centred on the thermometer (centre x 65)
+#define ICON_CLOCK_X                  56   // ink x 56 -> 94: compromise between the original place (x 65) and the axis of the thermometer (x 46)
 #define ICON_CLOCK_Y                  167
 
 // For texts, Y is the baseline of the GFX font (_BASELINE).
@@ -55,10 +55,10 @@
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
-#define DURATION_X                    (ICON_CLOCK_X + 45)   // left edge of the number
+#define DURATION_X                    (ICON_CLOCK_X + 43)   // left edge of the number
 #define DURATION_BASELINE             201   // baseline of the number
 #define DURATION_UNIT_BASELINE        201   // baseline of the "s"
-#define DURATION_ZONE_X               (DURATION_X - 1)   // zone erased before each update: x 90 -> 240 (the clock, up to x 84, is not touched)
+#define DURATION_ZONE_X               (DURATION_X - 1)   // zone erased before each update: x 98 -> 240 (the clock, up to x 94, is not touched)
 #define DURATION_ZONE_Y               152   // y 152 -> 204
 #define DURATION_ZONE_WIDTH           (240 - DURATION_ZONE_X)
 #define DURATION_ZONE_HEIGHT          52
@@ -67,8 +67,8 @@
 // small or large digits (countdown, or setting being edited): it does not move when the number
 // changes width, and it clears "10s" in both sizes (a tag next to the small "10s" would overlap it,
 // and "FLUSH" would not fit on the round screen there).
-#define DURATION_TAG_X                (DURATION_X + 66)   // left edge of the tag
-#define DURATION_TAG_BASELINE         172                 // baseline of the tag
+#define DURATION_TAG_X                (DURATION_X + 64)   // left edge of the tag
+#define DURATION_TAG_BASELINE         169                 // baseline of the tag
 
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.
