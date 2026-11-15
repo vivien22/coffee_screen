@@ -48,6 +48,8 @@ void drawDrop(bool visible);
 
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);
+// Temperature sensor fault: "ERR" replaces the value and its unit
+void drawTemperatureError();
 // tag: top right of the field, above the unit (PHASE_TAG_PREINFUSION in the volume field).
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.

@@ -149,8 +149,19 @@ void ScreenController::confirmSave(uint32_t now) {
 // ------------------------------------------------------------
 // Machine state to show
 
+void ScreenController::showTemperatureError() {
+  if (!temperatureError_) {
+    temperatureError_ = true;
+    dirty_ |= DIRTY_TEMPERATURE;
+  }
+}
+
 void ScreenController::showLiveTemperature(uint32_t now, double celsius) {
   liveTemperature_ = celsius;
+  if (temperatureError_) {
+    temperatureError_ = false;
+    temperatureKey_ = -1;               // the temperature is displayed again at once
+  }
 
   // While the temperature setpoint is edited, the setpoint is shown instead
   if (active_ == PARAMETER_TEMPERATURE) {
@@ -265,7 +276,9 @@ void ScreenController::render() {
   const uint8_t dirty = dirty_;
   dirty_ = DIRTY_NONE;
 
-  if (dirty & DIRTY_TEMPERATURE) {
+  if ((dirty & DIRTY_TEMPERATURE) && temperatureError_ && active_ != PARAMETER_TEMPERATURE) {
+    drawTemperatureError();
+  } else if (dirty & DIRTY_TEMPERATURE) {
     drawTemperature(temperatureShown_, active_ == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
   }
   if (dirty & (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)) {

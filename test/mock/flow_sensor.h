@@ -12,4 +12,5 @@ class FlowSensor {
     void stopExtraction() { rate = 0; }
     float getInflowRate() { return rate; }
     float getNetVolume() { return in - out; }
+    float getVolumeIn() { return in; }
 };

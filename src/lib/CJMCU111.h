@@ -3,8 +3,9 @@
   (https://github.com/ChrisPHL/CJMCU-111-rotary-button-demo).
   Copyright (c) 2020 Christian Pohl, aka ChrisPHL, www.chpohl.de.
 
-  Packaged as a library from the demo code (ISR counting logic unchanged;
-  press start time, push duration and short / double / long push events added).
+  Packaged as a library from the demo code (ISR counting logic unchanged, except that a left
+  turn started then cancelled is no longer counted as a push; press start time, push duration
+  and short / double / long push events added).
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

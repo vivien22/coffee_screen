@@ -138,9 +138,9 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
 
   // ----- No-flow safety: the pump runs but the water does not enter the boiler -----
   if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_RUNNING) {
-    const float net = flow_.getNetVolume();
-    if (net - flowCheckMl_ >= NO_FLOW_MIN_ML) {
-      flowCheckMl_ = net;
+    const float in = flow_.getVolumeIn();
+    if (in - flowCheckMl_ >= NO_FLOW_MIN_ML) {
+      flowCheckMl_ = in;
       flowCheckAt_ = now;
     } else if ((uint32_t)(now - flowCheckAt_) >= NO_FLOW_TIMEOUT_MS) {
       stop(EXTRACTION_ERROR_NO_WATER);
@@ -216,7 +216,7 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
 
   // The no-flow safety watches the pump phases: its reference restarts each time the pump starts
   if (phase == EXTRACTION_PREINFUSION || phase == EXTRACTION_RUNNING) {
-    flowCheckMl_ = flow_.getNetVolume();
+    flowCheckMl_ = flow_.getVolumeIn();
     flowCheckAt_ = now;
   }
 

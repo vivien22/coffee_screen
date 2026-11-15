@@ -128,6 +128,15 @@ void drawTemperature(double value, TextSize size) {
   tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
 }
 
+// "ERR" with the letters of FontTag ('2' = E, '1' = R): no other font has letters
+void drawTemperatureError() {
+  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
+  tft.setFont(FONT_TAG);
+  tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
+  tft.setCursor(TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE);
+  tft.print(F("211"));
+}
+
 // Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
 // codes '0'..';' (see fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
 static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {

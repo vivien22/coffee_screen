@@ -26,6 +26,8 @@ void CoffeeMachine::begin() {
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(millis(), temperature_.celsius());
+  } else {
+    screen_.showTemperatureError();
   }
   screen_.update(millis());
 }
@@ -100,6 +102,8 @@ void CoffeeMachine::update() {
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(now, temperature_.celsius());
+  } else {
+    screen_.showTemperatureError();   // the heater is off (see HeaterController)
   }
   screen_.showHeaterState(heater_.isOn());
   screen_.update(now);

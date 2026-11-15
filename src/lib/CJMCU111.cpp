@@ -225,8 +225,11 @@ void CJMCU111::isrGx() {
     case kRotationStatusStartLorPush:
       if (HIGH == rotationInputA && HIGH == rotationInputB) {
         rotationStatus = kRotationStatusWaiting;
+        // A push is Ga LOW then HIGH again while Gb never moved. If the knob started a left turn
+        // (both LOW) and came back, the candidate was cancelled: it is not a push.
+        const bool wasPress = rotaryPressCandidate;
         rotaryPressCandidate = false;
-        if ((isrGxTime - isrGxLastTime) > isrGxDebounceDuration) {
+        if (wasPress && (isrGxTime - isrGxLastTime) > isrGxDebounceDuration) {
           ++rotaryPushCount;
           rotaryPushDuration = isrGxTime - isrGxLastTime; // press -> release, msec
           rotaryPushPressTime = isrGxLastTime;            // time of the press

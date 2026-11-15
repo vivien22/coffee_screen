@@ -31,9 +31,13 @@ int main(){
     float stuck=f.in; for(;t<4000+NO_FLOW_TIMEOUT_MS-250;t+=250){ f.in=stuck; e.update(t,200); }
     CHECK(e.state()==EXTRACTION_RUNNING);
     t+=250; e.update(t,200); CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && PUMP==0); }
-  // ---- sensor disconnected: water measured as nothing, even with the OPV flow cancelling In
+  // ---- choked puck: the water comes back through the OPV (In - Out stops) but In still counts: no error
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0);
-    for(t=250;t<=NO_FLOW_TIMEOUT_MS;t+=250){ f.in=t*0.003f; f.out=f.in; e.update(t,40); }
+    for(t=250;t<=3*NO_FLOW_TIMEOUT_MS;t+=250){ f.in=t*0.003f; f.out=f.in; e.update(t,40); }
+    CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1); }
+  // ---- In sensor disconnected: Out alone does not hide the error
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0);
+    for(t=250;t<=NO_FLOW_TIMEOUT_MS;t+=250){ f.out=t*0.003f; e.update(t,40); }
     CHECK(e.state()==EXTRACTION_ERROR_NO_WATER); }
   // ---- PREINFUSION without flow too (before the 30 s timeout)
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,10,3,0);

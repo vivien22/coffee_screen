@@ -156,6 +156,6 @@ class ExtractionController {
     uint16_t preinfusionMlLeft_;
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
-    float flowCheckMl_;         // In - Out at the last progress seen (no-flow safety)
+    float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
 };

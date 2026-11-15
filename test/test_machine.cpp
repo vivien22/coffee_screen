@@ -15,9 +15,9 @@ int digitalRead(uint8_t){return 0;} void noInterrupts(){} void interrupts(){} Se
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
 void beginDisplay(){} void drawIcons(){}
-void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
+void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);} void drawTemperatureError(){L("temperr");}
 
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
@@ -99,4 +99,17 @@ static void noWater(){
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // a new extraction is possible
   printf("no-water: ok\n");
 }
-int main(){ scenario(0); scenario(3); noWater(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// Temperature sensor fault: "ERR" replaces the temperature, which comes back with the sensor
+static void temperatureError(){
+  ScreenController sc; Settings in={93,40,10,5,5}; sc.begin(in); sc.showLiveTemperature(0,91.5); calls.clear(); sc.update(0);
+  CHECK(!has("temperr(0,0,0,0)"));
+  sc.showTemperatureError(); calls.clear(); sc.update(1); CHECK(has("temperr(0,0,0,0)"));
+  sc.showTemperatureError(); calls.clear(); sc.update(2); CHECK(calls.empty());             // drawn once
+  // the setpoint is still shown while it is edited
+  for(int i=0;i<4;i++) sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_TEMPERATURE);
+  calls.clear(); sc.update(3); CHECK(!has("temperr(0,0,0,0)"));
+  sc.selectNextParameter(); calls.clear(); sc.update(4); CHECK(has("temperr(0,0,0,0)"));     // back to the live value: still ERR
+  sc.showLiveTemperature(5000,90.0); calls.clear(); sc.update(5000); CHECK(!has("temperr(0,0,0,0)") && !calls.empty());
+  printf("temperature error: ok\n");
+}
+int main(){ scenario(0); scenario(3); noWater(); temperatureError(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

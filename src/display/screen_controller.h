@@ -49,6 +49,9 @@ class ScreenController {
 
     // ----- Machine state to show -----
     void showLiveTemperature(uint32_t now, double celsius);
+    // Temperature sensor fault: "ERR" replaces the live temperature until showLiveTemperature() is
+    // called again (the setpoint is still shown while it is edited). Call it on every pass.
+    void showTemperatureError();
     void showHeaterState(bool on);
     void showExtractionStarted();
     void showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds);
@@ -112,6 +115,7 @@ class ScreenController {
 
     double liveTemperature_ = 0.0;
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none
+    bool temperatureError_ = false;     // sensor fault: "ERR" is shown instead of the live temperature
     uint32_t lastTemperatureAt_ = 0;
 
     bool heaterShown_ = false;

@@ -107,9 +107,11 @@
 #define PREINFUSION_TIMEOUT_MS       30000UL
 
 // No-flow safety: while the pump runs (PREINFUSION and RUNNING), the water that enters the boiler
-// (In - Out) must increase by at least NO_FLOW_MIN_ML every NO_FLOW_TIMEOUT_MS. Otherwise the
-// pump is stopped and the extraction ends in ERROR (empty tank, pump or flow sensor problem).
-// Not used during the flush. Keep NO_FLOW_MIN_ML well below the real flow x NO_FLOW_TIMEOUT_MS.
+// (In sensor alone) must increase by at least NO_FLOW_MIN_ML every NO_FLOW_TIMEOUT_MS. Otherwise
+// the pump is stopped and the extraction ends in ERROR_NO_WATER (empty tank, pump or In sensor
+// problem). Out is not used: with a choked puck the water comes back through the OPV (In - Out
+// stops), but the tank is not empty. Not used during the flush.
+// Keep NO_FLOW_MIN_ML well below the real flow x NO_FLOW_TIMEOUT_MS.
 #define NO_FLOW_TIMEOUT_MS           5000UL
 #define NO_FLOW_MIN_ML               2.0f
 // After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a long push resets the error;
