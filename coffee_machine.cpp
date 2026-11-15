@@ -110,6 +110,12 @@ void CoffeeMachine::handleDoublePush() {
 }
 
 void CoffeeMachine::handleLongPush() {
+  // A long push is ignored during an extraction (any phase, pre-infusion included):
+  // nothing is saved and the saved-value blink is not shown.
+  if (extraction_.isActive()) {
+    return;
+  }
+
   const Settings &settings = screen_.settings();
 
   if (screen_.activeParameter() == PARAMETER_VOLUME) {
