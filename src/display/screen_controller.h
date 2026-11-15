@@ -14,6 +14,8 @@
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
+// AUTO mode: volume, pre-infusion, wait, flush, temperature. MANUAL mode: volume, MANUAL time,
+// temperature (the other parameters are skipped).
 // The pre-infusion volume is shown in the volume field with the "PRE" tag; the wait and flush times
 // are shown in the duration field with the "WAIT" / "FLUSH" tag.
 enum ActiveParameter {
@@ -21,6 +23,7 @@ enum ActiveParameter {
   PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
   PARAMETER_FLUSH,              // flush time after the extraction (s)
+  PARAMETER_MANUAL_TIME,        // MANUAL mode: time of the extraction (s), 0 = until the second push
   PARAMETER_TEMPERATURE,
   PARAMETER_COUNT
 };
@@ -39,11 +42,12 @@ class ScreenController {
 
     void selectNextParameter();
 
-    // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode)
+    // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode).
+    // The volume is selected again.
     void toggleMode();
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
-    // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, TEMPERATURE_MAX).
+    // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, MANUAL_MAX_SECONDS, TEMPERATURE_MAX).
     // Returns true if the value changed.
     bool adjustActiveParameter(int16_t delta);
 
@@ -92,6 +96,8 @@ class ScreenController {
     };
 
     void render();
+    void activate(ActiveParameter next);        // select a parameter and show it
+    bool availableInMode(ActiveParameter p) const;
     void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);
 
     Settings settings_;

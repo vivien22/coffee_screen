@@ -43,6 +43,9 @@
 #define DEFAULT_FLUSH_SECONDS             5
 // Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes). Saved in EEPROM
 // at every change; AUTO when the EEPROM has never been written.
+// MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode, saved in EEPROM.
+#define MANUAL_MAX_SECONDS                99
+#define DEFAULT_MANUAL_SECONDS            0
 
 // ---------- Temperature sensor (MAX31865 + PT100) ----------
 #define RREF                       428.0
@@ -115,8 +118,9 @@
 // reached (flow sensor or pump problem).
 #define PREINFUSION_TIMEOUT_MS       30000UL
 
-// MANUAL mode: a short push starts the pump (valve open), the next short push stops it. No target
-// volume, no pre-infusion, no flush. The screen shows the water that stays in the system (In - Out,
+// MANUAL mode: a short push starts the pump (valve open), the next short push stops it. With a MANUAL
+// time above 0 the pump also stops by itself after that time, and the screen counts it down to 0
+// instead of showing the elapsed time. No target volume, no pre-infusion, no flush. The screen shows the water that stays in the system (In - Out,
 // without the PUCK_RETAINED_ML / BACKFLUSH_ML losses) and the elapsed time; they stay
 // EXTRACTION_RESULT_DISPLAY_MS at the end, like an extraction without flush. The no-flow safety and
 // the DURATION_MAX limit are active.

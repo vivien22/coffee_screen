@@ -17,7 +17,8 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   preinfusionMlLeft_(0),
   waitMs_(0),
   flushMs_(0),
-  manual_(false)
+  manual_(false),
+  manualMs_(0)
 {
 }
 
@@ -71,12 +72,13 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uin
   enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, millis());
 }
 
-void ExtractionController::startManual(uint32_t pressTime) {
+void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
   if (!begin_(pressTime)) {
     return;
   }
 
   manual_ = true;
+  manualMs_ = seconds * 1000UL;
   enterPhase(EXTRACTION_MANUAL, millis());
 }
 
@@ -174,6 +176,9 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     enterPhase(waitMs_ > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
   } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= waitMs_) {
     enterPhase(EXTRACTION_RUNNING, now);
+  } else if (state_ == EXTRACTION_MANUAL && manualMs_ > 0 && phaseElapsedMs >= manualMs_) {
+    stop(EXTRACTION_FINISHED);   // the MANUAL time is over
+    return;
   }
 
   // ----- Countdowns shown on the screen (rounded up: 5, 4, 3...) -----
@@ -185,6 +190,8 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     preinfusionMlLeft_ = (left > 0.0f) ? (uint16_t)(left + 0.999f) : 0;
   } else if (state_ == EXTRACTION_PREINFUSION_WAIT) {
     phaseSecondsLeft_ = secondsLeft(waitMs_, now);
+  } else if (state_ == EXTRACTION_MANUAL && manualMs_ > 0) {
+    phaseSecondsLeft_ = secondsLeft(manualMs_, now);
   }
 
   // ----- Volume in the cup, and target volume -----
@@ -253,6 +260,8 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
       break;
 
     case EXTRACTION_MANUAL:
+      phaseSecondsLeft_ = (manualMs_ > 0) ? secondsLeft(manualMs_, now) : 0;   // the countdown shows at once
+      // fall through
     case EXTRACTION_RUNNING:
       DEBUG_PRINTLN(F("Extraction running: pump on, valve open"));
       setValve(true);   // already open after a pre-infusion; needed if the pre-infusion is skipped

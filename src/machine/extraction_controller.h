@@ -29,7 +29,7 @@
       RUNNING            ON     open                      target volume (in the cup) reached
       FLUSH_WAIT         OFF    closed                    startFlush() (short push of the user)
       FLUSHING           ON     open                      flush time elapsed
-      MANUAL             ON     open                      stop() (second push of the user)
+      MANUAL             ON     open                      stop() (second push), or the MANUAL time
 
   The settings given to start(): a pre-infusion volume of 0 skips the whole pre-infusion (the wait
   too), a wait time of 0 skips only PREINFUSION_WAIT, a flush time of 0 skips the whole flush
@@ -74,10 +74,11 @@ class ExtractionController {
     // flushSeconds: duration of FLUSHING (0 = no flush).
     void start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds);
 
-    // MANUAL mode: pump on and valve open until stop(EXTRACTION_FINISHED). No target volume, no
-    // pre-infusion, no flush. The volume is In - Out (no PUCK_RETAINED_ML / BACKFLUSH_ML losses).
+    // MANUAL mode: pump on and valve open until stop(EXTRACTION_FINISHED), or until seconds have
+    // elapsed if seconds > 0 (then FINISHED too). No target volume, no pre-infusion, no flush.
+    // The volume is In - Out (no PUCK_RETAINED_ML / BACKFLUSH_ML losses).
     // Ignored if an extraction is in progress or after a no-water error.
-    void startManual(uint32_t pressTime);
+    void startManual(uint32_t pressTime, uint16_t seconds);
 
     // Normal end of the extraction, from PREINFUSION, PREINFUSION_WAIT or RUNNING: the pump is
     // switched off, then the valve closes, the final values are kept. Next phase is FLUSH_WAIT,
@@ -124,7 +125,7 @@ class ExtractionController {
     uint16_t durationSeconds() const { return durationSeconds_; }
 
     // Seconds left in the timed phase in progress, rounded up (5, 4, 3, 2, 1), updated by
-    // update(): PREINFUSION_WAIT and FLUSHING. In FLUSH_WAIT it is the flush time (what the flush
+    // update(): PREINFUSION_WAIT, FLUSHING and MANUAL with a time (0 without time: nothing to count down). In FLUSH_WAIT it is the flush time (what the flush
     // will last): the screen does not show it, it keeps the duration of the extraction. 0 in the
     // other states. The screen shows it instead of the duration during these phases.
     uint16_t phaseSecondsLeft() const { return phaseSecondsLeft_; }
@@ -168,6 +169,7 @@ class ExtractionController {
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
     bool manual_;               // the extraction in progress (or the last one) is a MANUAL one
+    uint32_t manualMs_;         // MANUAL time, 0 = until stop()
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
 };

@@ -148,4 +148,42 @@ static void manualMode(){
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // AUTO extraction again
   printf("manual mode: ok\n");
 }
-int main(){ scenario(0); scenario(3); noWater(); temperatureError(); manualMode(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// MANUAL time: the parameters of the mode, the countdown, the stop by itself
+static void manualTime(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.saveFlush(0); st.saveManual(true);
+  CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
+  // MANUAL: volume -> MANUAL time -> temperature -> volume (pre-infusion, wait and flush are skipped)
+  m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME);
+  calls.clear(); m.screen_.adjustActiveParameter(7); t+=100; m.update(); CHECK(has("dur(7,1,0,1)") || has("dur(7,1,0,0)"));   // large digits, no tag
+  m.handleLongPush(); CHECK(EEPROM.mem[9]==7);           // saved
+  m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE);
+  m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
+  // AUTO: the MANUAL time is skipped, the others are back
+  m.handleVeryLongPush(); CHECK(!m.screen_.settings().manual);
+  for(int i=0;i<5;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_MANUAL_TIME); }
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
+  m.handleDoublePush(); m.handleDoublePush();            // pre-infusion, wait
+  m.handleVeryLongPush();                                // back to MANUAL: the volume is selected again
+  CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
+  // the extraction: the time counts down from 7 to 0, then the pump stops by itself
+  calls.clear(); m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  unsigned long t0=t; bool seen7=false, seen1=false;
+  for(int i=0;i<90;i++){ t+=100; m.flow_.in+=0.3f; m.update();
+    if(has("dur(7,0,0,0)")||has("dur(7,0,0,1)")) seen7=true;
+    if(has("dur(1,0,0,0)")||has("dur(1,0,0,1)")) seen1=true;
+    if(m.extraction_.state()!=EXTRACTION_MANUAL) break; }
+  CHECK(seen7 && seen1);
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
+  CHECK(t-t0>=6900 && t-t0<=7300);
+  calls.clear(); t+=100; m.update();
+  // the final values: elapsed time (7 s), kept 10 s
+  { bool dur7=false; calls.clear(); for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)")); (void)dur7; }
+  // time 0: the old behaviour, the pump runs until the second push
+  m.handleDoublePush(); m.screen_.adjustActiveParameter(-7); m.handleLongPush(); CHECK(EEPROM.mem[9]==0);
+  m.handleDoublePush(); m.handleDoublePush();
+  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  for(int i=0;i<300;i++){ t+=100; m.flow_.in+=0.3f; m.update(); } CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
+  printf("manual time: ok\n");
+}
+int main(){ scenario(0); scenario(3); noWater(); temperatureError(); manualMode(); manualTime(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

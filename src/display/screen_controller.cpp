@@ -72,12 +72,31 @@ void ScreenController::showNoWater(bool error) {
 void ScreenController::toggleMode() {
   settings_.manual = !settings_.manual;
   drawDrop(dropVisible_, settings_.manual);
+  activate(PARAMETER_VOLUME);   // the selected parameter may not exist in the new mode
+}
+
+// The parameters that exist in the current mode: the pre-infusion, the wait and the flush are AUTO
+// only; the MANUAL time is MANUAL only.
+bool ScreenController::availableInMode(ActiveParameter p) const {
+  if (settings_.manual) {
+    return p == PARAMETER_VOLUME || p == PARAMETER_MANUAL_TIME || p == PARAMETER_TEMPERATURE;
+  }
+  return p != PARAMETER_MANUAL_TIME;
 }
 
 void ScreenController::selectNextParameter() {
-  // Volume -> pre-infusion -> wait -> flush -> temperature -> volume
+  // AUTO: volume -> pre-infusion -> wait -> flush -> temperature -> volume
+  // MANUAL: volume -> MANUAL time -> temperature -> volume
+  ActiveParameter next = active_;
+  do {
+    next = (ActiveParameter)((next + 1) % PARAMETER_COUNT);
+  } while (!availableInMode(next));
+  activate(next);
+}
+
+void ScreenController::activate(ActiveParameter next) {
   const ActiveParameter previous = active_;
-  active_ = (ActiveParameter)((active_ + 1) % PARAMETER_COUNT);
+  active_ = next;
 
   if (previous == PARAMETER_TEMPERATURE) {
     temperatureShown_ = liveTemperature_;
@@ -110,6 +129,9 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       break;
     case PARAMETER_FLUSH:
       value = &settings_.flush;           maxValue = FLUSH_MAX_SECONDS;       dirtyField = DIRTY_DURATION_NUMBER;
+      break;
+    case PARAMETER_MANUAL_TIME:
+      value = &settings_.manualSeconds;   maxValue = MANUAL_MAX_SECONDS;      dirtyField = DIRTY_DURATION;
       break;
     default:
       value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
@@ -309,6 +331,8 @@ void ScreenController::render() {
       drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
     } else if (active_ == PARAMETER_FLUSH) {
       drawDuration(settings_.flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
+    } else if (active_ == PARAMETER_MANUAL_TIME) {
+      drawDuration(settings_.manualSeconds, TEXT_SIZE_LARGE, PHASE_TAG_NONE, redrawTag);   // no tag: the clock says it
     } else {
       drawDuration(durationShown_, TEXT_SIZE_SMALL, durationTagShown_, redrawTag);
     }

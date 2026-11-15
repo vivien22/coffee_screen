@@ -66,6 +66,11 @@ void CoffeeMachine::update() {
         // Seconds left of the wait, with the "WAIT" tag
         screen_.showPreinfusionWait(extraction_.volumeMl(), extraction_.phaseSecondsLeft());
         break;
+      case EXTRACTION_MANUAL:
+        // MANUAL mode: the time counts down to 0 if a MANUAL time is set, otherwise it runs
+        screen_.showExtractionProgress(extraction_.volumeMl(),
+            extraction_.phaseSecondsLeft() > 0 ? extraction_.phaseSecondsLeft() : extraction_.durationSeconds());
+        break;
       case EXTRACTION_FLUSH_WAIT:
         // Waiting for the push: the duration of the extraction stays on the screen, with the "FLUSH" tag
         screen_.showFlush(extraction_.volumeMl(), extraction_.durationSeconds(), false);
@@ -176,7 +181,7 @@ void CoffeeMachine::handleShortPush() {
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
         const Settings &settings = screen_.settings();
         if (settings.manual) {
-          extraction_.startManual(encoder_.eventPressTime());
+          extraction_.startManual(encoder_.eventPressTime(), settings.manualSeconds);
         } else {
           extraction_.start(encoder_.eventPressTime(),
                             settings.preinfusion, settings.preinfusionWait, settings.flush);
@@ -252,6 +257,9 @@ void CoffeeMachine::handleLongPush() {
       break;
     case PARAMETER_FLUSH:
       store_.saveFlush(settings.flush);
+      break;
+    case PARAMETER_MANUAL_TIME:
+      store_.saveManualSeconds(settings.manualSeconds);
       break;
     default:
       store_.saveTemperature(settings.temperature);

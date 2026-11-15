@@ -110,6 +110,11 @@ int main(){
     m.saveManual(false); s=m.load(); CHECK(!s.manual);
     EEPROM.mem[8]=0xFF; s=m.load(); CHECK(!s.manual && s.volume==DEFAULT_VOLUME);     // old layout: the byte was never written
     m.saveManual(true); m.saveVolume(33); s=m.load(); CHECK(s.manual && s.volume==33); }
+  // ---- MANUAL time: 0 by default (blank EEPROM, or a value out of range), saved on its own
+  memset(EEPROM.mem,0xFF,64); { SettingsStore m; s=m.load(); CHECK(s.manualSeconds==0 && EEPROM.mem[9]==0);
+    m.saveManualSeconds(30); s=m.load(); CHECK(s.manualSeconds==30 && EEPROM.mem[9]==30);
+    EEPROM.mem[9]=200; s=m.load(); CHECK(s.manualSeconds==0);
+    EEPROM.mem[9]=MANUAL_MAX_SECONDS; s=m.load(); CHECK(s.manualSeconds==MANUAL_MAX_SECONDS); }
   printf(fails?"%d FAIL\n":"ALL OK\n",fails);
   return fails!=0;
 }
