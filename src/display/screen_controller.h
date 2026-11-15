@@ -14,16 +14,16 @@
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
-// AUTO mode: volume, pre-infusion, wait, flush, CAL (only after an extraction), temperature. MANUAL mode: volume, MANUAL time,
+// AUTO mode: volume, CAL (only after an extraction), pre-infusion, wait, flush, temperature. MANUAL mode: volume, MANUAL time,
 // temperature (the other parameters are skipped).
 // The pre-infusion volume is shown in the volume field with the "PRE" tag; the wait and flush times
 // are shown in the duration field with the "WAIT" / "FLUSH" tag.
 enum ActiveParameter {
   PARAMETER_VOLUME,
+  PARAMETER_CALIBRATION,        // AUTO mode, after an extraction: the real weight of the cup (g), corrects the loss
   PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
   PARAMETER_FLUSH,              // flush time after the extraction (s)
-  PARAMETER_CALIBRATION,        // AUTO mode, after an extraction: the real weight of the cup (g), corrects the loss
   PARAMETER_MANUAL_TIME,        // MANUAL mode: time of the extraction (s), 0 = until the second push
   PARAMETER_TEMPERATURE,
   PARAMETER_COUNT
