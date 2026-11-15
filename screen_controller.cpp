@@ -56,10 +56,10 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       value = &settings_.volume;          maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME;
       break;
     case PARAMETER_PREINFUSION:
-      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION;
+      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
       break;
     case PARAMETER_PREINFUSION_WAIT:
-      value = &settings_.preinfusionWait; maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION;
+      value = &settings_.preinfusionWait; maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
       break;
     default:
       value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
@@ -152,16 +152,20 @@ void ScreenController::showPreinfusion(uint16_t volumeMl, uint16_t secondsLeft, 
   showExtractionValues(volumeMl, secondsLeft, waiting ? PHASE_TAG_PREINFUSION_WAIT : PHASE_TAG_PREINFUSION);
 }
 
-// The duration field is redrawn when its number or its tag changes.
+// The whole duration field is redrawn when its tag changes; when only the number changes
+// (countdown, elapsed time), the tag is left alone.
 void ScreenController::showExtractionValues(uint16_t volumeMl, uint16_t durationValue, PhaseTag tag) {
   if ((int16_t)volumeMl != volumeShown_) {
     volumeShown_ = (int16_t)volumeMl;
     dirty_ |= DIRTY_VOLUME;
   }
-  if ((int16_t)durationValue != durationShown_ || tag != tagShown_) {
+  if (tag != tagShown_) {
     durationShown_ = (int16_t)durationValue;
     tagShown_ = tag;
     dirty_ |= DIRTY_DURATION;
+  } else if ((int16_t)durationValue != durationShown_) {
+    durationShown_ = (int16_t)durationValue;
+    dirty_ |= DIRTY_DURATION_NUMBER;
   }
 }
 
@@ -182,15 +186,18 @@ void ScreenController::render() {
   if (dirty & DIRTY_VOLUME) {
     drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
   }
-  if (dirty & DIRTY_DURATION) {
+  if (dirty & (DIRTY_DURATION | DIRTY_DURATION_NUMBER)) {
+    // The tag is redrawn only if the whole field is dirty (not when only the number changed).
+    const bool redrawTag = (dirty & DIRTY_DURATION) != 0;
+
     // While a pre-infusion time is selected, the field shows that setting (large digits, with its tag).
     // Otherwise it shows the duration of the extraction (or the countdown of its pre-infusion).
     if (active_ == PARAMETER_PREINFUSION) {
-      drawDuration(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION);
+      drawDuration(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
     } else if (active_ == PARAMETER_PREINFUSION_WAIT) {
-      drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT);
+      drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
     } else {
-      drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_);
+      drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_, redrawTag);
     }
   }
   if (dirty & DIRTY_HEATER) {

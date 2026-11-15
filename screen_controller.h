@@ -60,8 +60,9 @@ class ScreenController {
       DIRTY_NONE        = 0,
       DIRTY_VOLUME      = 1 << 0,
       DIRTY_TEMPERATURE = 1 << 1,
-      DIRTY_DURATION    = 1 << 2,
+      DIRTY_DURATION    = 1 << 2,   // the whole field: number, unit and tag
       DIRTY_HEATER      = 1 << 3,
+      DIRTY_DURATION_NUMBER = 1 << 4,   // the number only: the tag already on the screen is kept
       DIRTY_ALL_VALUES  = DIRTY_VOLUME | DIRTY_TEMPERATURE | DIRTY_DURATION
     };
 

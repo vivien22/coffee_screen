@@ -55,20 +55,20 @@
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
-#define DURATION_X                    110   // left edge of the number
+#define DURATION_X                    105   // left edge of the number
 #define DURATION_BASELINE             201   // baseline of the number
 #define DURATION_UNIT_BASELINE        201   // baseline of the "s"
-#define DURATION_ZONE_X               109   // zone erased before each update: x 109 -> 240 (the clock is not touched)
+#define DURATION_ZONE_X               104   // zone erased before each update: x 104 -> 240 (the clock, up to x 103, is not touched)
 #define DURATION_ZONE_Y               152   // y 152 -> 204
-#define DURATION_ZONE_WIDTH           131
+#define DURATION_ZONE_WIDTH           136
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
-#define DURATION_TAG_X                155   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
+#define DURATION_TAG_X                150   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
                                             // not move when the digit of the countdown changes width
 #define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
 // When the duration field shows a selected pre-infusion setting (large digits, up to "10"), the tag
 // moves to the top right of the field, above the "s": it cannot sit next to the large number.
-#define DURATION_TAG_LARGE_X          176
+#define DURATION_TAG_LARGE_X          171
 #define DURATION_TAG_LARGE_BASELINE   172
 
 // ============================ 3. Icons (4-bit opacity) ============================

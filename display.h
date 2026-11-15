@@ -44,7 +44,10 @@ void drawIcons();
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);
 void drawVolume(uint16_t value, TextSize size);
-void drawDuration(uint16_t value, TextSize size, PhaseTag tag);   // tag: next to the unit (small digits) or above it (large digits)
+// tag: next to the unit (small digits) or above it (large digits).
+// redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
+// screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 
 // Erase the zone of a value
 void clearTemperature();

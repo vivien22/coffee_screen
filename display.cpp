@@ -130,11 +130,27 @@ void drawVolume(uint16_t value, TextSize size) {
   tft.print(F("ml"));
 }
 
-void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
+  // The tag already drawn is kept when only the number changes: the zone erased before the
+  // number stops where the tag starts.
+  const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
+  int16_t zoneWidth = DURATION_ZONE_WIDTH;
+  if (keepTag) {
+    zoneWidth = ((size == TEXT_SIZE_LARGE) ? DURATION_TAG_LARGE_X : DURATION_TAG_X) - DURATION_ZONE_X;
+  }
+
   int16_t xNumberEnd = drawNumber(value,
                                   size,
-                                  DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT,
+                                  DURATION_ZONE_X, DURATION_ZONE_Y, zoneWidth, DURATION_ZONE_HEIGHT,
                                   DURATION_X, DURATION_BASELINE);
+
+  // Large digits: the tag is at the top right, so the "s" under it is in a part of the field that
+  // the zone above does not cover.
+  if (keepTag && size == TEXT_SIZE_LARGE) {
+    tft.fillRect(DURATION_TAG_LARGE_X, DURATION_TAG_LARGE_BASELINE + 1,
+                 DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_LARGE_X,
+                 DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_LARGE_BASELINE + 1), COLOR_BG);
+  }
 
   tft.setFont(FONT_UNIT);
   tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
@@ -142,7 +158,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
 
   // Phase tag at a fixed position, right of the unit. FontTag only holds the letters P R E W A I T, under the codes
   // '0'..'6' (see fonts.h): "012" is PRE and "3456" is WAIT.
-  if (tag != PHASE_TAG_NONE) {
+  if (tag != PHASE_TAG_NONE && redrawTag) {
     tft.setFont(FONT_TAG);
     tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
     if (size == TEXT_SIZE_LARGE) {
