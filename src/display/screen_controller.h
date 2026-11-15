@@ -33,7 +33,7 @@ class ScreenController {
     // Initialize the display; the first drawing is done by the first update().
     void begin(const Settings &settings);
 
-    // Call on every loop pass: end of the "saved" blink, redraw of the dirty fields.
+    // Call on every loop pass: blinking of the FLUSH tag and of the drop, redraw of the dirty fields.
     void update(uint32_t now);
 
     // ----- User actions -----
@@ -51,8 +51,6 @@ class ScreenController {
     // Returns true if the value changed.
     bool adjustActiveParameter(int16_t delta);
 
-    // The selected value disappears for SAVE_BLINK_MS: feedback of a save
-    void confirmSave(uint32_t now);
 
     // ----- Machine state to show -----
     void showLiveTemperature(uint32_t now, double celsius);
@@ -136,7 +134,4 @@ class ScreenController {
 
     uint8_t dirty_ = DIRTY_NONE;
 
-    bool blinking_ = false;
-    uint8_t blinkField_ = DIRTY_NONE;
-    uint32_t blinkEndsAt_ = 0;
 };

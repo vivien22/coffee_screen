@@ -4,6 +4,7 @@
 #include "Arduino.h"
 #include "EEPROM.h"
 #include "src/settings/settings.h"
+#include "settings_test.h"
 #include "src/machine/extraction_controller.h"
 #include "src/display/screen_controller.h"
 #include <cstdio>
@@ -65,13 +66,13 @@ int main(){
   // ---- settings
   memset(EEPROM.mem,0xFF,64); SettingsStore st; Settings s=st.load();
   CHECK(s.flush==DEFAULT_FLUSH_SECONDS && s.preinfusion==10 && s.preinfusionWait==5 && EEPROM.mem[0]==0xA8);
-  st.saveFlush(8); st.savePreinfusion(2); s=st.load(); CHECK(s.flush==8 && s.preinfusion==2);
-  st.saveFlush(0); s=st.load(); CHECK(s.flush==0);
+  SAVE(st,flush,8); SAVE(st,preinfusion,2); s=st.load(); CHECK(s.flush==8 && s.preinfusion==2);
+  SAVE(st,flush,0); s=st.load(); CHECK(s.flush==0);
   // unknown magic (old layouts are no longer migrated): defaults
   memset(EEPROM.mem,0xFF,64); EEPROM.mem[0]=0xA6; int16_t tv=91,vv=36; memcpy(EEPROM.mem+1,&tv,2); memcpy(EEPROM.mem+3,&vv,2); EEPROM.mem[5]=7; EEPROM.mem[6]=2;
   s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.volume==DEFAULT_VOLUME&&s.preinfusion==10&&s.preinfusionWait==5&&s.flush==5&&EEPROM.mem[0]==0xA8);
   s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.flush==5);   // stable on the next boot
-  st.saveTemperature(95); st.saveVolume(150); st.savePreinfusion(7); st.savePreinfusionWait(0); st.saveFlush(9);
+  SAVE(st,temperature,95); SAVE(st,volume,150); SAVE(st,preinfusion,7); SAVE(st,preinfusionWait,0); SAVE(st,flush,9);
   s=st.load(); CHECK(s.temperature==95&&s.volume==150&&s.preinfusion==7&&s.preinfusionWait==0&&s.flush==9);
   // clamp
   EEPROM.mem[7]=200; s=st.load(); CHECK(s.flush==10);
@@ -86,7 +87,6 @@ int main(){
   calls.clear(); sc.update(1); CHECK(calls.size()==1 && calls[0]=="dur(9,1,3,0)");   // number only
   CHECK(sc.adjustActiveParameter(50)); CHECK(sc.settings().flush==10); CHECK(!sc.adjustActiveParameter(1));
   CHECK(sc.adjustActiveParameter(-50)); CHECK(sc.settings().flush==0);
-  calls.clear(); sc.confirmSave(10); CHECK(calls.size()==1 && calls[0]=="clearDur(0,0,0,0)");
   // flush during an extraction: tag appears once, then number-only redraws
   { ScreenController s2; Settings i2={93,40,5,5,5}; s2.begin(i2); s2.update(0);
     s2.showExtractionProgress(40,28); s2.update(1);
@@ -106,13 +106,13 @@ int main(){
   }
   // ---- mode: AUTO by default (blank EEPROM, or EEPROM written before the mode existed), saved at each change
   memset(EEPROM.mem,0xFF,64); { SettingsStore m; s=m.load(); CHECK(!s.manual && EEPROM.mem[8]==0);
-    m.saveManual(true); s=m.load(); CHECK(s.manual && EEPROM.mem[8]==1);
-    m.saveManual(false); s=m.load(); CHECK(!s.manual);
+    SAVE(m,manual,true); s=m.load(); CHECK(s.manual && EEPROM.mem[8]==1);
+    SAVE(m,manual,false); s=m.load(); CHECK(!s.manual);
     EEPROM.mem[8]=0xFF; s=m.load(); CHECK(!s.manual && s.volume==DEFAULT_VOLUME);     // old layout: the byte was never written
-    m.saveManual(true); m.saveVolume(33); s=m.load(); CHECK(s.manual && s.volume==33); }
+    SAVE(m,manual,true); SAVE(m,volume,33); s=m.load(); CHECK(s.manual && s.volume==33); }
   // ---- MANUAL time: 0 by default (blank EEPROM, or a value out of range), saved on its own
   memset(EEPROM.mem,0xFF,64); { SettingsStore m; s=m.load(); CHECK(s.manualSeconds==0 && EEPROM.mem[9]==0);
-    m.saveManualSeconds(30); s=m.load(); CHECK(s.manualSeconds==30 && EEPROM.mem[9]==30);
+    SAVE(m,manualSeconds,30); s=m.load(); CHECK(s.manualSeconds==30 && EEPROM.mem[9]==30);
     EEPROM.mem[9]=200; s=m.load(); CHECK(s.manualSeconds==0);
     EEPROM.mem[9]=MANUAL_MAX_SECONDS; s=m.load(); CHECK(s.manualSeconds==MANUAL_MAX_SECONDS); }
   printf(fails?"%d FAIL\n":"ALL OK\n",fails);

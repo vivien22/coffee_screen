@@ -33,12 +33,11 @@ volatile unsigned long CJMCU111::isrGxTime = 0;
 volatile unsigned long CJMCU111::isrGxLastTime = 0;
 
 
-CJMCU111::CJMCU111(byte pinGa, byte pinGb, unsigned int longPushMs, unsigned int doublePushMs, unsigned int veryLongPushMs) {
+CJMCU111::CJMCU111(byte pinGa, byte pinGb, unsigned int longPushMs, unsigned int doublePushMs) {
   rotaryPinGa = pinGa;
   rotaryPinGb = pinGb;
   longPushThresholdMs = longPushMs;
   doublePushWindowMs = doublePushMs;
-  veryLongPushThresholdMs = veryLongPushMs;
   shortPushPending = false;
   shortPushTime = 0;
   queuedPushEvent = PUSH_NONE;
@@ -75,10 +74,6 @@ bool CJMCU111::pushHeld(unsigned long &heldMs, unsigned long &pressStartMs) {
   interrupts();
   heldMs = held ? (millis() - pressStartMs) : 0;
   return held;
-}
-
-PushEvent CJMCU111::longKind(unsigned long durationMs) const {
-  return (veryLongPushThresholdMs > 0 && durationMs >= veryLongPushThresholdMs) ? PUSH_VERY_LONG : PUSH_LONG;
 }
 
 unsigned long CJMCU111::eventPressTime() const {
@@ -126,16 +121,15 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
       event = PUSH_DOUBLE;
       eventPressMs = lastReadPushPressMs;
     } else if (pushDurationMs >= longPushThresholdMs) {
-      // long push not seen while held (update() was not called in time, or the very long push is
-      // enabled: a long push is known only on release): report it on release
+      // long push not seen while held (update() was not called in time): report it on release
       if (shortPushPending) {
         shortPushPending = false;
         event = PUSH_SHORT;
         eventPressMs = shortPushPressMs;
-        queuedPushEvent = longKind(pushDurationMs);
+        queuedPushEvent = PUSH_LONG;
         queuedEventPressMs = lastReadPushPressMs;
       } else {
-        event = longKind(pushDurationMs);
+        event = PUSH_LONG;
         eventPressMs = lastReadPushPressMs;
       }
     } else if (shortPushPending && (now - shortPushTime) < doublePushWindowMs) {
@@ -152,17 +146,17 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
       shortPushTime = now;
       shortPushPressMs = lastReadPushPressMs;
     }
-  } else if (held && !longPushReported && heldMs >= (veryLongPushThresholdMs > 0 ? veryLongPushThresholdMs : longPushThresholdMs)) {
-    // the button has been held long enough: report the long push now (the very long push, if enabled)
+  } else if (held && !longPushReported && heldMs >= longPushThresholdMs) {
+    // the button has been held long enough: report the long push now
     longPushReported = true;
     if (shortPushPending) {
       shortPushPending = false;
       event = PUSH_SHORT;
       eventPressMs = shortPushPressMs;
-      queuedPushEvent = longKind(heldMs);
+      queuedPushEvent = PUSH_LONG;
       queuedEventPressMs = pressStartMs;
     } else {
-      event = longKind(heldMs);
+      event = PUSH_LONG;
       eventPressMs = pressStartMs;
     }
   }

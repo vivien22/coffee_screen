@@ -65,10 +65,5 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 // place, or erased.
 void drawPhaseTag(PhaseTag tag, bool visible);
 
-// Erase the zone of a value
-void clearTemperature();
-void clearVolume();
-void clearDuration();
-
 // Dot next to the temperature, visible while the heater is on
 void drawHeaterIndicator(bool visible);

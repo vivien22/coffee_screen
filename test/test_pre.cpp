@@ -4,6 +4,7 @@
 #include "EEPROM.h"
 #include "src/config.h"
 #include "src/settings/settings.h"
+#include "settings_test.h"
 #include "src/machine/extraction_controller.h"
 #include "src/display/screen_controller.h"
 #include <cstdio>
@@ -52,7 +53,7 @@ int main(){
   // ---- settings
   memset(EEPROM.mem,0xFF,64); SettingsStore st; Settings s=st.load();
   CHECK(s.preinfusion==DEFAULT_PREINFUSION_ML && s.preinfusion==10 && EEPROM.mem[0]==0xA8);
-  st.savePreinfusion(50); s=st.load(); CHECK(s.preinfusion==50);
+  SAVE(st,preinfusion,50); s=st.load(); CHECK(s.preinfusion==50);
   EEPROM.mem[5]=200; s=st.load(); CHECK(s.preinfusion==PREINFUSION_MAX_ML);
   EEPROM.mem[6]=77; s=st.load(); CHECK(s.preinfusionWait==PREINFUSION_WAIT_MAX_SECONDS);
   // ---- screen: the pre-infusion volume is edited in the volume field, with the PRE tag
@@ -62,8 +63,6 @@ int main(){
     CHECK(sc.adjustActiveParameter(3)); calls.clear(); sc.update(2); CHECK(calls.size()==1 && calls[0]=="vol(13,1,1,0)");   // number only
     CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusion==50 && !sc.adjustActiveParameter(1));
     CHECK(sc.settings().preinfusionWait==5 && sc.settings().volume==40);
-    calls.clear(); sc.confirmSave(10); CHECK(calls.size()==1 && calls[0]=="clearVol(0,0,0,0)");
-    calls.clear(); sc.update(700); CHECK(has("vol(50,1,1,1)"));          // redrawn after the blink
     sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_PREINFUSION_WAIT);
     calls.clear(); sc.update(701); CHECK(has("dur(5,1,2,1)")); CHECK(has("vol(40,0,0,1)"));   // wait in the duration field; the volume field is back to the target, small
     CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==10);

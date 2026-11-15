@@ -7,6 +7,8 @@
 #include "src/config.h"
 #include <cstdio>
 #include "EEPROM.h"
+#include "settings_test.h"
+#include "src/settings/settings.h"
 #include <SPI.h>
 SPIClass SPI;
 static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
@@ -25,7 +27,7 @@ static int fails=0;
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
 static void step(CoffeeMachine&m,unsigned long dt){ t+=dt; m.update(); }
 static void scenario(int flush){
-  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.savePreinfusionWait(0); st.saveFlush(flush);
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,flush);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   m.handleShortPush();                          // start the extraction (volume selected)
   CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
@@ -73,7 +75,7 @@ static void scenario(int flush){
 }
 // No-water error: the drop blinks every DROP_BLINK_MS until a long push; short / double pushes do nothing
 static void noWater(){
-  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.savePreinfusionWait(0); st.saveFlush(0);
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
   calls.clear();
@@ -114,18 +116,16 @@ static void temperatureError(){
 }
 // MANUAL mode: a very long push switches the mode (saved), a push starts the pump, the next one stops it
 static void manualMode(){
-  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.saveFlush(0);
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   CHECK(!m.screen_.settings().manual);
-  m.handleVeryLongPush();                               // AUTO -> MANUAL
+  m.handleLongPush();                               // AUTO -> MANUAL
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
-  m.handleLongPush();                                    // a long push is still a save, not a mode change
   m.handleShortPush();                                   // start the pump
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[16]==1);
-  m.handleVeryLongPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
+  m.handleLongPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
   m.handleDoublePush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
-  m.handleLongPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   calls.clear();
   for(int i=0;i<80;i++){ t+=100; m.flow_.in=(t-1000)*0.003f; m.flow_.out=m.flow_.in*0.1f; m.update(); }   // 8 s at 3 ml/s, 10 % back
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL);                                   // far above the target (40): no stop
@@ -141,7 +141,7 @@ static void manualMode(){
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
   m.handleShortPush();                                   // stop: the values of this extraction are shown
   t+=100; m.update(); calls.clear();
-  m.handleVeryLongPush();                                // MANUAL -> AUTO: the values are reset at once
+  m.handleLongPush();                                // MANUAL -> AUTO: the values are reset at once
   t+=100; m.update(); CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));
   bool letterA=has("drop(0,1,0,0)");
   calls.clear(); t+=100; m.update(); while(t<t0+40000){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)"));   // and not again later
@@ -151,21 +151,22 @@ static void manualMode(){
 }
 // MANUAL time: the parameters of the mode, the countdown, the stop by itself
 static void manualTime(){
-  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.saveFlush(0); st.saveManual(true);
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0); SAVE(st,manual,true);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
   // MANUAL: volume -> MANUAL time -> temperature -> volume (pre-infusion, wait and flush are skipped)
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME);
   calls.clear(); m.screen_.adjustActiveParameter(7); t+=100; m.update(); CHECK(has("dur(7,1,0,1)") || has("dur(7,1,0,0)"));   // large digits, no tag
-  m.handleLongPush(); CHECK(EEPROM.mem[9]==7);           // saved
+  CHECK(EEPROM.mem[9]==0);                               // not saved while it is edited
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE);
+  CHECK(EEPROM.mem[9]==7);                               // saved by the double push that leaves it
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
   // AUTO: the MANUAL time is skipped, the others are back
-  m.handleVeryLongPush(); CHECK(!m.screen_.settings().manual);
+  m.handleLongPush(); CHECK(!m.screen_.settings().manual);
   for(int i=0;i<5;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_MANUAL_TIME); }
   CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
   m.handleDoublePush(); m.handleDoublePush();            // pre-infusion, wait
-  m.handleVeryLongPush();                                // back to MANUAL: the volume is selected again
+  m.handleLongPush();                                // back to MANUAL: the volume is selected again
   CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
   // the extraction: the time counts down from 7 to 0, then the pump stops by itself
   calls.clear(); m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
@@ -185,12 +186,40 @@ static void manualTime(){
   // the time set stays shown when another parameter is selected, and after a mode change
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME); m.screen_.adjustActiveParameter(3);
   calls.clear(); m.handleDoublePush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));
-  calls.clear(); m.handleVeryLongPush(); m.handleVeryLongPush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));   // AUTO then MANUAL again
-  m.handleDoublePush(); m.screen_.adjustActiveParameter(-10); m.handleLongPush(); m.handleDoublePush(); m.handleDoublePush();
+  calls.clear(); m.handleLongPush(); m.handleLongPush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));   // AUTO then MANUAL again
+  m.handleDoublePush(); m.screen_.adjustActiveParameter(-10); m.handleDoublePush(); m.handleDoublePush();
   // time 0: the old behaviour, the pump runs until the second push, and 0 s is shown
   CHECK(EEPROM.mem[9]==0 && m.screen_.activeParameter()==PARAMETER_VOLUME);
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   for(int i=0;i<300;i++){ t+=100; m.flow_.in+=0.3f; m.update(); } CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
   printf("manual time: ok\n");
 }
-int main(){ scenario(0); scenario(3); noWater(); temperatureError(); manualMode(); manualTime(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// Automatic saving: at a double push, at the start of an extraction (the volume) and at a change of mode,
+// and only what changed is written
+static void autoSave(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0);
+  CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  int16_t v; auto savedVolume=[&](){ EEPROM.get(3,v); return v; };
+  auto savedTemperature=[&](){ int16_t x; EEPROM.get(1,x); return x; };
+  int w=EEPROM.writes;
+  // volume: edited, not saved, then saved by the start of the extraction
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
+  m.screen_.adjustActiveParameter(5); CHECK(savedVolume()==DEFAULT_VOLUME && EEPROM.writes==w);
+  m.handleShortPush(); CHECK(savedVolume()==DEFAULT_VOLUME+5 && EEPROM.writes==w+1 && m.extraction_.isActive());
+  m.extraction_.stop(EXTRACTION_FINISHED); w=EEPROM.writes;
+  // a start without change writes nothing
+  m.handleShortPush(); CHECK(EEPROM.writes==w); m.extraction_.stop(EXTRACTION_FINISHED);
+  // temperature: edited, applied and saved when the double push leaves it
+  m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // volume -> pre -> wait -> flush
+  m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE); w=EEPROM.writes;
+  m.screen_.adjustActiveParameter(-3); CHECK(savedTemperature()==DEFAULT_TEMPERATURE && EEPROM.writes==w);
+  m.handleDoublePush(); CHECK(savedTemperature()==DEFAULT_TEMPERATURE-3 && EEPROM.writes==w+1);
+  // double pushes without any change write nothing
+  w=EEPROM.writes; for(int i=0;i<10;i++) m.handleDoublePush(); CHECK(EEPROM.writes==w);
+  // a change of mode saves the mode, and what was being edited
+  m.screen_.adjustActiveParameter(2); w=EEPROM.writes; m.handleLongPush();
+  CHECK(EEPROM.mem[8]==1 && EEPROM.writes>=w+1);
+  w=EEPROM.writes; m.handleLongPush(); CHECK(EEPROM.mem[8]==0 && EEPROM.writes==w+1);
+  printf("auto save: ok\n");
+}
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

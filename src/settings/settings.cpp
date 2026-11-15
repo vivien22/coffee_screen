@@ -39,13 +39,7 @@ Settings SettingsStore::load() const {
     settings.flush = DEFAULT_FLUSH_SECONDS;
     settings.manual = false;
     settings.manualSeconds = DEFAULT_MANUAL_SECONDS;
-    EEPROM.put(ADDR_TEMPERATURE, settings.temperature);
-    EEPROM.put(ADDR_VOLUME, settings.volume);
-    EEPROM.update(ADDR_PREINFUSION, (uint8_t)settings.preinfusion);
-    EEPROM.update(ADDR_PREINFUSION_WAIT, (uint8_t)settings.preinfusionWait);
-    EEPROM.update(ADDR_FLUSH, (uint8_t)settings.flush);
-    EEPROM.update(ADDR_MANUAL, 0);
-    EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)settings.manualSeconds);
+    save(settings);
     EEPROM.update(ADDR_MAGIC, SETTINGS_MAGIC);
   }
 
@@ -53,30 +47,12 @@ Settings SettingsStore::load() const {
 }
 
 // EEPROM.put / update only write the bytes that changed.
-void SettingsStore::saveTemperature(int16_t value) {
-  EEPROM.put(ADDR_TEMPERATURE, value);
-}
-
-void SettingsStore::saveVolume(int16_t value) {
-  EEPROM.put(ADDR_VOLUME, value);
-}
-
-void SettingsStore::savePreinfusion(int16_t seconds) {
-  EEPROM.update(ADDR_PREINFUSION, (uint8_t)seconds);
-}
-
-void SettingsStore::savePreinfusionWait(int16_t seconds) {
-  EEPROM.update(ADDR_PREINFUSION_WAIT, (uint8_t)seconds);
-}
-
-void SettingsStore::saveFlush(int16_t seconds) {
-  EEPROM.update(ADDR_FLUSH, (uint8_t)seconds);
-}
-
-void SettingsStore::saveManual(bool manual) {
-  EEPROM.update(ADDR_MANUAL, manual ? 1 : 0);
-}
-
-void SettingsStore::saveManualSeconds(int16_t seconds) {
-  EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)seconds);
+void SettingsStore::save(const Settings &settings) const {
+  EEPROM.put(ADDR_TEMPERATURE, settings.temperature);
+  EEPROM.put(ADDR_VOLUME, settings.volume);
+  EEPROM.update(ADDR_PREINFUSION, (uint8_t)settings.preinfusion);
+  EEPROM.update(ADDR_PREINFUSION_WAIT, (uint8_t)settings.preinfusionWait);
+  EEPROM.update(ADDR_FLUSH, (uint8_t)settings.flush);
+  EEPROM.update(ADDR_MANUAL, settings.manual ? 1 : 0);
+  EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)settings.manualSeconds);
 }

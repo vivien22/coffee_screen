@@ -18,11 +18,6 @@ void ScreenController::begin(const Settings &settings) {
 }
 
 void ScreenController::update(uint32_t now) {
-  if (blinking_ && (int32_t)(now - blinkEndsAt_) >= 0) {
-    blinking_ = false;
-    dirty_ |= blinkField_;
-  }
-
   // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
   if (tagBlinking_) {
     if (tagBlinkPending_) {
@@ -159,26 +154,6 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
   }
   dirty_ |= dirtyField;
   return true;
-}
-
-void ScreenController::confirmSave(uint32_t now) {
-  switch (active_) {
-    case PARAMETER_VOLUME:
-    case PARAMETER_PREINFUSION:   // the pre-infusion volume is shown in the volume field
-      clearVolume();
-      blinkField_ = DIRTY_VOLUME;
-      break;
-    case PARAMETER_TEMPERATURE:
-      clearTemperature();
-      blinkField_ = DIRTY_TEMPERATURE;
-      break;
-    default:   // wait or flush: shown in the duration field
-      clearDuration();
-      blinkField_ = DIRTY_DURATION;
-      break;
-  }
-  blinking_ = true;
-  blinkEndsAt_ = now + SAVE_BLINK_MS;
 }
 
 // ------------------------------------------------------------

@@ -37,8 +37,8 @@ class CoffeeMachine {
     void handleShortPush();    // start the extraction / end it / start the flush / stop the flush
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
-    void handleLongPush();     // save the selected parameter (ignored during an extraction)
-    void handleVeryLongPush(); // switch between AUTO and MANUAL, saved (ignored during an extraction)
+    void handleLongPush();     // switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction)
+    void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
     void adjustActiveParameter(int16_t delta);
 
     FlowSensor flow_;

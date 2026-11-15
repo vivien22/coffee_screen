@@ -21,11 +21,10 @@
 
 // ---------- CJMCU-111 rotary encoder ----------
 #define ENCODER_STEP      1     // value change per detent
-#define LONG_PUSH_MS      800   // a push held this long (ms) is a long push (reported before the release)
+#define LONG_PUSH_MS      800   // a push held this long (ms) is a long push (reported before the release):
+                                // it switches between AUTO and MANUAL (or clears the no-water error)
 #define DOUBLE_PUSH_MS    350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                 // a short push is reported once this delay has passed
-#define VERY_LONG_PUSH_MS 3000  // a push held this long (ms) switches between the AUTO and MANUAL modes;
-                                // a long push is then reported when the button is released
 
 // ---------- Parameters ----------
 #define VALUE_MIN            0
@@ -41,9 +40,16 @@
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
 #define FLUSH_MAX_SECONDS                 10
 #define DEFAULT_FLUSH_SECONDS             5
-// Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes). Saved in EEPROM
-// at every change; AUTO when the EEPROM has never been written.
-// MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode, saved in EEPROM.
+// Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a long push
+// switches it. AUTO when the EEPROM has never been written.
+// MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode.
+//
+// The settings are saved in EEPROM by the machine, never by the user, and only at these moments (and
+// only the bytes that changed are written, so the EEPROM wears only when a value really changes):
+//   - a double push (the next parameter is selected: the one that was edited is validated),
+//   - the start of an extraction (the volume that was edited is validated),
+//   - a change of mode (long push).
+// A temperature setpoint is applied to the heater at the same moments.
 #define MANUAL_MAX_SECONDS                99
 #define DEFAULT_MANUAL_SECONDS            0
 
@@ -158,6 +164,5 @@
 
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
-#define SAVE_BLINK_MS            500UL     // the value disappears this long when it is saved
 #define FLUSH_BLINK_MS           600UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING
 #define DROP_BLINK_MS            600UL     // the drop icon is alternately shown and hidden this long after a no-flow error

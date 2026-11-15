@@ -221,18 +221,6 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
   }
 }
 
-void clearTemperature() {
-  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
-}
-
-void clearVolume() {
-  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-}
-
-void clearDuration() {
-  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
-}
-
 void drawHeaterIndicator(bool visible) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
   tft.setFont(FONT_UNIT);

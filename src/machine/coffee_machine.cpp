@@ -2,7 +2,7 @@
 #include "../config.h"
 
 CoffeeMachine::CoffeeMachine() :
-  encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS, VERY_LONG_PUSH_MS),
+  encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS),
   temperature_(PIN_MAX31865_CS),
   heater_(PIN_HEATER_RELAY),
   extraction_(PIN_PUMP_RELAY, PIN_VALVE_RELAY, flow_),
@@ -136,7 +136,6 @@ void CoffeeMachine::pollEncoder() {
     case PUSH_SHORT:  handleShortPush();  break;
     case PUSH_DOUBLE: handleDoublePush(); break;
     case PUSH_LONG:   handleLongPush();   break;
-    case PUSH_VERY_LONG: handleVeryLongPush(); break;
     default: break;
   }
 }
@@ -180,6 +179,7 @@ void CoffeeMachine::handleShortPush() {
     default:   // IDLE, FINISHED, ERROR
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
         const Settings &settings = screen_.settings();
+        saveSettings();   // the volume that was just set is validated by the start (written only if it changed)
         if (settings.manual) {
           extraction_.startManual(encoder_.eventPressTime(), settings.manualSeconds);
         } else {
@@ -213,59 +213,34 @@ void CoffeeMachine::handleDoublePush() {
     default:
       break;
   }
+  saveSettings();   // the parameter that was edited is validated (written only if it changed)
   screen_.selectNextParameter();
 }
 
-void CoffeeMachine::handleVeryLongPush() {
-  // AUTO <-> MANUAL, only when nothing is going on (no extraction, no error to clear)
-  if (extraction_.isActive() || extraction_.hasNoWaterError()) {
-    return;
-  }
-
-  screen_.toggleMode();
-  store_.saveManual(screen_.settings().manual);   // the mode is saved at every change
-
-  // The values of the last extraction are reset at once, as after EXTRACTION_RESULT_DISPLAY_MS
-  resultShown_ = false;
-  screen_.showReady();
+// Save the settings (only the bytes that changed are written) and apply the temperature to the heater
+void CoffeeMachine::saveSettings() {
+  const Settings &settings = screen_.settings();
+  store_.save(settings);
+  heater_.setSetpoint(settings.temperature);
 }
 
 void CoffeeMachine::handleLongPush() {
-  // A long push clears the no-water error (nothing is saved)
+  // A long push clears the no-water error
   if (extraction_.hasNoWaterError()) {
     extraction_.clearError();
     return;
   }
 
-  // A long push is ignored during an extraction (any phase, pre-infusion and flush included):
-  // nothing is saved and the saved-value blink is not shown.
+  // AUTO <-> MANUAL, only when nothing is going on (no extraction, pre-infusion and flush included)
   if (extraction_.isActive()) {
     return;
   }
 
-  const Settings &settings = screen_.settings();
+  saveSettings();            // a parameter that was being edited is validated too
+  screen_.toggleMode();
+  saveSettings();            // the new mode is saved at every change
 
-  switch (screen_.activeParameter()) {
-    case PARAMETER_VOLUME:
-      store_.saveVolume(settings.volume);
-      break;
-    case PARAMETER_PREINFUSION:
-      store_.savePreinfusion(settings.preinfusion);
-      break;
-    case PARAMETER_PREINFUSION_WAIT:
-      store_.savePreinfusionWait(settings.preinfusionWait);
-      break;
-    case PARAMETER_FLUSH:
-      store_.saveFlush(settings.flush);
-      break;
-    case PARAMETER_MANUAL_TIME:
-      store_.saveManualSeconds(settings.manualSeconds);
-      break;
-    default:
-      store_.saveTemperature(settings.temperature);
-      heater_.setSetpoint(settings.temperature);
-      break;
-  }
-
-  screen_.confirmSave(millis());
+  // The values of the last extraction are reset at once, as after EXTRACTION_RESULT_DISPLAY_MS
+  resultShown_ = false;
+  screen_.showReady();
 }

@@ -21,11 +21,8 @@ struct Settings {
 class SettingsStore {
   public:
     Settings load() const;
-    void saveTemperature(int16_t value);
-    void saveVolume(int16_t value);
-    void savePreinfusion(int16_t seconds);
-    void savePreinfusionWait(int16_t seconds);
-    void saveFlush(int16_t seconds);
-    void saveManual(bool manual);
-    void saveManualSeconds(int16_t seconds);
+
+    // Writes the settings. Only the bytes that changed are written (EEPROM.update / put), so it can
+    // be called as often as wanted without wearing the EEPROM: nothing changed, nothing written.
+    void save(const Settings &settings) const;
 };
