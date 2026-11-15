@@ -18,7 +18,7 @@
 #include "../settings/settings.h"
 #include "../heating/temperature_sensor.h"
 #include "../heating/heater_controller.h"
-#include "../extraction/extraction_controller.h"
+#include "extraction_controller.h"
 #include "../display/screen_controller.h"
 
 class CoffeeMachine {
