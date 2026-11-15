@@ -1,0 +1,9 @@
+# Host tests of the logic (no Arduino needed), on every push and pull request
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./test/run.sh
