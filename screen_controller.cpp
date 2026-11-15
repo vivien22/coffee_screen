@@ -28,47 +28,74 @@ void ScreenController::update(uint32_t now) {
 // User actions
 
 void ScreenController::selectNextParameter() {
-  if (active_ == PARAMETER_VOLUME) {
-    active_ = PARAMETER_TEMPERATURE;
-    temperatureShown_ = settings_.temperature;
-  } else {
-    active_ = PARAMETER_VOLUME;
-    volumeShown_ = settings_.volume;
+  // Volume -> pre-infusion -> wait -> temperature -> volume
+  const ActiveParameter previous = active_;
+  active_ = (ActiveParameter)((active_ + 1) % PARAMETER_COUNT);
+
+  if (previous == PARAMETER_TEMPERATURE) {
     temperatureShown_ = liveTemperature_;
     temperatureKey_ = -1;               // the live temperature is displayed again at once
+  }
+  if (active_ == PARAMETER_TEMPERATURE) {
+    temperatureShown_ = settings_.temperature;   // the setpoint is shown while it is edited
+  }
+  if (active_ == PARAMETER_VOLUME) {
+    volumeShown_ = settings_.volume;             // the target volume, not the last extraction
   }
 
   dirty_ |= DIRTY_ALL_VALUES;           // the size of the digits changes
 }
 
 bool ScreenController::adjustActiveParameter(int16_t delta) {
-  if (active_ == PARAMETER_VOLUME) {
-    const int16_t value = constrain(settings_.volume + delta, VALUE_MIN, VOLUME_MAX);
-    if (value == settings_.volume) {
-      return false;
-    }
-    settings_.volume = value;
-    volumeShown_ = value;
-    dirty_ |= DIRTY_VOLUME;
-  } else {
-    const int16_t value = constrain(settings_.temperature + delta, VALUE_MIN, TEMPERATURE_MAX);
-    if (value == settings_.temperature) {
-      return false;
-    }
-    settings_.temperature = value;
-    temperatureShown_ = value;
-    dirty_ |= DIRTY_TEMPERATURE;
+  int16_t *value;
+  int16_t maxValue;
+  uint8_t dirtyField;
+
+  switch (active_) {
+    case PARAMETER_VOLUME:
+      value = &settings_.volume;          maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME;
+      break;
+    case PARAMETER_PREINFUSION:
+      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION;
+      break;
+    case PARAMETER_PREINFUSION_WAIT:
+      value = &settings_.preinfusionWait; maxValue = PREINFUSION_MAX_SECONDS; dirtyField = DIRTY_DURATION;
+      break;
+    default:
+      value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
+      break;
   }
+
+  const int16_t newValue = constrain(*value + delta, VALUE_MIN, maxValue);
+  if (newValue == *value) {
+    return false;
+  }
+  *value = newValue;
+
+  // The field shows the new value at once
+  if (active_ == PARAMETER_VOLUME) {
+    volumeShown_ = newValue;
+  } else if (active_ == PARAMETER_TEMPERATURE) {
+    temperatureShown_ = newValue;
+  }
+  dirty_ |= dirtyField;
   return true;
 }
 
 void ScreenController::confirmSave(uint32_t now) {
-  if (active_ == PARAMETER_VOLUME) {
-    clearVolume();
-    blinkField_ = DIRTY_VOLUME;
-  } else {
-    clearTemperature();
-    blinkField_ = DIRTY_TEMPERATURE;
+  switch (active_) {
+    case PARAMETER_VOLUME:
+      clearVolume();
+      blinkField_ = DIRTY_VOLUME;
+      break;
+    case PARAMETER_TEMPERATURE:
+      clearTemperature();
+      blinkField_ = DIRTY_TEMPERATURE;
+      break;
+    default:   // pre-infusion or wait: both are shown in the duration field
+      clearDuration();
+      blinkField_ = DIRTY_DURATION;
+      break;
   }
   blinking_ = true;
   blinkEndsAt_ = now + SAVE_BLINK_MS;
@@ -156,7 +183,15 @@ void ScreenController::render() {
     drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
   }
   if (dirty & DIRTY_DURATION) {
-    drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_);
+    // While a pre-infusion time is selected, the field shows that setting (large digits, with its tag).
+    // Otherwise it shows the duration of the extraction (or the countdown of its pre-infusion).
+    if (active_ == PARAMETER_PREINFUSION) {
+      drawDuration(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION);
+    } else if (active_ == PARAMETER_PREINFUSION_WAIT) {
+      drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT);
+    } else {
+      drawDuration(durationShown_, TEXT_SIZE_SMALL, tagShown_);
+    }
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);

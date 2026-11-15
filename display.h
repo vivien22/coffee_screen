@@ -44,11 +44,12 @@ void drawIcons();
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);
 void drawVolume(uint16_t value, TextSize size);
-void drawDuration(uint16_t value, TextSize size, PhaseTag tag);   // tag is drawn after the unit
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag);   // tag: next to the unit (small digits) or above it (large digits)
 
 // Erase the zone of a value
 void clearTemperature();
 void clearVolume();
+void clearDuration();
 
 // Dot next to the temperature, visible while the heater is on
 void drawHeaterIndicator(bool visible);

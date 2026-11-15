@@ -66,6 +66,10 @@
 #define DURATION_TAG_X                155   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
                                             // not move when the digit of the countdown changes width
 #define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
+// When the duration field shows a selected pre-infusion setting (large digits, up to "10"), the tag
+// moves to the top right of the field, above the "s": it cannot sit next to the large number.
+#define DURATION_TAG_LARGE_X          176
+#define DURATION_TAG_LARGE_BASELINE   172
 
 // ============================ 3. Icons (4-bit opacity) ============================
 // Pixel i: byte i/2, high nibble if i is even. 0 = background, 15 = full color.

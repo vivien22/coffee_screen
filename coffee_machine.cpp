@@ -98,8 +98,9 @@ void CoffeeMachine::pollEncoder() {
 }
 
 void CoffeeMachine::adjustActiveParameter(int16_t delta) {
-  // The target volume of a running extraction cannot be changed
-  if (screen_.activeParameter() == PARAMETER_VOLUME && extraction_.isActive()) {
+  // Only the temperature can be changed during an extraction: the volume and the pre-infusion
+  // times are read when it starts
+  if (screen_.activeParameter() != PARAMETER_TEMPERATURE && extraction_.isActive()) {
     return;
   }
   screen_.adjustActiveParameter(delta);
@@ -109,7 +110,8 @@ void CoffeeMachine::handleShortPush() {
   if (extraction_.isActive()) {
     extraction_.stop(EXTRACTION_FINISHED);
   } else if (screen_.activeParameter() == PARAMETER_VOLUME) {
-    extraction_.start(encoder_.eventPressTime());
+    const Settings &settings = screen_.settings();
+    extraction_.start(encoder_.eventPressTime(), settings.preinfusion, settings.preinfusionWait);
     screen_.showExtractionStarted();
   }
 }
@@ -130,11 +132,20 @@ void CoffeeMachine::handleLongPush() {
 
   const Settings &settings = screen_.settings();
 
-  if (screen_.activeParameter() == PARAMETER_VOLUME) {
-    store_.saveVolume(settings.volume);
-  } else {
-    store_.saveTemperature(settings.temperature);
-    heater_.setSetpoint(settings.temperature);
+  switch (screen_.activeParameter()) {
+    case PARAMETER_VOLUME:
+      store_.saveVolume(settings.volume);
+      break;
+    case PARAMETER_PREINFUSION:
+      store_.savePreinfusion(settings.preinfusion);
+      break;
+    case PARAMETER_PREINFUSION_WAIT:
+      store_.savePreinfusionWait(settings.preinfusionWait);
+      break;
+    default:
+      store_.saveTemperature(settings.temperature);
+      heater_.setSetpoint(settings.temperature);
+      break;
   }
 
   screen_.confirmSave(millis());

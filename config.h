@@ -32,6 +32,10 @@
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
+// Pre-infusion times (seconds). 0 skips the matching step, see "Extraction" below.
+#define PREINFUSION_MAX_SECONDS           10
+#define DEFAULT_PREINFUSION_SECONDS       5
+#define DEFAULT_PREINFUSION_WAIT_SECONDS  5
 
 // ---------- Temperature sensor (MAX31865 + PT100) ----------
 #define RREF                       428.0
@@ -66,12 +70,12 @@
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.
-//   PREINFUSION       pump ON  + valve open   (PREINFUSION_TIME_MS)
-//   PREINFUSION_WAIT  pump OFF + valve open   (PREINFUSION_WAITING_TIME_MS)
+//   PREINFUSION       pump ON  + valve open   (pre-infusion time, set on the screen)
+//   PREINFUSION_WAIT  pump OFF + valve open   (wait time, set on the screen)
 //   RUNNING           pump ON  + valve open   (until the target volume is reached)
-// Set a duration to 0 to skip the matching phase (both at 0: no pre-infusion at all).
-#define PREINFUSION_TIME_MS          5000UL   // pump running, puck being wetted
-#define PREINFUSION_WAITING_TIME_MS  5000UL   // pump stopped, puck soaking
+// Both times are settings (0 to PREINFUSION_MAX_SECONDS, saved in EEPROM):
+//   pre-infusion time = 0: no pre-infusion at all (the wait is skipped too)
+//   wait time = 0:         only the wait is skipped
 
 #define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 

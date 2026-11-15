@@ -15,9 +15,12 @@
       -----------------  -----  ------------------------  --------------------------------
       IDLE / FINISHED /  OFF    closed (group head is     -
       ERROR                     vented to the drip tray)
-      PREINFUSION        ON     open (water to the puck)  PREINFUSION_TIME_MS elapsed
-      PREINFUSION_WAIT   OFF    open (pressure is held)   PREINFUSION_WAITING_TIME_MS elapsed
+      PREINFUSION        ON     open (water to the puck)  pre-infusion time elapsed
+      PREINFUSION_WAIT   OFF    open (pressure is held)   wait time elapsed
       RUNNING            ON     open                      target volume reached
+
+  The two pre-infusion times are settings given to start(): a pre-infusion time of 0 skips the
+  whole pre-infusion (the wait too), a wait time of 0 skips only PREINFUSION_WAIT.
 
   Whatever the phase, the extraction also ends if the target volume is reached
   (the volume counts the water of the pre-infusion too), after DURATION_MAX seconds,
@@ -44,10 +47,11 @@ class ExtractionController {
     // The pump and the valve are switched off.
     void begin();
 
-    // Start a new extraction: first phase is PREINFUSION (or RUNNING if the pre-infusion
-    // is disabled in config.h). Ignored if an extraction is already in progress.
+    // Start a new extraction: first phase is PREINFUSION (or RUNNING if the pre-infusion time is 0).
+    // Ignored if an extraction is already in progress.
     // pressTime: millis() value of the push that started the extraction (timer start).
-    void start(uint32_t pressTime);
+    // preinfusionSeconds, waitSeconds: durations of PREINFUSION and PREINFUSION_WAIT (0 = skipped).
+    void start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds);
 
     // End the extraction in any phase: the pump is switched off, then the valve closes.
     // finalState: EXTRACTION_FINISHED (normal end) or EXTRACTION_ERROR.
@@ -98,4 +102,6 @@ class ExtractionController {
     uint16_t volumeMl_;
     uint16_t durationSeconds_;
     uint16_t phaseSecondsLeft_;
+    uint16_t preinfusionMs_;    // duration of PREINFUSION, from the settings at start()
+    uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
 };

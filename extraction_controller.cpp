@@ -12,7 +12,9 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, US
   lastVolumeAt_(0),
   volumeMl_(0),
   durationSeconds_(0),
-  phaseSecondsLeft_(0)
+  phaseSecondsLeft_(0),
+  preinfusionMs_(0),
+  waitMs_(0)
 {
 }
 
@@ -23,7 +25,7 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
-void ExtractionController::start(uint32_t pressTime) {
+void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionSeconds, uint16_t waitSeconds) {
   if (isActive()) {
     return;
   }
@@ -37,6 +39,9 @@ void ExtractionController::start(uint32_t pressTime) {
     startedAt_ = now;
   }
 
+  preinfusionMs_ = (uint16_t)(preinfusionSeconds * 1000UL);
+  waitMs_ = (uint16_t)(waitSeconds * 1000UL);
+
   flow_.startExtraction();
   volumeMl_ = 0;
   durationSeconds_ = 0;
@@ -45,7 +50,7 @@ void ExtractionController::start(uint32_t pressTime) {
   DEBUG_PRINTLN(F("Extraction started"));
 
   // The pre-infusion timers start now (the pump really starts now), not at the push time.
-  enterPhase(PREINFUSION_TIME_MS > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
+  enterPhase(preinfusionMs_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
 }
 
 void ExtractionController::stop(ExtractionState finalState) {
@@ -82,17 +87,17 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   // ----- Phase sequencing: PREINFUSION -> PREINFUSION_WAIT -> RUNNING -----
   const uint32_t phaseElapsedMs = (uint32_t)(now - phaseStartedAt_);
 
-  if (state_ == EXTRACTION_PREINFUSION && phaseElapsedMs >= PREINFUSION_TIME_MS) {
+  if (state_ == EXTRACTION_PREINFUSION && phaseElapsedMs >= preinfusionMs_) {
     // Skip the soak phase if its duration is 0
-    enterPhase(PREINFUSION_WAITING_TIME_MS > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
-  } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= PREINFUSION_WAITING_TIME_MS) {
+    enterPhase(waitMs_ > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
+  } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= waitMs_) {
     enterPhase(EXTRACTION_RUNNING, now);
   }
 
   // ----- Countdown shown on the screen during the pre-infusion (rounded up: 5, 4, 3...) -----
   phaseSecondsLeft_ = 0;
   if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_PREINFUSION_WAIT) {
-    const uint32_t phaseDurationMs = (state_ == EXTRACTION_PREINFUSION) ? PREINFUSION_TIME_MS : PREINFUSION_WAITING_TIME_MS;
+    const uint32_t phaseDurationMs = (state_ == EXTRACTION_PREINFUSION) ? preinfusionMs_ : waitMs_;
     const uint32_t phaseElapsed = (uint32_t)(now - phaseStartedAt_);
     if (phaseElapsed < phaseDurationMs) {
       phaseSecondsLeft_ = (uint16_t)((phaseDurationMs - phaseElapsed + 999UL) / 1000UL);

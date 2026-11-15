@@ -145,7 +145,11 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
   if (tag != PHASE_TAG_NONE) {
     tft.setFont(FONT_TAG);
     tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-    tft.setCursor(DURATION_TAG_X, DURATION_TAG_BASELINE);
+    if (size == TEXT_SIZE_LARGE) {
+      tft.setCursor(DURATION_TAG_LARGE_X, DURATION_TAG_LARGE_BASELINE);
+    } else {
+      tft.setCursor(DURATION_TAG_X, DURATION_TAG_BASELINE);
+    }
     tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : F("3456"));
   }
 }
@@ -156,6 +160,10 @@ void clearTemperature() {
 
 void clearVolume() {
   tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
+}
+
+void clearDuration() {
+  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
 }
 
 void drawHeaterIndicator(bool visible) {
