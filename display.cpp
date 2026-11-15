@@ -44,14 +44,14 @@ static uint16_t blendColor(uint8_t opacity) {
   return ((uint16_t)(r + dr * opacity / 15) << 11) | ((uint16_t)(g + dg * opacity / 15) << 5) | (uint16_t)(b + db * opacity / 15);
 }
 
-// Draw an icon stored as 4-bit opacity (PROGMEM): two pixels per byte, the first pixel in the
-// high nibble. Background pixels (opacity 0) are not drawn: the screen is already filled with COLOR_BG.
-static void drawIcon(int16_t x, int16_t y, const uint8_t *opacities, uint8_t width, uint8_t height) {
+// Draw an icon stored as 2-bit opacity (PROGMEM): four pixels per byte, the first pixel in the
+// high bits. Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
+// Levels 1, 2, 3 are 5/15, 10/15, 15/15 of the icon color.
+static void drawIcon(int16_t x, int16_t y, const uint8_t *levels, uint8_t width, uint8_t height) {
   tft.startWrite();
   for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
-    uint8_t opacity = pgm_read_byte(&opacities[i >> 1]);
-    opacity = (i & 1) ? (opacity & 0x0F) : (opacity >> 4);
-    if (opacity) tft.writePixel(x + i % width, y + i / width, blendColor(opacity));
+    const uint8_t level = (pgm_read_byte(&levels[i >> 2]) >> (6 - 2 * (i & 3))) & 0x03;
+    if (level) tft.writePixel(x + i % width, y + i / width, blendColor(level * 5));
   }
   tft.endWrite();
 }

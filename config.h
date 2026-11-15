@@ -90,7 +90,7 @@
 #define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 
 // ---------- Screen ----------
-// Draw the three icons at startup. Disabled: the icon data (about 2.1 KB) is then not in the flash.
+// Draw the three icons at startup. Disabled: the icon data (about 1 KB) is then not in the flash.
 #define DISPLAY_ICONS
 
 // ---------- Screen refresh ----------
