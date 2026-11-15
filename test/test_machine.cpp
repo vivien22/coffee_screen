@@ -1,0 +1,74 @@
+#include <vector>
+#include <string>
+#include <cstring>
+#define private public
+#include "src/machine/coffee_machine.h"
+#undef private
+#include "src/config.h"
+#include <cstdio>
+#include "EEPROM.h"
+#include <SPI.h>
+SPIClass SPI;
+static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
+static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}
+int digitalRead(uint8_t){return 0;} void noInterrupts(){} void interrupts(){} SerialT Serial; EEPROMClass EEPROM;
+std::vector<std::string> calls;
+static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
+void beginDisplay(){} void drawIcons(){}
+void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
+void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);}
+
+static int fails=0;
+#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
+#define PUMPON (pins[4]==1)
+static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
+static void step(CoffeeMachine&m,unsigned long dt){ t+=dt; m.update(); }
+static void scenario(int flush){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.savePreinfusionWait(0); st.saveFlush(flush);
+  CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  m.handleShortPush();                          // start the extraction (volume selected)
+  CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
+  { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();   // ignored during the extraction
+    CHECK(m.extraction_.state()==EXTRACTION_RUNNING && m.screen_.activeParameter()==p && PUMPON); }
+  for(int i=0;i<200;i++){ t+=100; m.flow_.vol=(t-1000)/1000.0f*10; m.update(); if(m.extraction_.state()!=EXTRACTION_RUNNING) break; }
+  unsigned long tEnd=t; (void)tEnd;
+  if(flush>0){
+    CHECK(m.extraction_.state()==EXTRACTION_FLUSH_WAIT);
+    // waiting: the extraction values stay, nothing like "target volume" appears even after a long time
+    calls.clear(); for(int i=0;i<150;i++){ t+=100; m.update(); }
+    CHECK(!has("dur(0,0,0,1)"));
+    m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
+    { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();      // flush: a double push skips it
+      CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[4]==0 && pins[16]==0); }
+    m.screen_.selectNextParameter(); m.screen_.selectNextParameter(); m.screen_.selectNextParameter(); m.screen_.selectNextParameter();   // back to volume
+    CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
+    m.handleShortPush(); for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-1000)/1000.0f*100; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; }
+    m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
+    calls.clear(); unsigned long tf=t;
+    for(int i=0;i<100;i++){ t+=100; m.update(); if(!m.extraction_.isActive()) break; }
+    CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
+    // the target volume (40, large because the volume is selected) and 0 s are shown at once, no hold
+    CHECK(has("vol(40,1,0,1)")); CHECK(has("dur(0,0,0,1)"));
+    printf("flush=%d: values reset %lu ms after the end of the flush\n",flush,0UL);
+  } else {
+    CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
+    // final values shown, held 10 s
+    bool final=false; for(auto&c:calls) if(c.rfind("dur(",0)==0 && c!="dur(0,0,0,1)") final=true; CHECK(final);
+    calls.clear(); unsigned long t0=t;
+    while(t<t0+9900){ t+=100; m.update(); }
+    CHECK(!has("dur(0,0,0,1)")); CHECK(!has("vol(40,1,0,1)"));     // still holding at 9.9 s
+    while(t<t0+10200){ t+=100; m.update(); }
+    CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
+    // a new extraction during the hold cancels the reset
+    m.handleShortPush(); t+=100; m.update(); calls.clear();
+    for(int i=0;i<30;i++){ t+=100; m.flow_.vol=1; m.update(); }
+    CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
+    m.handleShortPush();   // stop it
+    t0=t; calls.clear(); while(t<t0+4000){ t+=100; m.update(); }
+    CHECK(!has("dur(0,0,0,1)"));
+    m.handleShortPush(); t+=100; m.update();     // start again: cancels the pending hold
+    printf("flush=%d: hold 10 s ok\n",flush);
+  }
+}
+int main(){ scenario(0); scenario(3); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
