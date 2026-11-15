@@ -8,7 +8,7 @@
   Positions, colors and icon data are in icons.h, the fonts are in fonts.h
   (both are only used by display.cpp), the pins are in config.h.
 
-  Requires the Adafruit GFX Library, Adafruit GC9A01A and Adafruit BusIO.
+  Requires the Adafruit GFX Library and Adafruit GC9A01A.
 */
 
 #pragma once
@@ -28,8 +28,10 @@ enum TextSize {
 // The backlight stays off until the screen is filled, to avoid artefacts at power-on.
 void beginDisplay();
 
+#ifdef DISPLAY_ICONS
 // Draw the three icons (thermometer, drop, clock)
 void drawIcons();
+#endif
 
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);

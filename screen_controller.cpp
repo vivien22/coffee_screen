@@ -11,7 +11,9 @@ void ScreenController::begin(const Settings &settings) {
   dirty_ = DIRTY_ALL_VALUES;
 
   beginDisplay();
+#ifdef DISPLAY_ICONS
   drawIcons();
+#endif
 }
 
 void ScreenController::update(uint32_t now) {

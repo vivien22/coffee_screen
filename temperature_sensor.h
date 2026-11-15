@@ -1,12 +1,13 @@
 /*
   temperature_sensor: MAX31865 reading every SENSOR_PERIOD_MS, validity check
-  (sensor fault, NaN, implausible value) and low-pass filter.
+  (sensor fault, implausible value) and low-pass filter.
+  Minimal driver on the hardware SPI (shared with the screen, own chip select):
+  the chip converts continuously, so reading it never blocks the loop.
   Knows nothing about the heater or the screen.
 */
 
 #pragma once
 #include <Arduino.h>
-#include <Adafruit_MAX31865.h>
 
 class TemperatureSensor {
   public:
@@ -28,7 +29,7 @@ class TemperatureSensor {
     void sample(uint32_t now);
     double filter(double raw, uint32_t now);
 
-    Adafruit_MAX31865 thermo_;
+    uint8_t csPin_;
     bool valid_;
     bool filterInitialized_;
     double filtered_;

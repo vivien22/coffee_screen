@@ -37,8 +37,8 @@
 #define RNOMINAL                   100.0
 #define VALID_TEMPERATURE_MIN      0
 #define VALID_TEMPERATURE_MAX      199
-// Change to MAX31865_3WIRE or MAX31865_4WIRE if required by your sensor wiring.
-#define RTD_WIRING                 MAX31865_2WIRE
+#define RTD_THREE_WIRE             false   // true for a 3-wire PT100 (2-wire and 4-wire: false)
+#define MAX31865_SPI_HZ            1000000UL
 #define SENSOR_PERIOD_MS           250UL
 #define TEMP_FILTER_TIME_CONSTANT  2.0     // low-pass filter time constant (s)
 
@@ -64,6 +64,10 @@
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS         250UL     // volume check / end of extraction
 #define MAX_PRESS_TIME_AGE_MS    5000UL    // older push timestamps are ignored (timer starts "now")
+
+// ---------- Screen ----------
+// Draw the three icons at startup. Disabled: the icon data (about 2.1 KB) is then not in the flash.
+#define DISPLAY_ICONS
 
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature

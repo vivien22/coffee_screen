@@ -26,6 +26,7 @@ void beginDisplay() {
   digitalWrite(PIN_TFT_BL, HIGH);
 }
 
+#ifdef DISPLAY_ICONS
 // ------------------------------------------------------------
 // Icons
 
@@ -59,6 +60,7 @@ void drawIcons() {
   drawIcon(ICON_DROP_X,        ICON_DROP_Y,        ICON_DROP,        ICON_DROP_WIDTH,        ICON_DROP_HEIGHT);
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
+#endif  // DISPLAY_ICONS
 
 // ------------------------------------------------------------
 // Values
