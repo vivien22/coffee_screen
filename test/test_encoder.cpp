@@ -23,5 +23,25 @@ int main(){
   set(0,1); set(0,0); set(0,1); set(1,1); l=r=p=0; enc.read(l,r,p); CHECK(p==0 && l==0 && r==0);
   // and a real push still works after that
   set(0,1); set(1,1); l=r=p=0; enc.read(l,r,p); CHECK(p==1);
+  // ---- very long push enabled (3 s): long push on release (0.8 .. 3 s), very long push while held
+  { CJMCU111 e2(2,3,800,350,3000); byte l,r; PushEvent ev;
+    auto upd=[&](){ return e2.update(l,r,ev); };
+    t+=1000; set(0,1);                                  // press
+    t+=900; upd(); CHECK(ev==PUSH_NONE);                // held 0.9 s: nothing yet
+    t+=10; set(1,1); t+=1; upd(); CHECK(ev==PUSH_LONG); // released: long push
+    t+=1000; set(0,1);
+    t+=2900; upd(); CHECK(ev==PUSH_NONE);               // 2.9 s
+    t+=200; upd(); CHECK(ev==PUSH_VERY_LONG);           // 3.1 s: very long push, button still held
+    t+=500; upd(); CHECK(ev==PUSH_NONE);
+    t+=10; set(1,1); t+=1; upd(); CHECK(ev==PUSH_NONE); // its release is ignored
+    t+=1000; upd(); CHECK(ev==PUSH_NONE);
+    t+=1000; set(0,1); t+=100; set(1,1);                // short push
+    t+=1; upd(); CHECK(ev==PUSH_NONE);                  // waits for a possible second push
+    t+=400; upd(); CHECK(ev==PUSH_SHORT);
+  }
+  // ---- very long push disabled (default): the long push is reported while held, as before
+  { CJMCU111 e3(2,3,800,350); byte l,r; PushEvent ev;
+    t+=1000; set(0,1); t+=850; e3.update(l,r,ev); CHECK(ev==PUSH_LONG);
+    t+=10; set(1,1); t+=1; e3.update(l,r,ev); CHECK(ev==PUSH_NONE); }
   printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0;
 }

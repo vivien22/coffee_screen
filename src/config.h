@@ -24,6 +24,8 @@
 #define LONG_PUSH_MS      800   // a push held this long (ms) is a long push (reported before the release)
 #define DOUBLE_PUSH_MS    350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                 // a short push is reported once this delay has passed
+#define VERY_LONG_PUSH_MS 3000  // a push held this long (ms) switches between the AUTO and MANUAL modes;
+                                // a long push is then reported when the button is released
 
 // ---------- Parameters ----------
 #define VALUE_MIN            0
@@ -39,6 +41,8 @@
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
 #define FLUSH_MAX_SECONDS                 10
 #define DEFAULT_FLUSH_SECONDS             5
+// Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes). Saved in EEPROM
+// at every change; AUTO when the EEPROM has never been written.
 
 // ---------- Temperature sensor (MAX31865 + PT100) ----------
 #define RREF                       428.0
@@ -110,6 +114,12 @@
 // in the cup. Safety: the pre-infusion ends after PREINFUSION_TIMEOUT_MS even if the volume is not
 // reached (flow sensor or pump problem).
 #define PREINFUSION_TIMEOUT_MS       30000UL
+
+// MANUAL mode: a short push starts the pump (valve open), the next short push stops it. No target
+// volume, no pre-infusion, no flush. The screen shows the water that stays in the system (In - Out,
+// without the PUCK_RETAINED_ML / BACKFLUSH_ML losses) and the elapsed time; they stay
+// EXTRACTION_RESULT_DISPLAY_MS at the end, like an extraction without flush. The no-flow safety and
+// the DURATION_MAX limit are active.
 
 // No-flow safety: while the pump runs (PREINFUSION and RUNNING), the water that enters the boiler
 // (In sensor alone) must increase by at least NO_FLOW_MIN_ML every NO_FLOW_TIMEOUT_MS. Otherwise

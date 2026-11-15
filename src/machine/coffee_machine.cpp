@@ -2,7 +2,7 @@
 #include "../config.h"
 
 CoffeeMachine::CoffeeMachine() :
-  encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS),
+  encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS, VERY_LONG_PUSH_MS),
   temperature_(PIN_MAX31865_CS),
   heater_(PIN_HEATER_RELAY),
   extraction_(PIN_PUMP_RELAY, PIN_VALVE_RELAY, flow_),
@@ -131,6 +131,7 @@ void CoffeeMachine::pollEncoder() {
     case PUSH_SHORT:  handleShortPush();  break;
     case PUSH_DOUBLE: handleDoublePush(); break;
     case PUSH_LONG:   handleLongPush();   break;
+    case PUSH_VERY_LONG: handleVeryLongPush(); break;
     default: break;
   }
 }
@@ -157,6 +158,11 @@ void CoffeeMachine::handleShortPush() {
       extraction_.finish(millis());
       break;
 
+    case EXTRACTION_MANUAL:
+      // MANUAL mode: the second push stops the pump (no flush)
+      extraction_.stop(EXTRACTION_FINISHED);
+      break;
+
     case EXTRACTION_FLUSH_WAIT:
       extraction_.startFlush(millis());
       break;
@@ -169,8 +175,12 @@ void CoffeeMachine::handleShortPush() {
     default:   // IDLE, FINISHED, ERROR
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
         const Settings &settings = screen_.settings();
-        extraction_.start(encoder_.eventPressTime(),
-                          settings.preinfusion, settings.preinfusionWait, settings.flush);
+        if (settings.manual) {
+          extraction_.startManual(encoder_.eventPressTime());
+        } else {
+          extraction_.start(encoder_.eventPressTime(),
+                            settings.preinfusion, settings.preinfusionWait, settings.flush);
+        }
         screen_.showExtractionStarted();
       }
       break;
@@ -185,6 +195,7 @@ void CoffeeMachine::handleDoublePush() {
     case EXTRACTION_PREINFUSION:
     case EXTRACTION_PREINFUSION_WAIT:
     case EXTRACTION_RUNNING:
+    case EXTRACTION_MANUAL:
       // Ignored during the extraction (pre-infusion included): a short push stops it
       return;
 
@@ -198,6 +209,16 @@ void CoffeeMachine::handleDoublePush() {
       break;
   }
   screen_.selectNextParameter();
+}
+
+void CoffeeMachine::handleVeryLongPush() {
+  // AUTO <-> MANUAL, only when nothing is going on (no extraction, no error to clear)
+  if (extraction_.isActive() || extraction_.hasNoWaterError()) {
+    return;
+  }
+
+  screen_.toggleMode();
+  store_.saveManual(screen_.settings().manual);   // the mode is saved at every change
 }
 
 void CoffeeMachine::handleLongPush() {

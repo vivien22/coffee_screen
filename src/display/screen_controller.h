@@ -39,6 +39,9 @@ class ScreenController {
 
     void selectNextParameter();
 
+    // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode)
+    void toggleMode();
+
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
     // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, TEMPERATURE_MAX).
     // Returns true if the value changed.

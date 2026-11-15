@@ -17,7 +17,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);} void drawTemperatureError(){L("temperr");}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
@@ -112,4 +112,36 @@ static void temperatureError(){
   sc.showLiveTemperature(5000,90.0); calls.clear(); sc.update(5000); CHECK(!has("temperr(0,0,0,0)") && !calls.empty());
   printf("temperature error: ok\n");
 }
-int main(){ scenario(0); scenario(3); noWater(); temperatureError(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// MANUAL mode: a very long push switches the mode (saved), a push starts the pump, the next one stops it
+static void manualMode(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); st.savePreinfusion(0); st.saveFlush(0);
+  CoffeeMachine m; t=1000; m.begin(); calls.clear();
+  CHECK(!m.screen_.settings().manual);
+  m.handleVeryLongPush();                               // AUTO -> MANUAL
+  CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
+  { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
+  m.handleLongPush();                                    // a long push is still a save, not a mode change
+  m.handleShortPush();                                   // start the pump
+  CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[16]==1);
+  m.handleVeryLongPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
+  m.handleDoublePush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  m.handleLongPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  calls.clear();
+  for(int i=0;i<80;i++){ t+=100; m.flow_.in=(t-1000)*0.003f; m.flow_.out=m.flow_.in*0.1f; m.update(); }   // 8 s at 3 ml/s, 10 % back
+  CHECK(m.extraction_.state()==EXTRACTION_MANUAL);                                   // far above the target (40): no stop
+  uint16_t vol=m.extraction_.volumeMl(); CHECK(vol>=20 && vol<=22 && m.extraction_.durationSeconds()>=7);
+  m.handleShortPush();                                   // stop
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
+  calls.clear(); unsigned long t0=t;
+  while(t<t0+9900){ t+=100; m.update(); }
+  CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
+  while(t<t0+10300){ t+=100; m.update(); }
+  CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));    // then the target volume and 0 s
+  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
+  m.handleShortPush();
+  m.handleVeryLongPush();                                // MANUAL -> AUTO
+  CHECK(!m.screen_.settings().manual && EEPROM.mem[8]==0 && has("drop(0,1,0,0)"));
+  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // AUTO extraction again
+  printf("manual mode: ok\n");
+}
+int main(){ scenario(0); scenario(3); noWater(); temperatureError(); manualMode(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

@@ -1,0 +1,43 @@
+// MANUAL mode of the extraction controller: pump and valve until stop(), volume In - Out
+#include "EEPROM.h"
+#include "src/config.h"
+#include "src/machine/extraction_controller.h"
+#include <cstdio>
+static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
+static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}
+int digitalRead(uint8_t){return 0;} void noInterrupts(){} void interrupts(){} SerialT Serial; EEPROMClass EEPROM;
+static int fails=0;
+#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
+#define PUMP pins[4]
+#define VALVE pins[16]
+int main(){
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=1000; e.startManual(1000);
+    CHECK(e.state()==EXTRACTION_MANUAL && e.isActive() && PUMP==1 && VALVE==1);
+    CHECK(e.preinfusionMlLeft()==0 && e.phaseSecondsLeft()==0);
+    // volume = In - Out, nothing removed (a normal extraction would show 0 until 30 ml)
+    f.in=10; f.out=1; for(t=1250;t<=2000;t+=250) e.update(t,5); CHECK(e.volumeMl()==9 && e.durationSeconds()==1);
+    // the target volume (5) does not stop it, and the main extraction does not start a flush
+    f.in=60; f.out=0; for(;t<=9000;t+=250){ f.in+=0.8f; e.update(t,5); }
+    CHECK(e.state()==EXTRACTION_MANUAL && PUMP==1 && VALVE==1 && e.durationSeconds()==8);
+    float net=f.in-f.out;
+    e.stop(EXTRACTION_FINISHED);
+    CHECK(e.state()==EXTRACTION_FINISHED && !e.isActive() && PUMP==0 && VALVE==0);
+    CHECK(e.volumeMl()==(uint16_t)(net+0.5f) && e.durationSeconds()==8);
+    // finish() has no effect on it, a new normal extraction is back to the normal volume
+    e.start(t,0,0,0); CHECK(e.state()==EXTRACTION_RUNNING); f.in=50; f.out=0; t+=250; e.update(t,500); CHECK(e.volumeMl()==20); }
+  // finish() does not apply to MANUAL
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.startManual(0); e.finish(t);
+    CHECK(e.state()==EXTRACTION_MANUAL && PUMP==1); }
+  // no-flow safety is active
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.startManual(0);
+    for(t=250;t<=NO_FLOW_TIMEOUT_MS;t+=250) e.update(t,40);
+    CHECK(e.state()==EXTRACTION_ERROR_NO_WATER && PUMP==0 && VALVE==0);
+    e.startManual(t); CHECK(e.state()==EXTRACTION_ERROR_NO_WATER); }
+  // maximum duration
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.startManual(0);
+    for(t=0;t<(DURATION_MAX+2)*1000UL;t+=1000){ f.in=t*0.003f; e.update(t,40); if(!e.isActive()) break; }
+    CHECK(e.state()==EXTRACTION_ERROR && PUMP==0); }
+  // ignored while an extraction is in progress
+  { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,0,0); e.startManual(t); CHECK(e.state()==EXTRACTION_RUNNING); }
+  printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0;
+}

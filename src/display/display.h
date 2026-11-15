@@ -43,8 +43,10 @@ void beginDisplay();
 void drawIcons();
 #endif
 
-// Show or hide the drop icon alone (blinking after a no-flow error). Does nothing if DISPLAY_ICONS is not defined.
-void drawDrop(bool visible);
+// Show or hide the drop icon alone, with the letter of the mode in it ("M" in MANUAL, "A" in AUTO).
+// Used at start-up, at a change of mode and for the blinking after a no-flow error.
+// Does nothing if DISPLAY_ICONS is not defined.
+void drawDrop(bool visible, bool manual);
 
 // Draw one value: its zone is erased, then the value and its unit are drawn
 void drawTemperature(double value, TextSize size);

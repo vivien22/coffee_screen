@@ -29,6 +29,7 @@
       RUNNING            ON     open                      target volume (in the cup) reached
       FLUSH_WAIT         OFF    closed                    startFlush() (short push of the user)
       FLUSHING           ON     open                      flush time elapsed
+      MANUAL             ON     open                      stop() (second push of the user)
 
   The settings given to start(): a pre-infusion volume of 0 skips the whole pre-infusion (the wait
   too), a wait time of 0 skips only PREINFUSION_WAIT, a flush time of 0 skips the whole flush
@@ -52,6 +53,7 @@ enum ExtractionState : uint8_t {
   EXTRACTION_RUNNING,            // pump on, valve open: main extraction
   EXTRACTION_FLUSH_WAIT,         // pump off, valve closed: waits for a short push to start the flush
   EXTRACTION_FLUSHING,           // pump on, valve open: the group head is rinsed
+  EXTRACTION_MANUAL,             // pump on, valve open, until stop(): MANUAL mode
   EXTRACTION_FINISHED,
   EXTRACTION_ERROR,              // extraction too long
   EXTRACTION_ERROR_NO_WATER      // no water entering the boiler: kept until clearError()
@@ -71,6 +73,11 @@ class ExtractionController {
     // waitSeconds: duration of PREINFUSION_WAIT (0 = skipped).
     // flushSeconds: duration of FLUSHING (0 = no flush).
     void start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds);
+
+    // MANUAL mode: pump on and valve open until stop(EXTRACTION_FINISHED). No target volume, no
+    // pre-infusion, no flush. The volume is In - Out (no PUCK_RETAINED_ML / BACKFLUSH_ML losses).
+    // Ignored if an extraction is in progress or after a no-water error.
+    void startManual(uint32_t pressTime);
 
     // Normal end of the extraction, from PREINFUSION, PREINFUSION_WAIT or RUNNING: the pump is
     // switched off, then the valve closes, the final values are kept. Next phase is FLUSH_WAIT,
@@ -102,6 +109,7 @@ class ExtractionController {
       return state_ == EXTRACTION_PREINFUSION ||
              state_ == EXTRACTION_PREINFUSION_WAIT ||
              state_ == EXTRACTION_RUNNING ||
+             state_ == EXTRACTION_MANUAL ||
              isFlush();
     }
 
@@ -132,6 +140,9 @@ class ExtractionController {
     // Seconds left of a phase (rounded up), given its duration
     uint16_t secondsLeft(uint32_t phaseDurationMs, uint32_t now) const;
 
+    // Common part of start() and startManual(): false if no extraction can start
+    bool begin_(uint32_t pressTime);
+
     // Enter a phase: set the pump and the valve, restart the phase timer.
     void enterPhase(ExtractionState phase, uint32_t now);
 
@@ -156,6 +167,7 @@ class ExtractionController {
     uint16_t preinfusionMlLeft_;
     uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
     uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
+    bool manual_;               // the extraction in progress (or the last one) is a MANUAL one
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
 };

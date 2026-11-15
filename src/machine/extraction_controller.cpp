@@ -16,7 +16,8 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   preinfusionMl_(0),
   preinfusionMlLeft_(0),
   waitMs_(0),
-  flushMs_(0)
+  flushMs_(0),
+  manual_(false)
 {
 }
 
@@ -33,9 +34,9 @@ void ExtractionController::clearError() {
   }
 }
 
-void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
+bool ExtractionController::begin_(uint32_t pressTime) {
   if (isActive() || state_ == EXTRACTION_ERROR_NO_WATER) {
-    return;
+    return false;
   }
 
   const uint32_t now = millis();
@@ -47,19 +48,36 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uin
     startedAt_ = now;
   }
 
-  preinfusionMl_ = preinfusionMl;
-  waitMs_ = (uint16_t)(waitSeconds * 1000UL);
-  flushMs_ = (uint16_t)(flushSeconds * 1000UL);
-
   flow_.startExtraction();
   volumeMl_ = 0;
   durationSeconds_ = 0;
   lastVolumeAt_ = now;
 
   DEBUG_PRINTLN(F("Extraction started"));
+  return true;
+}
+
+void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
+  if (!begin_(pressTime)) {
+    return;
+  }
+
+  manual_ = false;
+  preinfusionMl_ = preinfusionMl;
+  waitMs_ = (uint16_t)(waitSeconds * 1000UL);
+  flushMs_ = (uint16_t)(flushSeconds * 1000UL);
 
   // The phase timers start now (the pump really starts now), not at the push time.
-  enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, now);
+  enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, millis());
+}
+
+void ExtractionController::startManual(uint32_t pressTime) {
+  if (!begin_(pressTime)) {
+    return;
+  }
+
+  manual_ = true;
+  enterPhase(EXTRACTION_MANUAL, millis());
 }
 
 void ExtractionController::finish(uint32_t now) {
@@ -137,7 +155,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
 
   // ----- No-flow safety: the pump runs but the water does not enter the boiler -----
-  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_RUNNING) {
+  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_RUNNING || state_ == EXTRACTION_MANUAL) {
     const float in = flow_.getVolumeIn();
     if (in - flowCheckMl_ >= NO_FLOW_MIN_ML) {
       flowCheckMl_ = in;
@@ -204,7 +222,8 @@ float ExtractionController::inflowMlPerSec() {
 
 // In - Out is the water that stays in the system; the part that does not end in the cup is removed.
 uint16_t ExtractionController::cupVolumeMl() {
-  const float cup = flow_.getNetVolume() - (PUCK_RETAINED_ML + BACKFLUSH_ML);
+  // MANUAL mode: the water that stays in the system, nothing is removed
+  const float cup = flow_.getNetVolume() - (manual_ ? 0.0f : (PUCK_RETAINED_ML + BACKFLUSH_ML));
   return (cup > 0.0f) ? (uint16_t)(cup + 0.5f) : 0;
 }
 
@@ -215,7 +234,7 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   phaseStartedAt_ = now;
 
   // The no-flow safety watches the pump phases: its reference restarts each time the pump starts
-  if (phase == EXTRACTION_PREINFUSION || phase == EXTRACTION_RUNNING) {
+  if (phase == EXTRACTION_PREINFUSION || phase == EXTRACTION_RUNNING || phase == EXTRACTION_MANUAL) {
     flowCheckMl_ = flow_.getVolumeIn();
     flowCheckAt_ = now;
   }
@@ -233,6 +252,7 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
       setPump(false);   // the valve stays open: the pressure is held in the puck
       break;
 
+    case EXTRACTION_MANUAL:
     case EXTRACTION_RUNNING:
       DEBUG_PRINTLN(F("Extraction running: pump on, valve open"));
       setValve(true);   // already open after a pre-infusion; needed if the pre-infusion is skipped

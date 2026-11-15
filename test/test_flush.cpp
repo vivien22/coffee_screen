@@ -16,7 +16,7 @@ void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
-void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v){L("drop",0,v);} void drawTemperatureError(){L("temperr");}
+void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
@@ -104,6 +104,12 @@ int main(){
     s2.showExtractionProgress(40,28); calls.clear(); s2.update(4+1900); CHECK(calls.size()==1 && calls[0]=="dur(28,0,0,1)");
     calls.clear(); s2.update(4+6000); CHECK(calls.empty());
   }
+  // ---- mode: AUTO by default (blank EEPROM, or EEPROM written before the mode existed), saved at each change
+  memset(EEPROM.mem,0xFF,64); { SettingsStore m; s=m.load(); CHECK(!s.manual && EEPROM.mem[8]==0);
+    m.saveManual(true); s=m.load(); CHECK(s.manual && EEPROM.mem[8]==1);
+    m.saveManual(false); s=m.load(); CHECK(!s.manual);
+    EEPROM.mem[8]=0xFF; s=m.load(); CHECK(!s.manual && s.volume==DEFAULT_VOLUME);     // old layout: the byte was never written
+    m.saveManual(true); m.saveVolume(33); s=m.load(); CHECK(s.manual && s.volume==33); }
   printf(fails?"%d FAIL\n":"ALL OK\n",fails);
   return fails!=0;
 }

@@ -62,15 +62,18 @@ void drawIcons() {
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
-void drawDrop(bool visible) {
+void drawDrop(bool visible, bool manual) {
+  tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
     drawIcon(ICON_DROP_X, ICON_DROP_Y, ICON_DROP, ICON_DROP_WIDTH, ICON_DROP_HEIGHT);
-  } else {
-    tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
+    tft.setFont(FONT_TAG);
+    tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
+    tft.setCursor(ICON_DROP_X + MODE_LETTER_DX, ICON_DROP_Y + MODE_LETTER_DY);
+    tft.print(manual ? F("<") : F("4"));   // FontTag codes: '4' = A, '<' = M
   }
 }
 #else
-void drawDrop(bool) {}
+void drawDrop(bool, bool) {}
 #endif  // DISPLAY_ICONS
 
 // ------------------------------------------------------------

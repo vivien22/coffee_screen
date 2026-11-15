@@ -33,7 +33,8 @@ enum PushEvent {
   PUSH_NONE,     // nothing happened
   PUSH_SHORT,    // one short push (reported after the double push delay)
   PUSH_DOUBLE,   // two short pushes in a row
-  PUSH_LONG      // push held for longPushMs (reported as soon as the delay has elapsed, button still held)
+  PUSH_LONG,     // push held for longPushMs (reported as soon as the delay has elapsed, button still held)
+  PUSH_VERY_LONG // push held for veryLongPushMs (reported as soon as the delay has elapsed, button still held)
 };
 
 class CJMCU111 {
@@ -43,7 +44,12 @@ class CJMCU111 {
     //               has elapsed (the release that follows is not reported again)
     // doublePushMs: max delay (ms) between two short pushes for a double push.
     //               A short push is reported once this delay has passed, 0 disables the double push.
-    CJMCU111(byte pinGa = 2, byte pinGb = 3, unsigned int longPushMs = 800, unsigned int doublePushMs = 350);
+    // veryLongPushMs: a push held this long (ms) is a very long push, reported when the delay has
+    //               elapsed. 0 disables it. When it is enabled, a long push is no longer reported
+    //               while the button is held, but when it is released (the push could still become
+    //               a very long one): it is a push between longPushMs and veryLongPushMs.
+    CJMCU111(byte pinGa = 2, byte pinGb = 3, unsigned int longPushMs = 800, unsigned int doublePushMs = 350,
+             unsigned int veryLongPushMs = 0);
 
     // Call in setup()
     void begin();
@@ -111,6 +117,7 @@ class CJMCU111 {
     // Push classification (main context only, used by update())
     unsigned int longPushThresholdMs;
     unsigned int doublePushWindowMs;
+    unsigned int veryLongPushThresholdMs;
     bool shortPushPending;            // a short push is waiting to know if a second one follows
     unsigned long shortPushTime;      // time (ms) of the pending short push
     PushEvent queuedPushEvent;        // event to return on the next update() call
@@ -119,6 +126,9 @@ class CJMCU111 {
     unsigned long shortPushPressMs;   // press time of the pending short push
     unsigned long queuedEventPressMs; // press time of the queued event
     unsigned long lastReadPushPressMs;// press time of the last push read from the ISR
+
+    // PUSH_LONG or PUSH_VERY_LONG for a push of this duration (>= the long push delay)
+    PushEvent longKind(unsigned long durationMs) const;
 
     // True while the button is held down; heldMs = time since the press, pressStartMs = time of the press
     bool pushHeld(unsigned long &heldMs, unsigned long &pressStartMs);

@@ -19,6 +19,9 @@
 #define ICON_THERMOMETER_Y            35
 #define ICON_DROP_X                   38
 #define ICON_DROP_Y                   99
+// Mode letter in the drop (A = AUTO, M = MANUAL): 15 px capital in the tag font and color, centered in the drop
+#define MODE_LETTER_DX                10    // from ICON_DROP_X to the cursor of the letter
+#define MODE_LETTER_DY                38    // from ICON_DROP_Y to its baseline
 #define ICON_CLOCK_X                  56   // ink x 56 -> 94: compromise between the original place (x 65) and the axis of the thermometer (x 46)
 #define ICON_CLOCK_Y                  167
 

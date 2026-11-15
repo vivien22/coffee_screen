@@ -13,6 +13,7 @@ void ScreenController::begin(const Settings &settings) {
   beginDisplay();
 #ifdef DISPLAY_ICONS
   drawIcons();
+  drawDrop(true, settings_.manual);   // with the letter of the mode
 #endif
 }
 
@@ -40,11 +41,11 @@ void ScreenController::update(uint32_t now) {
       dropBlinkPending_ = false;
       dropVisible_ = false;
       dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(false);
+      drawDrop(false, settings_.manual);
     } else if ((int32_t)(now - dropToggleAt_) >= 0) {
       dropVisible_ = !dropVisible_;
       dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(dropVisible_);
+      drawDrop(dropVisible_, settings_.manual);
     }
   }
 
@@ -60,13 +61,18 @@ void ScreenController::showNoWater(bool error) {
     dropBlinkPending_ = false;
     if (!dropVisible_) {
       dropVisible_ = true;
-      drawDrop(true);   // the error is cleared: the drop stays on
+      drawDrop(true, settings_.manual);   // the error is cleared: the drop stays on
     }
   }
 }
 
 // ------------------------------------------------------------
 // User actions
+
+void ScreenController::toggleMode() {
+  settings_.manual = !settings_.manual;
+  drawDrop(dropVisible_, settings_.manual);
+}
 
 void ScreenController::selectNextParameter() {
   // Volume -> pre-infusion -> wait -> flush -> temperature -> volume
