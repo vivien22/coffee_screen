@@ -1,19 +1,15 @@
 #include "USN_FlowSensor.h"
 
-// This implementation directly uses the ATmega328P port-C pin-change interrupt.
-// It is intended for the classic Arduino Nano / Uno, not newer Nano variants.
+#include <avr/interrupt.h>
+#include <avr/io.h>
+
+// This implementation is specifically for the classic Arduino Nano/Uno.
 #if !defined(__AVR_ATmega328P__)
-#error "USN_FlowSensor PCINT1 implementation requires an ATmega328P (classic Nano)."
+#error "USN_FlowSensor requires an ATmega328P (classic Nano/Uno)."
 #endif
 
-#define SIMULATED_FLOW_RATE 3.87
-
 USN_FlowSensor* USN_FlowSensor::_instance = nullptr;
-float USN_FlowSensor::_lastInRate = 0.0f;
-float USN_FlowSensor::_lastOutRate = 0.0f;
 
-// Static instance pointer is used by the ISR to forward pin changes to the object.
-// The cached rates are static because only one instance is supported.
 USN_FlowSensor::USN_FlowSensor() :
     _inflowBit(0),
     _outflowBit(1),
@@ -23,19 +19,19 @@ USN_FlowSensor::USN_FlowSensor() :
     _pulsesOut(0),
     _lastPortC(0),
     _lastUpdateAt(0),
-    _extractionStartedAt(0),
+    _volumeIn(0.0f),
+    _volumeOut(0.0f),
     _netVolume(0.0f),
     _outflowVolume(0.0f),
-    _simulatedVolume(0.0f),
+    _lastInRate(0.0f),
+    _lastOutRate(0.0f),
     _extractionActive(false)
 {
 }
 
-// Initialize hardware acquisition. PCINT1 covers the whole PORTC group (A0..A5),
-// while PCMSK1 enables only the two pins selected above.
+// Configure the selected pins and enable PCINT1 for those two inputs.
 void USN_FlowSensor::begin()
 {
-#if !USN_FLOW_SENSOR_USE_SIMULATION
     if (USN_FLOW_SENSOR_IN_PIN < A0 || USN_FLOW_SENSOR_IN_PIN > A5 ||
         USN_FLOW_SENSOR_OUT_PIN < A0 || USN_FLOW_SENSOR_OUT_PIN > A5 ||
         USN_FLOW_SENSOR_IN_PIN == USN_FLOW_SENSOR_OUT_PIN ||
@@ -51,79 +47,65 @@ void USN_FlowSensor::begin()
 
     _instance = this;
 
-    // Synchronize the cached port state before enabling the interrupt, so the
-    // first interrupt only counts an edge that occurs after initialization.
+    // Synchronize the port state before enabling the interrupt.
     noInterrupts();
     _lastPortC = PINC;
+    PCMSK1 |= _BV(_inflowBit) | _BV(_outflowBit);
+    PCIFR |= _BV(PCIF1);  // Clear any pending PORTC pin-change flag.
     PCICR |= _BV(PCIE1);
-    PCMSK1 |= _BV(_inflowBit);
-    PCMSK1 |= _BV(_outflowBit);
     interrupts();
-#endif
 
     _lastUpdateAt = millis();
 }
 
-// Pin-change interrupt for PORTC (A0..A5). Keep this routine short: it only
-// forwards the current port state so pulse counting does not block loop().
+// PORTC pin-change interrupt (A0..A5).
 ISR(PCINT1_vect)
 {
-#if !USN_FLOW_SENSOR_USE_SIMULATION
     if (USN_FlowSensor::_instance != nullptr) {
         USN_FlowSensor::_instance->handlePortCChange(PINC);
     }
-#endif
 }
 
-// Count falling edges only (HIGH -> LOW). This matches the pulse output used
-// by the flow sensors with the inputs configured using INPUT_PULLUP.
+// Count falling edges (HIGH -> LOW), as used with INPUT_PULLUP.
 void USN_FlowSensor::handlePortCChange(uint8_t currentPort)
 {
-#if !USN_FLOW_SENSOR_USE_SIMULATION
     const uint8_t fallingEdges = _lastPortC & (uint8_t)~currentPort;
 
     if (fallingEdges & _BV(_inflowBit)) {
         ++_pulsesIn;
     }
+
     if (fallingEdges & _BV(_outflowBit)) {
         ++_pulsesOut;
     }
 
     _lastPortC = currentPort;
-#else
-    (void)currentPort;
-#endif
 }
 
-// Public polling function. Call it on every loop pass; calculations are internally
-// limited to USN_FLOW_SENSOR_UPDATE_INTERVAL_MS to avoid unnecessary work.
+// Call from loop(). The actual elapsed time is used for rate calculations.
 void USN_FlowSensor::update()
 {
-    const uint32_t now = millis();
+    if (!_extractionActive) {
+        //return;
+    }
 
-    if ((uint32_t)(now - _lastUpdateAt) <
-        USN_FLOW_SENSOR_UPDATE_INTERVAL_MS) {
+    const uint32_t now = millis();
+    const uint32_t duration = now - _lastUpdateAt;
+
+    if (duration < USN_FLOW_SENSOR_UPDATE_INTERVAL_MS) {
         return;
     }
 
     _lastUpdateAt = now;
-
-#if USN_FLOW_SENSOR_USE_SIMULATION
-    updateSimulation(now);
-#else
-    updatePhysical();
-#endif
+    updatePhysical(duration);
 }
 
-// Convert pulse counts accumulated by the ISR into volumes and flow rates.
-// Interrupts are briefly disabled only while the counters are copied and cleared.
-void USN_FlowSensor::updatePhysical()
-{
-    const uint32_t currentTime = millis();
-    const uint32_t duration = currentTime - _lastUpdateAt +
-                              USN_FLOW_SENSOR_UPDATE_INTERVAL_MS;
+uint32_t totalPulseIn = 0;
 
-    if (duration == 0) {
+// Convert accumulated pulses into volumes and flow rates.
+void USN_FlowSensor::updatePhysical(uint32_t durationMs)
+{
+    if (durationMs == 0) {
         return;
     }
 
@@ -137,47 +119,33 @@ void USN_FlowSensor::updatePhysical()
     _pulsesOut = 0;
     interrupts();
 
-    // Convert pulses to millilitres using each sensor's calibration factor, then
-    // divide by the sampling duration to obtain a rate in mL/min.
-    const float seconds = duration / 1000.0f;
+    const float seconds = durationMs / 1000.0f;
     const float volumeIn = pulsesIn / _kFactorIn;
     const float volumeOut = pulsesOut / _kFactorOut;
+    _volumeIn += volumeIn;
+    _volumeOut += volumeOut;
 
-    _netVolume += volumeIn - volumeOut;
-    _outflowVolume += volumeOut;
+    totalPulseIn += pulsesIn;
+    Serial.println(totalPulseIn);
+    Serial.println(_volumeIn);
+
+    // Keep the previous volume accessors working.
+    _netVolume = _volumeIn - _volumeOut;
+    Serial.println(_netVolume);
+    _outflowVolume = _volumeOut;
+
     _lastInRate = (volumeIn / seconds) * 60.0f;
     _lastOutRate = (volumeOut / seconds) * 60.0f;
 }
 
-// Update the simulated sensor values using elapsed time since extraction start.
-// The same simulated profile feeds both the display and the temperature feedforward.
-void USN_FlowSensor::updateSimulation(uint32_t now)
-{
-    if (!_extractionActive) {
-        _simulatedVolume = 0.0f;
-        _lastInRate = 0.0f;
-        _lastOutRate = 0.0f;
-        return;
-    }
-
-    const uint32_t elapsedMs = now - _extractionStartedAt;
-    _simulatedVolume = SIMULATED_FLOW_RATE * elapsedMs / 1000;
-    _lastOutRate = SIMULATED_FLOW_RATE;
-    _lastInRate = _lastOutRate;
-    _outflowVolume = _simulatedVolume;
-    _netVolume = 0.0f;
-}
-
-// Start a new extraction and restart the simulation timeline at zero.
+// Begin a new extraction and clear previous measurements.
 void USN_FlowSensor::startExtraction()
 {
     resetVolume();
-    _extractionStartedAt = millis();
     _extractionActive = true;
 }
 
-// Stop the simulation clock and clear the instantaneous rates. Accumulated volume
-// remains available so the final extraction volume can still be displayed.
+// Stop reporting instantaneous flow. Accumulated volumes are preserved.
 void USN_FlowSensor::stopExtraction()
 {
     _extractionActive = false;
@@ -185,8 +153,7 @@ void USN_FlowSensor::stopExtraction()
     _lastOutRate = 0.0f;
 }
 
-// Reset all counters and volume accumulators. Pulse counters are volatile because
-// they are also modified by the pin-change ISR, so they must be cleared atomically.
+// Reset pulse counters and accumulated measurements.
 void USN_FlowSensor::resetVolume()
 {
     noInterrupts();
@@ -195,23 +162,46 @@ void USN_FlowSensor::resetVolume()
     interrupts();
 
     _lastUpdateAt = millis();
+    _volumeIn = 0.0f;
+    _volumeOut = 0.0f;
     _netVolume = 0.0f;
     _outflowVolume = 0.0f;
-    _simulatedVolume = 0.0f;
     _lastInRate = 0.0f;
     _lastOutRate = 0.0f;
+    totalPulseIn = 0;
 }
 
-float USN_FlowSensor::getInflowRate() { return _lastInRate; }
-float USN_FlowSensor::getOutflowRate() { return _lastOutRate; }
-float USN_FlowSensor::getNetFlowRate() { return _lastInRate - _lastOutRate; }
-float USN_FlowSensor::getNetVolume() { return _netVolume; }
+float USN_FlowSensor::getInflowRate()
+{
+    return _lastInRate;
+}
+
+float USN_FlowSensor::getOutflowRate()
+{
+    return _lastOutRate;
+}
+
+float USN_FlowSensor::getNetFlowRate()
+{
+    return _lastInRate - _lastOutRate;
+}
+
+float USN_FlowSensor::getVolumeIn()
+{
+    return _volumeIn;
+}
+
+float USN_FlowSensor::getVolumeOut()
+{
+    return _volumeOut;
+}
+
+float USN_FlowSensor::getNetVolume()
+{
+    return _netVolume;
+}
 
 float USN_FlowSensor::getOutflowVolume()
 {
-#if USN_FLOW_SENSOR_USE_SIMULATION
-    return _simulatedVolume;
-#else
     return _outflowVolume;
-#endif
 }

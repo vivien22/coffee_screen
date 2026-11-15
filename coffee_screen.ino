@@ -65,7 +65,7 @@
 // Timing
 // -----------------------------------------------------------------------------
 
-static const uint16_t SENSOR_PERIOD_MS       = 250;
+static const uint16_t SENSOR_PERIOD_MS       = 1000;
 static const uint16_t VOLUME_PERIOD_MS       = 200;
 static const uint16_t DURATION_DISPLAY_MS    = 200;
 static const uint16_t TEMPERATURE_DISPLAY_MS = 1000;
@@ -101,7 +101,7 @@ double Kp = 40;
 double Ki = 0.1;
 double Kd = 500;
 
-PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, P_ON_E, DIRECT);
 uint32_t pidWindowStart = 0;
 bool PIDModeChangedToManual = false;
 
@@ -366,7 +366,7 @@ static void stopExtraction(ExtractionState finalState)
   parameters.duration.currentValue = (int)elapsedSeconds;
   parameters.volume.currentValue = systemFlow.getNetVolume();
 
-  displayDirty |= DISPLAY_VOLUME | DISPLAY_DURATION;
+  //displayDirty |= DISPLAY_VOLUME | DISPLAY_DURATION;
 
   DEBUG_PRINTLN(F("Extraction stopped"));
 }
@@ -522,7 +522,6 @@ static void updateTemperatureControl(uint32_t now) {
   if (!temperatureValid) {
     feedforwardMs = 0;
     setHeater(false);
-    DEBUG_PRINTLN("temperatureInvalid");
     return;
   }
 
