@@ -219,6 +219,10 @@ void CoffeeMachine::handleVeryLongPush() {
 
   screen_.toggleMode();
   store_.saveManual(screen_.settings().manual);   // the mode is saved at every change
+
+  // The values of the last extraction are reset at once, as after EXTRACTION_RESULT_DISPLAY_MS
+  resultShown_ = false;
+  screen_.showReady();
 }
 
 void CoffeeMachine::handleLongPush() {

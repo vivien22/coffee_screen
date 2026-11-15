@@ -138,9 +138,13 @@ static void manualMode(){
   while(t<t0+10300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));    // then the target volume and 0 s
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
-  m.handleShortPush();
-  m.handleVeryLongPush();                                // MANUAL -> AUTO
-  CHECK(!m.screen_.settings().manual && EEPROM.mem[8]==0 && has("drop(0,1,0,0)"));
+  m.handleShortPush();                                   // stop: the values of this extraction are shown
+  t+=100; m.update(); calls.clear();
+  m.handleVeryLongPush();                                // MANUAL -> AUTO: the values are reset at once
+  t+=100; m.update(); CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));
+  bool letterA=has("drop(0,1,0,0)");
+  calls.clear(); t+=100; m.update(); while(t<t0+40000){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)"));   // and not again later
+  CHECK(!m.screen_.settings().manual && EEPROM.mem[8]==0 && letterA);
   m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // AUTO extraction again
   printf("manual mode: ok\n");
 }
