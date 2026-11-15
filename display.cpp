@@ -140,11 +140,11 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag) {
   tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
   tft.print('s');
 
-  // Phase tag after the unit. FontTag only holds the letters P R E W A I T, under the codes
+  // Phase tag at a fixed position, right of the unit. FontTag only holds the letters P R E W A I T, under the codes
   // '0'..'6' (see fonts.h): "012" is PRE and "3456" is WAIT.
   if (tag != PHASE_TAG_NONE) {
     tft.setFont(FONT_TAG);
-    tft.setCursor(tft.getCursorX() + DURATION_TAG_DX, DURATION_TAG_BASELINE);
+    tft.setCursor(DURATION_TAG_X, DURATION_TAG_BASELINE);
     tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") : F("3456"));
   }
 }

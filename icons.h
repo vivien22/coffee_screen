@@ -9,8 +9,8 @@
 
 // ============================== 1. Colors ==============================
 #define COLOR_BG                      0x1040 // mockup background (21,8,1)
-#define COLOR_TEXT                    0xFFBC // cream (254,245,228)
 #define COLOR_ICON                    0xFDCD // icon orange (255,186,107); edges are blended with COLOR_BG
+#define COLOR_TEXT                    COLOR_ICON // texts use the same orange as the icons (was 0xFFBC, cream (254,245,228))
 
 // ========================== 2. Positions ============================
 // Icons: X, Y = top-left corner
@@ -62,7 +62,8 @@
 #define DURATION_ZONE_WIDTH           131
 #define DURATION_ZONE_HEIGHT          52
 #define DURATION_UNIT_DX              1     // offset of the "s" from the end of the number
-#define DURATION_TAG_DX               4     // offset of the phase tag ("PRE", "WAIT") from the end of the "s"
+#define DURATION_TAG_X                155   // left edge of the phase tag ("PRE", "WAIT"): fixed, so that the tag does
+                                            // not move when the digit of the countdown changes width
 #define DURATION_TAG_BASELINE         201   // baseline of the phase tag (same as the number)
 
 // ============================ 3. Icons (4-bit opacity) ============================
