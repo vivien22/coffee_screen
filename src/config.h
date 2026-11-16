@@ -55,9 +55,10 @@
 #define DEFAULT_MANUAL_SECONDS            0
 
 // ---------- Temperature offset and standby ----------
-// The boiler probe is hotter than the water that reaches the group head. The setpoint and the temperature shown
-// are the temperature of the water: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the
-// screen shows probe - TEMPERATURE_OFFSET (degrees C).
+// On this coffee machine (Ascaso Steel Uno Pro) the temperature of the boiler probe is higher than the temperature
+// of the water at the outlet of the group head. The setpoint and the temperature shown are the temperature of the
+// water at the group outlet: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the screen shows
+// probe - TEMPERATURE_OFFSET (degrees C). Set it to 0 if your probe reads the same as the water at the group outlet.
 #define TEMPERATURE_OFFSET   5
 
 // Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched

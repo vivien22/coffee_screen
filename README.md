@@ -147,9 +147,11 @@ The EEPROM layout is in `src/settings/settings.cpp`.
 
 ### Temperature offset
 
-The boiler probe reads hotter than the water at the group head. The temperature you set and the one shown
-are the **water** temperature: the heater regulates the probe at *setpoint + `TEMPERATURE_OFFSET`*
-(5 °C by default) and the screen shows *probe − `TEMPERATURE_OFFSET`*.
+On this coffee machine (Ascaso Steel Uno Pro) the temperature of the boiler probe is higher than the temperature
+of the water at the outlet of the group head. The temperature you set and the one shown are the **water**
+temperature at the group outlet: the heater regulates the probe at *setpoint + `TEMPERATURE_OFFSET`*
+(5 °C by default) and the screen shows *probe − `TEMPERATURE_OFFSET`*. Set `TEMPERATURE_OFFSET` to 0 if your
+probe reads the same as the water at the group outlet.
 
 ### Standby
 
@@ -278,7 +280,7 @@ Every pin, limit, timing and tuning constant is in `src/config.h`, with comments
 |---|---|---|
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
 | `DEFAULT_TEMPERATURE` | 93 | Water temperature, °C |
-| `TEMPERATURE_OFFSET` | 5 | Probe hotter than the water, °C |
+| `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the group outlet of this machine, °C |
 | `DEFAULT_VOLUME` | 40 | Target volume, ml |
 | `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults |
 | `DEFAULT_LOSS_ML` | 30 | Water that does not end in the cup |
