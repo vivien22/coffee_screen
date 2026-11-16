@@ -27,5 +27,6 @@ struct SerialT { template<class T> void print(T){} template<class T,class U> voi
 extern SerialT Serial;
 char* itoa(int,char*,int);
 #define pgm_read_byte(p) (*(p))
+#define pgm_read_word(p) (*(p))
 #define attachInterrupt(a,b,c) 
 #define digitalPinToInterrupt(x) x
