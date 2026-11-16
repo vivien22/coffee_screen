@@ -13,7 +13,7 @@ static double exactCelsius(double r){ const double A=3.9083e-3,B=-5.775e-7; retu
 int main(){
   SPI.hook=answer;
   double worst=0;
-  for(int celsius=1;celsius<=199;celsius++){
+  for(int celsius=1;celsius<VALID_TEMPERATURE_MAX;celsius++){
     const double A=3.9083e-3,B=-5.775e-7; double r=RNOMINAL*(1+A*celsius+B*celsius*celsius);
     uint16_t code=(uint16_t)(r/RREF*32768.0+0.5); rtdRegister=(uint16_t)(code<<1);
     TemperatureSensor s(6); t=0; s.begin();                       // first sample: not filtered
@@ -23,9 +23,11 @@ int main(){
   }
   printf("worst error against the exact formula: %.4f C\n",worst);
   CHECK(worst<0.03);
-  // out of range and sensor fault: not valid
+  // out of range (above the safety limit of the heater, VALID_TEMPERATURE_MAX) and sensor fault: not valid
+  { const double A=3.9083e-3,B=-5.775e-7; double r=RNOMINAL*(1+A*(VALID_TEMPERATURE_MAX+1)+B*(VALID_TEMPERATURE_MAX+1)*(VALID_TEMPERATURE_MAX+1));
+    rtdRegister=(uint16_t)((uint16_t)(r/RREF*32768.0+0.5)<<1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }
   { rtdRegister=0; TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }                      // 0 ohm
-  { rtdRegister=(uint16_t)(32767u<<1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }   // 428 ohm: far above 199 C
+  { rtdRegister=(uint16_t)(32767u<<1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }   // 428 ohm: far above the limit
   { rtdRegister=(uint16_t)((8000u<<1)|1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); } // fault bit
   // Stray readings: fewer than SENSOR_FAULT_TOLERANCE faulty readings in a row keep the sensor valid (with the last
   // good temperature), SENSOR_FAULT_TOLERANCE of them make it invalid, and one good reading brings it back

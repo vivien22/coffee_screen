@@ -5,7 +5,6 @@
 class FlowSensor {
   public:
     float in = 0, out = 0, rate = 0;   // volumes In / Out (ml) and inflow rate (ml/min), set by the tests
-    float &vol = in;                  // old name of In, used by some tests
     void begin() {}
     void update() {}
     void startExtraction() { in = 0; out = 0; }
@@ -13,4 +12,5 @@ class FlowSensor {
     float getInflowRate() { return rate; }
     float getNetVolume() { return in - out; }
     float getVolumeIn() { return in; }
+    float getVolumeOut() { return out; }
 };

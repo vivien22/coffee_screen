@@ -1,9 +1,8 @@
-// The Arduino API of the host tests (and of tools/render_screens): a clock, the pins and the few library objects
+// The Arduino API of the host tests: a clock, the pins and the few library objects
 // the code uses. The tests drive it through stubNow and stubPins (declared in Arduino.h, see TestSupport.h).
 // Link it with every test program.
 #include <stdio.h>
 #include "Arduino.h"
-#include "EEPROM.h"
 #include "SPI.h"
 
 unsigned long stubNow = 0;   // what millis() returns
@@ -20,4 +19,3 @@ char *itoa(int value, char *text, int) { sprintf(text, "%d", value); return text
 
 SerialT Serial;
 SPIClass SPI;
-EEPROMClass EEPROM;
