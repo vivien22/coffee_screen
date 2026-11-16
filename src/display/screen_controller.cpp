@@ -1,3 +1,5 @@
+// screen_controller.cpp: parameter cycle, dirty flags and the redraw rules (what is drawn, when).
+
 #include "screen_controller.h"
 #include "../config.h"
 #include "display.h"

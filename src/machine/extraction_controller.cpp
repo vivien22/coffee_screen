@@ -1,3 +1,5 @@
+// extraction_controller.cpp: phases of an extraction, safeties (no flow, maximum duration) and the volume estimate.
+
 #include "extraction_controller.h"
 #include "../config.h"
 #include "../debug.h"
@@ -38,7 +40,7 @@ void ExtractionController::clearError() {
   }
 }
 
-bool ExtractionController::begin_(uint32_t pressTime) {
+bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   if (isActive() || state_ == EXTRACTION_ERROR_NO_WATER) {
     return false;
   }
@@ -64,7 +66,7 @@ bool ExtractionController::begin_(uint32_t pressTime) {
 }
 
 void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
-  if (!begin_(pressTime)) {
+  if (!beginExtraction_(pressTime)) {
     return;
   }
 
@@ -78,7 +80,7 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uin
 }
 
 void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
-  if (!begin_(pressTime)) {
+  if (!beginExtraction_(pressTime)) {
     return;
   }
 

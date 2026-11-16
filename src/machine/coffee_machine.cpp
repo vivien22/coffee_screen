@@ -1,3 +1,5 @@
+// coffee_machine.cpp: the main update() pass and the handlers of the encoder actions (short, double, long push).
+
 #include "coffee_machine.h"
 #include "../config.h"
 

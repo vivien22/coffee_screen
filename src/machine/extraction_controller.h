@@ -153,7 +153,7 @@ class ExtractionController {
     uint16_t secondsLeft(uint32_t phaseDurationMs, uint32_t now) const;
 
     // Common part of start() and startManual(): false if no extraction can start
-    bool begin_(uint32_t pressTime);
+    bool beginExtraction_(uint32_t pressTime);
 
     // Enter a phase: set the pump and the valve, restart the phase timer.
     void enterPhase(ExtractionState phase, uint32_t now);

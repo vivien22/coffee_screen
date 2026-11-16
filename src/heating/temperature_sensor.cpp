@@ -1,3 +1,5 @@
+// temperature_sensor.cpp: MAX31865 registers over SPI, PT100 resistance to degrees (polynomial), filter and validity.
+
 #include "temperature_sensor.h"
 #include "../config.h"
 #include "../debug.h"

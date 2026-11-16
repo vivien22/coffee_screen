@@ -1,3 +1,5 @@
+// settings.cpp: EEPROM layout, validation of the stored values, writing of the bytes that changed.
+
 #include "settings.h"
 #include "../config.h"
 #include <EEPROM.h>

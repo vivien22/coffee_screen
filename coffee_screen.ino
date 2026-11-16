@@ -16,8 +16,10 @@
  *   CJMCU111               rotary encoder + push button
  *   USN_FlowSensor         flow sensors (PCINT1)
  *
- * Heater control is disabled on MAX31865 fault or implausible temperature.
- * This is not a substitute for an independent thermal fuse/thermostat.
+ * Safeties: the heater is switched off on MAX31865 fault, implausible temperature or standby
+ * (STANDBY_MINUTES without activity); the pump stops when no water flows (no-flow safety) and
+ * the watchdog resets the board if the loop is blocked.
+ * None of this replaces an independent thermal fuse / thermostat.
  */
 
 #include <avr/wdt.h>

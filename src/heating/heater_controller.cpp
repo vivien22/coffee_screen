@@ -1,3 +1,5 @@
+// heater_controller.cpp: PID window, feedforward from the water flow, full power when far below the setpoint.
+
 #include "heater_controller.h"
 #include "../config.h"
 #include "../debug.h"

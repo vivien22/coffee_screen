@@ -26,29 +26,21 @@
 #define DOUBLE_PUSH_MS    350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                 // a short push is reported once this delay has passed
 
-// ---------- Parameters ----------
+// ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0
 #define TEMPERATURE_MAX      199
 #define VOLUME_MAX           999
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
-// The boiler probe is hotter than the water that reaches the group head. The setpoint and the temperature shown
-// are the temperature of the water: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the
-// screen shows probe - TEMPERATURE_OFFSET (degrees C).
-#define TEMPERATURE_OFFSET   5
-
-// Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
-// off. Nothing changes on the screen. Any action wakes the machine up (that first action is ignored). Nothing is saved:
-// after a reboot the machine is awake. 0 = no standby.
-#define STANDBY_MINUTES      30
 #define DEFAULT_VOLUME       40
-// Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step, see "Extraction" below.
+// Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").
 #define PREINFUSION_MAX_ML                50
 #define DEFAULT_PREINFUSION_ML            10
 #define PREINFUSION_WAIT_MAX_SECONDS      10
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
 #define FLUSH_MAX_SECONDS                 10
 #define DEFAULT_FLUSH_SECONDS             5
+
 // Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a long push
 // switches it. AUTO when the EEPROM has never been written.
 // MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode.
@@ -61,6 +53,17 @@
 // A temperature setpoint is applied to the heater at the same moments.
 #define MANUAL_MAX_SECONDS                99
 #define DEFAULT_MANUAL_SECONDS            0
+
+// ---------- Temperature offset and standby ----------
+// The boiler probe is hotter than the water that reaches the group head. The setpoint and the temperature shown
+// are the temperature of the water: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the
+// screen shows probe - TEMPERATURE_OFFSET (degrees C).
+#define TEMPERATURE_OFFSET   5
+
+// Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
+// off. Nothing changes on the screen. Any action wakes the machine up (that first action is ignored). Nothing is saved:
+// after a reboot the machine is awake. 0 = no standby.
+#define STANDBY_MINUTES      30
 
 // ---------- Temperature sensor (MAX31865 + PT100) ----------
 #define RREF                       428.0
