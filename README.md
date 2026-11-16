@@ -2,7 +2,7 @@
 
 # ☕ coffee_screen
 
-**A controller for an espresso machine (Gaggia Classic / Rancilio Silvia type) on an Arduino Nano.**
+**A controller for an espresso machine on an Arduino Nano, built and used on an Ascaso Steel Uno Pro.**
 
 A round colour screen, one rotary encoder, a PID-controlled boiler, a pump, a 3-way valve and two flow
 sensors that measure the volume in the cup. Everything is done with a single knob: turn to change a value,
@@ -25,6 +25,7 @@ push to brew.
 
 | | |
 |---|---|
+| **Machine** | Ascaso Steel Uno Pro (the one this project is built and used on) |
 | **Screen** | GC9A01 round display, 240 x 240 |
 | **Input** | CJMCU-111 rotary encoder with push button |
 | **Temperature** | MAX31865 amplifier + PT100 probe, PID with feedforward on the water flow |
