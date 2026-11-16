@@ -47,6 +47,8 @@
 #include "../config.h"
 #include "../lib/flow_sensor.h"
 
+// The phases PREINFUSION..MANUAL are described by the phase table of extraction_controller.cpp
+// (one row per phase, in this order): keep them together and in the same order as the table.
 enum ExtractionState : uint8_t {
   EXTRACTION_IDLE,
   EXTRACTION_PREINFUSION,        // pump on, valve open: the puck is wetted
@@ -108,11 +110,7 @@ class ExtractionController {
     // True from start() to the end of the sequence, whatever the phase (pre-infusion and flush
     // included), even while the pump is stopped (PREINFUSION_WAIT, FLUSH_WAIT).
     bool isActive() const {
-      return state_ == EXTRACTION_PREINFUSION ||
-             state_ == EXTRACTION_PREINFUSION_WAIT ||
-             state_ == EXTRACTION_RUNNING ||
-             state_ == EXTRACTION_MANUAL ||
-             isFlush();
+      return state_ >= EXTRACTION_PREINFUSION && state_ <= EXTRACTION_MANUAL;   // the phases of the table
     }
 
     // True during FLUSH_WAIT and FLUSHING
@@ -152,6 +150,9 @@ class ExtractionController {
     // Seconds left of a phase (rounded up), given its duration
     uint16_t secondsLeft(uint32_t phaseDurationMs, uint32_t now) const;
 
+    // Duration (ms) of the phase in progress, from the phase table; 0 = no time limit
+    uint32_t phaseLimitMs() const;
+
     // Common part of start() and startManual(): false if no extraction can start
     bool beginExtraction_(uint32_t pressTime);
 
@@ -177,13 +178,11 @@ class ExtractionController {
     uint16_t phaseSecondsLeft_;
     uint16_t preinfusionMl_;    // volume of PREINFUSION, from the settings at start()
     uint16_t preinfusionMlLeft_;
-    uint16_t waitMs_;           // duration of PREINFUSION_WAIT, from the settings at start()
-    uint16_t flushMs_;          // duration of FLUSHING, from the settings at start()
+    uint8_t phaseSeconds_[5];   // durations of the timed phases (s), indexed by PhaseDuration (see the .cpp)
     bool manual_;               // the extraction in progress (or the last one) is a MANUAL one
     float lossMl_;              // water that does not end in the cup (setting)
     float netMl_;               // In - Out when volumeMl_ was last computed
     bool finishedNormally_;     // the last extraction ended with finish()
-    uint32_t manualMs_;         // MANUAL time, 0 = until stop()
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
 };

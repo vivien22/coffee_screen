@@ -4,6 +4,61 @@
 #include "../config.h"
 #include "../debug.h"
 
+// ------------------------------------------------------------
+// Phase table: what each phase does and how it ends. The code below only reads it.
+//
+//   phase              pump  valve  ends on                      then
+//   PREINFUSION        on    open   its volume (or 30 s)         PREINFUSION_WAIT (RUNNING if the wait is 0)
+//   PREINFUSION_WAIT   off   open   the wait time                RUNNING
+//   RUNNING            on    open   the target volume            finish(): FLUSH_WAIT or FINISHED
+//   FLUSH_WAIT         off   closed startFlush() (a push)        FLUSHING
+//   FLUSHING           on    open   the flush time               FINISHED
+//   MANUAL             on    open   the MANUAL time (0 = never)  FINISHED
+//
+// The volume conditions (PREINFUSION, RUNNING) and the pushes are handled in update() / by the machine.
+
+// Which duration limits a phase: index in phaseSeconds_[]
+enum PhaseDuration : uint8_t {
+  DURATION_NONE,                 // always 0: no time limit
+  DURATION_PREINFUSION_TIMEOUT,  // PREINFUSION_TIMEOUT_MS (safety)
+  DURATION_WAIT,                 // setting: wait after the pre-infusion
+  DURATION_FLUSH,                // setting: flush
+  DURATION_MANUAL                // setting: MANUAL time (0 = until the push)
+};
+
+enum PhaseFlags : uint8_t {
+  PHASE_PUMP       = 0x01,   // pump on
+  PHASE_VALVE      = 0x02,   // valve open
+  PHASE_TIMED      = 0x04,   // ends when its duration has elapsed (if the duration is not 0)
+  PHASE_COUNTDOWN  = 0x08,   // the seconds left are given to the screen
+  PHASE_FLOW_CHECK = 0x10,   // the no-flow safety watches this phase
+  PHASE_FLUSH      = 0x20    // after the extraction: its volume and duration are final
+};
+
+struct PhaseRow {
+  uint8_t flags;
+  uint8_t duration;   // PhaseDuration
+  uint8_t next;       // state entered when the duration has elapsed
+};
+
+// One row per phase, from EXTRACTION_PREINFUSION to EXTRACTION_MANUAL (same order as the enum)
+static const PhaseRow PHASES[] PROGMEM = {
+  /* PREINFUSION      */ { PHASE_PUMP | PHASE_VALVE | PHASE_TIMED | PHASE_FLOW_CHECK,                   DURATION_PREINFUSION_TIMEOUT, EXTRACTION_PREINFUSION_WAIT },
+  /* PREINFUSION_WAIT */ { PHASE_VALVE | PHASE_TIMED | PHASE_COUNTDOWN,                                 DURATION_WAIT,                EXTRACTION_RUNNING },
+  /* RUNNING          */ { PHASE_PUMP | PHASE_VALVE | PHASE_FLOW_CHECK,                                 DURATION_NONE,                EXTRACTION_FINISHED },
+  /* FLUSH_WAIT       */ { PHASE_COUNTDOWN | PHASE_FLUSH,                                               DURATION_FLUSH,               EXTRACTION_FLUSHING },
+  /* FLUSHING         */ { PHASE_PUMP | PHASE_VALVE | PHASE_TIMED | PHASE_COUNTDOWN | PHASE_FLUSH,      DURATION_FLUSH,               EXTRACTION_FINISHED },
+  /* MANUAL           */ { PHASE_PUMP | PHASE_VALVE | PHASE_TIMED | PHASE_COUNTDOWN | PHASE_FLOW_CHECK, DURATION_MANUAL,              EXTRACTION_FINISHED },
+};
+
+// Fields of the row of an active phase
+static inline const PhaseRow *rowOf(ExtractionState phase) { return &PHASES[phase - EXTRACTION_PREINFUSION]; }
+static inline uint8_t flagsOf(ExtractionState phase)    { return pgm_read_byte(&rowOf(phase)->flags); }
+static inline uint8_t durationOf(ExtractionState phase) { return pgm_read_byte(&rowOf(phase)->duration); }
+static inline uint8_t nextOf(ExtractionState phase)     { return pgm_read_byte(&rowOf(phase)->next); }
+
+// ------------------------------------------------------------
+
 ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, FlowSensor &flow) :
   pumpPin_(pumpPin),
   valvePin_(valvePin),
@@ -17,13 +72,11 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   phaseSecondsLeft_(0),
   preinfusionMl_(0),
   preinfusionMlLeft_(0),
-  waitMs_(0),
-  flushMs_(0),
+  phaseSeconds_{0, (uint8_t)(PREINFUSION_TIMEOUT_MS / 1000UL), 0, 0, 0},
   manual_(false),
   lossMl_(DEFAULT_LOSS_ML),
   netMl_(0.0f),
-  finishedNormally_(false),
-  manualMs_(0)
+  finishedNormally_(false)
 {
 }
 
@@ -72,8 +125,8 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uin
 
   manual_ = false;
   preinfusionMl_ = preinfusionMl;
-  waitMs_ = (uint16_t)(waitSeconds * 1000UL);
-  flushMs_ = (uint16_t)(flushSeconds * 1000UL);
+  phaseSeconds_[DURATION_WAIT] = (uint8_t)waitSeconds;
+  phaseSeconds_[DURATION_FLUSH] = (uint8_t)flushSeconds;
 
   // The phase timers start now (the pump really starts now), not at the push time.
   enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, millis());
@@ -85,7 +138,7 @@ void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
   }
 
   manual_ = true;
-  manualMs_ = seconds * 1000UL;
+  phaseSeconds_[DURATION_MANUAL] = (uint8_t)seconds;
   enterPhase(EXTRACTION_MANUAL, millis());
 }
 
@@ -100,7 +153,7 @@ void ExtractionController::finish(uint32_t now) {
   finishedNormally_ = true;
 
   // Flush time 0: no flush, the extraction is over
-  if (flushMs_ > 0) {
+  if (phaseSeconds_[DURATION_FLUSH] > 0) {
     enterPhase(EXTRACTION_FLUSH_WAIT, now);
   }
 }
@@ -139,33 +192,27 @@ void ExtractionController::stop(ExtractionState finalState) {
   DEBUG_PRINTLN(F("Extraction stopped"));
 }
 
+uint32_t ExtractionController::phaseLimitMs() const {
+  return phaseSeconds_[durationOf(state_)] * 1000UL;
+}
+
 void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   flow_.update();
 
-  if (!isActive()) {
-    return;
+  if (!isActive() || state_ == EXTRACTION_FLUSH_WAIT) {
+    return;   // FLUSH_WAIT only waits for startFlush()
   }
 
-  const uint32_t phaseElapsedMs = (uint32_t)(now - phaseStartedAt_);
-
-  // ----- Flush: the extraction is over, its volume and duration are not updated any more -----
-  if (state_ == EXTRACTION_FLUSH_WAIT) {
-    return;   // waits for startFlush()
-  }
-  if (state_ == EXTRACTION_FLUSHING) {
-    if (phaseElapsedMs >= flushMs_) {
-      stop(EXTRACTION_FINISHED);
-    } else {
-      phaseSecondsLeft_ = secondsLeft(flushMs_, now);
-    }
-    return;
-  }
-
+  uint8_t flags = flagsOf(state_);
   const uint32_t elapsedSeconds = (uint32_t)(now - startedAt_) / 1000UL;
-  durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
+
+  if (!(flags & PHASE_FLUSH)) {
+    // The flush comes after the extraction: its duration is not counted
+    durationSeconds_ = (uint16_t)min(elapsedSeconds, (uint32_t)UINT16_MAX);
+  }
 
   // ----- No-flow safety: the pump runs but the water does not enter the boiler -----
-  if (state_ == EXTRACTION_PREINFUSION || state_ == EXTRACTION_RUNNING || state_ == EXTRACTION_MANUAL) {
+  if (flags & PHASE_FLOW_CHECK) {
     const float in = flow_.getVolumeIn();
     if (in - flowCheckMl_ >= NO_FLOW_MIN_ML) {
       flowCheckMl_ = in;
@@ -176,30 +223,38 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     }
   }
 
-  // ----- Phase sequencing: PREINFUSION -> PREINFUSION_WAIT -> RUNNING -----
-  // PREINFUSION ends on the volume that entered the boiler (In - Out), with a time limit as a safety.
-  if (state_ == EXTRACTION_PREINFUSION &&
-      (flow_.getNetVolume() >= (float)preinfusionMl_ || phaseElapsedMs >= PREINFUSION_TIMEOUT_MS)) {
-    // Skip the soak phase if its duration is 0
-    enterPhase(waitMs_ > 0 ? EXTRACTION_PREINFUSION_WAIT : EXTRACTION_RUNNING, now);
-  } else if (state_ == EXTRACTION_PREINFUSION_WAIT && phaseElapsedMs >= waitMs_) {
-    enterPhase(EXTRACTION_RUNNING, now);
-  } else if (state_ == EXTRACTION_MANUAL && manualMs_ > 0 && phaseElapsedMs >= manualMs_) {
-    stop(EXTRACTION_FINISHED);   // the MANUAL time is over
-    return;
+  // ----- End of the phase: its duration has elapsed (table), or the pre-infusion volume is reached -----
+  const uint32_t limitMs = phaseLimitMs();
+  bool phaseOver = (flags & PHASE_TIMED) && limitMs > 0 && (uint32_t)(now - phaseStartedAt_) >= limitMs;
+  if (state_ == EXTRACTION_PREINFUSION && flow_.getNetVolume() >= (float)preinfusionMl_) {
+    phaseOver = true;
+  }
+  if (phaseOver) {
+    ExtractionState next = (ExtractionState)nextOf(state_);
+    if (next == EXTRACTION_FINISHED) {
+      stop(EXTRACTION_FINISHED);
+      return;
+    }
+    if (next == EXTRACTION_PREINFUSION_WAIT && phaseSeconds_[DURATION_WAIT] == 0) {
+      next = EXTRACTION_RUNNING;   // no soak phase if its duration is 0
+    }
+    enterPhase(next, now);
+    flags = flagsOf(state_);
   }
 
   // ----- Countdowns shown on the screen (rounded up: 5, 4, 3...) -----
-  // PREINFUSION: millilitres left to send. PREINFUSION_WAIT: seconds left.
+  // PREINFUSION: millilitres left to send. Phases with a countdown: seconds left.
   phaseSecondsLeft_ = 0;
   preinfusionMlLeft_ = 0;
   if (state_ == EXTRACTION_PREINFUSION) {
     const float left = (float)preinfusionMl_ - flow_.getNetVolume();
     preinfusionMlLeft_ = (left > 0.0f) ? (uint16_t)(left + 0.999f) : 0;
-  } else if (state_ == EXTRACTION_PREINFUSION_WAIT) {
-    phaseSecondsLeft_ = secondsLeft(waitMs_, now);
-  } else if (state_ == EXTRACTION_MANUAL && manualMs_ > 0) {
-    phaseSecondsLeft_ = secondsLeft(manualMs_, now);
+  } else if (flags & PHASE_COUNTDOWN) {
+    phaseSecondsLeft_ = secondsLeft(phaseLimitMs(), now);
+  }
+
+  if (flags & PHASE_FLUSH) {
+    return;   // the volume of the extraction is final
   }
 
   // ----- Volume in the cup, and target volume -----
@@ -243,57 +298,40 @@ uint16_t ExtractionController::cupVolumeMl() {
   return (cup > 0.0f) ? (uint16_t)(cup + 0.5f) : 0;
 }
 
-// Set the actuators of a phase. The valve is opened BEFORE the pump is started, so the pump
-// never pushes against a closed valve. Stopping the pump is the opposite: pump first.
+// Enter a phase: the table gives the state of the pump and of the valve. The valve is opened BEFORE the
+// pump is started, so the pump never pushes against a closed valve. Stopping the pump is the opposite:
+// pump first.
 void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   state_ = phase;
   phaseStartedAt_ = now;
 
+  const uint8_t flags = flagsOf(phase);
+  const bool valveOpen = (flags & PHASE_VALVE) != 0;
+
   // The no-flow safety watches the pump phases: its reference restarts each time the pump starts
-  if (phase == EXTRACTION_PREINFUSION || phase == EXTRACTION_RUNNING || phase == EXTRACTION_MANUAL) {
+  if (flags & PHASE_FLOW_CHECK) {
     flowCheckMl_ = flow_.getVolumeIn();
     flowCheckAt_ = now;
   }
 
-  switch (phase) {
-    case EXTRACTION_PREINFUSION:
-      DEBUG_PRINTLN(F("Pre-infusion: pump on, valve open"));
-      setValve(true);
-      setPump(true);
-      preinfusionMlLeft_ = preinfusionMl_;
-      break;
-
-    case EXTRACTION_PREINFUSION_WAIT:
-      DEBUG_PRINTLN(F("Pre-infusion wait: pump off, valve open"));
-      setPump(false);   // the valve stays open: the pressure is held in the puck
-      break;
-
-    case EXTRACTION_MANUAL:
-      phaseSecondsLeft_ = (manualMs_ > 0) ? secondsLeft(manualMs_, now) : 0;   // the countdown shows at once
-      // fall through
-    case EXTRACTION_RUNNING:
-      DEBUG_PRINTLN(F("Extraction running: pump on, valve open"));
-      setValve(true);   // already open after a pre-infusion; needed if the pre-infusion is skipped
-      setPump(true);
-      break;
-
-    case EXTRACTION_FLUSH_WAIT:
-      DEBUG_PRINTLN(F("Flush wait: pump off, valve closed"));
-      setPump(false);
-      setValve(false);
-      phaseSecondsLeft_ = (uint16_t)(flushMs_ / 1000UL);   // the screen shows what the flush will last
-      break;
-
-    case EXTRACTION_FLUSHING:
-      DEBUG_PRINTLN(F("Flushing: pump on, valve open"));
-      setValve(true);
-      setPump(true);
-      phaseSecondsLeft_ = secondsLeft(flushMs_, now);
-      break;
-
-    default:
-      break;           // IDLE / FINISHED / ERROR are entered by stop()
+  if (flags & PHASE_PUMP) {
+    setValve(valveOpen);
+    setPump(true);
+  } else {
+    setPump(false);
+    setValve(valveOpen);   // PREINFUSION_WAIT keeps it open: the pressure is held in the puck
   }
+
+  // What the screen shows at once: the volume of the pre-infusion, the duration of a phase with a countdown
+  // (in FLUSH_WAIT: what the flush will last)
+  if (phase == EXTRACTION_PREINFUSION) {
+    preinfusionMlLeft_ = preinfusionMl_;
+  }
+  if (flags & PHASE_COUNTDOWN) {
+    phaseSecondsLeft_ = phaseSeconds_[durationOf(phase)];
+  }
+
+  DEBUG_PRINT(F("Phase ")); DEBUG_PRINTLN(phase);
 }
 
 void ExtractionController::setPump(bool on) {
