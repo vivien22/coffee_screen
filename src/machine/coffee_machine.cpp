@@ -3,6 +3,8 @@
 #include "coffee_machine.h"
 #include "../config.h"
 
+// screen_ is set up by begin(): its members are not given a value by the constructor
+// cppcheck-suppress uninitMemberVar
 CoffeeMachine::CoffeeMachine() :
   encoder_(PIN_ENCODER_GA, PIN_ENCODER_GB, LONG_PUSH_MS, DOUBLE_PUSH_MS),
   temperature_(PIN_MAX31865_CS),

@@ -23,7 +23,9 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   lossMl_(DEFAULT_LOSS_ML),
   netMl_(0.0f),
   finishedNormally_(false),
-  manualMs_(0)
+  manualMs_(0),
+  flowCheckMl_(0.0f),
+  flowCheckAt_(0)
 {
 }
 
