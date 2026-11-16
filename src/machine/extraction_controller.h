@@ -22,7 +22,7 @@
 
       State              Pump   3-way valve               Ends when
       -----------------  -----  ------------------------  --------------------------------
-      IDLE / FINISHED /  OFF    closed (group head is     -
+      IDLE / FINISHED /  OFF    closed (grouphead is      -
       ERROR                     vented to the drip tray)
       PREINFUSION        ON     open (water to the puck)  pre-infusion volume reached
       PREINFUSION_WAIT   OFF    open (pressure is held)   wait time elapsed
@@ -53,7 +53,7 @@ enum ExtractionState : uint8_t {
   EXTRACTION_PREINFUSION_WAIT,   // pump off, valve open: the puck soaks
   EXTRACTION_RUNNING,            // pump on, valve open: main extraction
   EXTRACTION_FLUSH_WAIT,         // pump off, valve closed: waits for a short push to start the flush
-  EXTRACTION_FLUSHING,           // pump on, valve open: the group head is rinsed
+  EXTRACTION_FLUSHING,           // pump on, valve open: the grouphead is rinsed
   EXTRACTION_MANUAL,             // pump on, valve open, until stop(): MANUAL mode
   EXTRACTION_FINISHED,
   EXTRACTION_ERROR,              // extraction too long

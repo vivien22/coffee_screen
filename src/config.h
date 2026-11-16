@@ -56,9 +56,9 @@
 
 // ---------- Temperature offset and standby ----------
 // On this coffee machine (Ascaso Steel Uno Pro) the temperature of the boiler probe is higher than the temperature
-// of the water at the outlet of the group head. The setpoint and the temperature shown are the temperature of the
-// water at the group outlet: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the screen shows
-// probe - TEMPERATURE_OFFSET (degrees C). Set it to 0 if your probe reads the same as the water at the group outlet.
+// of the water at the grouphead. The setpoint and the temperature shown are the temperature of the
+// water at the grouphead: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the screen shows
+// probe - TEMPERATURE_OFFSET (degrees C). Set it to 0 if your probe reads the same as the water at the grouphead.
 #define TEMPERATURE_OFFSET   5
 
 // Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
@@ -162,7 +162,7 @@
 // After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a long push resets the error;
 // a short or double push does nothing meanwhile.
 //
-// Flush: after the extraction, the group head is rinsed with hot water.
+// Flush: after the extraction, the grouphead is rinsed with hot water.
 //   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)
 //   FLUSHING          pump ON  + valve open   (flush time, set on the screen)
 // The flush time is a setting (0 to FLUSH_MAX_SECONDS, saved in EEPROM):

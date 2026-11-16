@@ -55,7 +55,7 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 <tr>
 <td align="center"><img src="docs/images/auto-running.png" width="200"><br><b>Extraction</b><br>volume in the cup, time</td>
 <td align="center"><img src="docs/images/auto-result.png" width="200"><br><b>Result</b><br>stays 10 s, then the target comes back</td>
-<td align="center"><img src="docs/images/auto-flush-wait.png" width="200"><br><b>Flush, waiting</b><br>push to rinse the group head</td>
+<td align="center"><img src="docs/images/auto-flush-wait.png" width="200"><br><b>Flush, waiting</b><br>push to rinse the grouphead</td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/auto-flushing.png" width="200"><br><b>Flushing</b><br>the tag blinks, countdown</td>
@@ -121,7 +121,7 @@ The mode is shown by the letter in the drop: **A** (AUTO) or **M** (MANUAL). It 
 2. **CAL**: weight of the cup (g), only after an extraction, see [calibration](#-cup-volume-and-calibration)
 3. **Pre-infusion**: volume sent at the start to wet the puck (ml, 0 = no pre-infusion)
 4. **Wait**: soak time after the pre-infusion (s, 0 = no wait)
-5. **Flush**: duration of the group head rinse after the extraction (s, 0 = no flush)
+5. **Flush**: duration of the grouphead rinse after the extraction (s, 0 = no flush)
 6. **Temperature**: water setpoint (°C)
 
 **MANUAL**: the pump runs until you push again, or for a set time. Parameters: **volume** (always 0 at
@@ -148,10 +148,10 @@ The EEPROM layout is in `src/settings/settings.cpp`.
 ### Temperature offset
 
 On this coffee machine (Ascaso Steel Uno Pro) the temperature of the boiler probe is higher than the temperature
-of the water at the outlet of the group head. The temperature you set and the one shown are the **water**
-temperature at the group outlet: the heater regulates the probe at *setpoint + `TEMPERATURE_OFFSET`*
+of the water at the grouphead. The temperature you set and the one shown are the **water**
+temperature at the grouphead: the heater regulates the probe at *setpoint + `TEMPERATURE_OFFSET`*
 (5 °C by default) and the screen shows *probe − `TEMPERATURE_OFFSET`*. Set `TEMPERATURE_OFFSET` to 0 if your
-probe reads the same as the water at the group outlet.
+probe reads the same as the water at the grouphead.
 
 ### Standby
 
@@ -280,7 +280,7 @@ Every pin, limit, timing and tuning constant is in `src/config.h`, with comments
 |---|---|---|
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
 | `DEFAULT_TEMPERATURE` | 93 | Water temperature, °C |
-| `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the group outlet of this machine, °C |
+| `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the grouphead of this machine, °C |
 | `DEFAULT_VOLUME` | 40 | Target volume, ml |
 | `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults |
 | `DEFAULT_LOSS_ML` | 30 | Water that does not end in the cup |
