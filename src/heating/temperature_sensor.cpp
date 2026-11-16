@@ -37,6 +37,7 @@ static void writeRegister(uint8_t csPin, uint8_t reg, uint8_t value) {
   SPI.endTransaction();
 }
 
+// Minimal MAX31865 driver on the hardware SPI (the screen shares the bus: each device has its own chip select).
 static uint8_t readRegister8(uint8_t csPin, uint8_t reg) {
   SPI.beginTransaction(SPISettings(MAX31865_SPI_HZ, MSBFIRST, SPI_MODE1));
   digitalWrite(csPin, LOW);
@@ -64,6 +65,7 @@ static uint8_t baseConfig() {
 
 // ------------------------------------------------------------
 
+// The sensor value is invalid until the first good reading.
 TemperatureSensor::TemperatureSensor(uint8_t csPin) :
   csPin_(csPin),
   valid_(false),
@@ -74,6 +76,7 @@ TemperatureSensor::TemperatureSensor(uint8_t csPin) :
 {
 }
 
+// Configures the MAX31865 (bias on, automatic conversion, wiring set by RTD_THREE_WIRE) and takes a first reading.
 void TemperatureSensor::begin() {
   pinMode(csPin_, OUTPUT);
   digitalWrite(csPin_, HIGH);
@@ -84,6 +87,7 @@ void TemperatureSensor::begin() {
   sample(millis());
 }
 
+// Reads every SENSOR_PERIOD_MS.
 void TemperatureSensor::update(uint32_t now) {
   if ((uint32_t)(now - lastSampleAt_) < SENSOR_PERIOD_MS) {
     return;
@@ -91,6 +95,7 @@ void TemperatureSensor::update(uint32_t now) {
   sample(now);
 }
 
+// One reading: resistance -> degrees, validity check (fault flag, plausible range), then a low-pass filter.
 void TemperatureSensor::sample(uint32_t now) {
   lastSampleAt_ = now;
 

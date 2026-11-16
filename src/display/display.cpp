@@ -15,6 +15,7 @@
 // The screen driver
 static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
+// Starts the GC9A01 and clears the screen.
 void beginDisplay() {
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black
   pinMode(PIN_TFT_BL, OUTPUT);
@@ -55,12 +56,14 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *levels, uint8_t width,
   tft.endWrite();
 }
 
+// The fixed icons: thermometer, drop and clock.
 void drawIcons() {
   drawIcon(ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
   drawIcon(ICON_DROP_X,        ICON_DROP_Y,        ICON_DROP,        ICON_DROP_WIDTH,        ICON_DROP_HEIGHT);
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
+// The drop icon with the letter of the mode: A (AUTO) or M (MANUAL). Not visible = the icon is erased (blinking).
 void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
@@ -100,6 +103,7 @@ static int16_t drawNumber(int16_t value,
   return tft.getCursorX();
 }
 
+// Temperature: a decimal is added below 100 degrees (small digits only); the unit follows the number.
 void drawTemperature(double value, TextSize size) {
   // Display one decimal below 100 °C; use an integer at 100 °C and above.
   const uint16_t roundedTenths = (uint16_t)(value * 10.0 + 0.5);
@@ -152,6 +156,7 @@ static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
             (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
 }
 
+// Volume in ml, with its tag (PRE, CAL...) when there is one. The tag is redrawn only if redrawTag.
 void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   // The tag already drawn is kept when only the number changes: the zone erased before the
   // number stops where the tag starts.
@@ -183,6 +188,7 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   }
 }
 
+// Duration in seconds, with its tag (WAIT, FLUSH) when there is one.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   // The tag already drawn is kept when only the number changes: the zone erased before the
   // number stops where the tag starts.
@@ -213,6 +219,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   }
 }
 
+// Only the tag (used for the blinking of FLUSH).
 void drawPhaseTag(PhaseTag tag, bool visible) {
   if (visible) {
     drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
@@ -223,6 +230,7 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
   }
 }
 
+// The small dot next to the temperature that shows the heater is on.
 void drawHeaterIndicator(bool visible) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
   tft.setFont(FONT_UNIT);

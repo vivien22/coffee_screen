@@ -14,6 +14,8 @@ CoffeeMachine::CoffeeMachine() :
 {
 }
 
+// Start order matters: the outputs (heater, pump, valve) are switched off first, then the saved settings are loaded
+// and every module is started with them.
 void CoffeeMachine::begin() {
   // Outputs first: heater, pump and valve off.
   heater_.begin();
@@ -38,23 +40,37 @@ void CoffeeMachine::begin() {
   screen_.update(millis());
 }
 
+// One pass of the main loop, called as often as possible (no delay anywhere). Order of the work:
+//   1. encoder: the user actions (they may start an extraction)
+//   2. extraction: phases, volume, safeties
+//   3. temperature and heater (heater off during standby)
+//   4. what the screen shows, then the drawing of what changed
 void CoffeeMachine::update() {
-  // Poll the encoder on every pass; its debounce/click state machine needs this.
+  // ----- 1. User actions -----
+  // The encoder is polled on every pass: its debounce / click state machine needs it.
   // Done before reading the clock: an action may start an extraction, whose start time
   // must not be later than "now".
   pollEncoder();
 
   const uint32_t now = millis();
 
+  // ----- 2. Extraction -----
   extraction_.update(now, screen_.settings().volume);
-  // An extraction that ended normally can be used to calibrate the loss (CAL parameter)
+
+  // An extraction that ended normally can be used to calibrate the loss (CAL parameter): offered once
   if (extraction_.calibratable() && !calibrationOffered_) {
     calibrationOffered_ = true;
     screen_.offerCalibration(extraction_.volumeMl());
   }
-  screen_.showNoWater(extraction_.hasNoWaterError());   // the drop blinks until the error is cleared
+
+  // The drop icon blinks until the no-water error is cleared
+  screen_.showNoWater(extraction_.hasNoWaterError());
+
+  // ----- 3. Temperature, standby and heater -----
   temperature_.update(now);
+
 #if STANDBY_MINUTES > 0
+  // An extraction counts as activity (the encoder actions are counted in pollEncoder()).
   if (extraction_.isActive()) {
     lastActivityAt_ = now;
     standby_ = false;
@@ -62,11 +78,13 @@ void CoffeeMachine::update() {
     standby_ = true;
   }
 #endif
+
   heater_.update(now,
                  !standby_ && temperature_.isValid(),   // standby: the heater is off (same as a probe error)
                  temperature_.celsius(),
                  extraction_.inflowMlPerSec());
 
+  // ----- 4. What the screen shows -----
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();
   const bool justStopped = wasExtracting_ && !extracting;
@@ -136,6 +154,8 @@ void CoffeeMachine::update() {
 // ------------------------------------------------------------
 // User actions
 
+// Reads the encoder and hands each event to its handler. While the machine is in standby, the first action
+// only wakes it up: it is not handled.
 void CoffeeMachine::pollEncoder() {
   byte leftSteps = 0;
   byte rightSteps = 0;
@@ -165,6 +185,7 @@ void CoffeeMachine::pollEncoder() {
   }
 }
 
+// A turn of the encoder changes the selected parameter. During an extraction only the temperature can be changed.
 void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   // Only the temperature can be changed during an extraction (flush included): the volume and
   // the times are read when it starts
@@ -174,6 +195,11 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   screen_.adjustActiveParameter(delta);
 }
 
+// Short push. What it does depends on the extraction state:
+//   idle      -> starts an extraction (only when the volume is selected, so that a push while editing another
+//                parameter does not start the pump by mistake)
+//   running   -> ends it (AUTO: next is the flush, MANUAL: the pump stops)
+//   flush     -> starts / stops the flush
 void CoffeeMachine::handleShortPush() {
   switch (extraction_.state()) {
     case EXTRACTION_ERROR_NO_WATER:
@@ -219,6 +245,8 @@ void CoffeeMachine::handleShortPush() {
   }
 }
 
+// Double push: validates the parameter being edited and selects the next one (the cycle is in screen_controller.h).
+// Ignored during an extraction; during a flush it stops the flush first. Validating CAL applies the calibration.
 void CoffeeMachine::handleDoublePush() {
   switch (extraction_.state()) {
     case EXTRACTION_ERROR_NO_WATER:
@@ -259,6 +287,7 @@ void CoffeeMachine::saveSettings() {
   heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
 }
 
+// Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.
 void CoffeeMachine::handleLongPush() {
   // A long push clears the no-water error
   if (extraction_.hasNoWaterError()) {

@@ -4,6 +4,7 @@
 #include "../config.h"
 #include "../debug.h"
 
+// The PID works on the members input_, output_ and setpoint_ (PID_v1 keeps pointers to them).
 HeaterController::HeaterController(uint8_t relayPin) :
   relayPin_(relayPin),
   setpoint_(0.0),
@@ -18,6 +19,7 @@ HeaterController::HeaterController(uint8_t relayPin) :
 {
 }
 
+// The relay is off; the PID output goes from 0 to the length of one window.
 void HeaterController::begin() {
   pinMode(relayPin_, OUTPUT);
   digitalWrite(relayPin_, LOW);
@@ -30,10 +32,15 @@ void HeaterController::begin() {
   windowStart_ = millis();
 }
 
+// Setpoint of the PROBE (the machine adds TEMPERATURE_OFFSET to the water temperature wanted).
 void HeaterController::setSetpoint(double celsius) {
   setpoint_ = celsius;
 }
 
+// One pass. The relay is switched on for part of each PID_WINDOW_MS window (time-proportional control):
+//   - invalid temperature (or standby): relay off
+//   - far below the setpoint: full power, the PID stays off so that it cannot wind up
+//   - otherwise: on time = feedforward (from the water flow) + PID correction, kept inside the window
 void HeaterController::update(uint32_t now, bool temperatureValid, double temperature, float inflowMlPerSec) {
   if (!temperatureValid) {
     feedforwardMs_ = 0;
@@ -96,6 +103,7 @@ int HeaterController::computeFeedforwardMs(float inflowMlPerSec) const {
   return constrain((int)(ms + 0.5f), 0, PID_WINDOW_MS);
 }
 
+// Switches the relay only when its state changes.
 void HeaterController::setRelay(bool on) {
   if (on == on_) {
     return;

@@ -4,6 +4,7 @@
 #include "../config.h"
 #include "../debug.h"
 
+// The controller drives the pump and the valve relays; the flow sensor is shared with the rest of the machine.
 ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, FlowSensor &flow) :
   pumpPin_(pumpPin),
   valvePin_(valvePin),
@@ -29,6 +30,7 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
 {
 }
 
+// Pump and valve off, as at every stop.
 void ExtractionController::begin() {
   pinMode(pumpPin_, OUTPUT);
   pinMode(valvePin_, OUTPUT);
@@ -36,12 +38,15 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
+// Clears the no-water error (the user did a long push).
 void ExtractionController::clearError() {
   if (state_ == EXTRACTION_ERROR_NO_WATER) {
     state_ = EXTRACTION_IDLE;
   }
 }
 
+// Common start: refuses to start during an extraction or after a no-water error, resets the values and the
+// flow sensor, takes the time of the push as the start of the duration.
 bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   if (isActive() || state_ == EXTRACTION_ERROR_NO_WATER) {
     return false;
@@ -67,6 +72,7 @@ bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   return true;
 }
 
+// AUTO extraction: pre-infusion (if its volume is not 0), then the main extraction up to the target volume.
 void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uint16_t waitSeconds, uint16_t flushSeconds) {
   if (!beginExtraction_(pressTime)) {
     return;
@@ -81,6 +87,7 @@ void ExtractionController::start(uint32_t pressTime, uint16_t preinfusionMl, uin
   enterPhase(preinfusionMl_ > 0 ? EXTRACTION_PREINFUSION : EXTRACTION_RUNNING, millis());
 }
 
+// MANUAL extraction: the pump runs until a push, or until seconds have passed if seconds is not 0.
 void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
   if (!beginExtraction_(pressTime)) {
     return;
@@ -91,6 +98,7 @@ void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
   enterPhase(EXTRACTION_MANUAL, millis());
 }
 
+// Normal end of an AUTO extraction (target volume reached, or the user pushed): then the flush, if any.
 void ExtractionController::finish(uint32_t now) {
   if (state_ != EXTRACTION_PREINFUSION &&
       state_ != EXTRACTION_PREINFUSION_WAIT &&
@@ -107,12 +115,14 @@ void ExtractionController::finish(uint32_t now) {
   }
 }
 
+// The user pushed while the flush was waiting.
 void ExtractionController::startFlush(uint32_t now) {
   if (state_ == EXTRACTION_FLUSH_WAIT) {
     enterPhase(EXTRACTION_FLUSHING, now);
   }
 }
 
+// Stops everything: pump first, then valve. Keeps the final volume and duration (not those of a flush).
 void ExtractionController::stop(ExtractionState finalState) {
   if (!isActive()) {
     return;
@@ -141,6 +151,8 @@ void ExtractionController::stop(ExtractionState finalState) {
   DEBUG_PRINTLN(F("Extraction stopped"));
 }
 
+// One pass, in this order: the flow sensor, the duration, the no-flow safety, the end of the phase (from the
+// phase table), the countdowns for the screen, the volume and the target volume, the maximum duration.
 void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   flow_.update();
 
@@ -232,6 +244,7 @@ uint16_t ExtractionController::secondsLeft(uint32_t phaseDurationMs, uint32_t no
   return (uint16_t)((phaseDurationMs - phaseElapsedMs + 999UL) / 1000UL);
 }
 
+// Flow of the water entering the boiler, used by the heater as feedforward.
 float ExtractionController::inflowMlPerSec() {
   // The flow sensor returns mL/min
   return isActive() ? flow_.getInflowRate() / 60.0f : 0.0f;
@@ -298,6 +311,7 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   }
 }
 
+// The relays are active high.
 void ExtractionController::setPump(bool on) {
   digitalWrite(pumpPin_, on ? HIGH : LOW);
 }
