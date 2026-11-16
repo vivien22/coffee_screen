@@ -247,7 +247,7 @@ static void calibration(){
   float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
   CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
   CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);        // saved
-  CHECK(m.screen_.activeParameter()==PARAMETER_PREINFUSION && !m.screen_.calibrationAvailable_);
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && !m.screen_.calibrationAvailable_);   // modified: back to the volume
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().loss>expect-0.01f && m2.screen_.settings().loss<expect+0.01f); }
   gotoParam(m,PARAMETER_VOLUME);
   for(int i=0;i<8;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION); }   // gone from the cycle
@@ -256,7 +256,7 @@ static void calibration(){
   runAuto(m); net=m.extraction_.netVolumeMl(); CHECK(net>=40+expect-0.5f && net<40+expect+3);
   // CAL not touched: the loss stays
   gotoParam(m,PARAMETER_CALIBRATION); float before=m.screen_.settings().loss; m.handleDoublePush();
-  CHECK(m.screen_.settings().loss==before);
+  CHECK(m.screen_.settings().loss==before && m.screen_.activeParameter()==PARAMETER_PREINFUSION);   // not modified: the cycle goes on
   // an extraction under CALIBRATION_MIN_ML is not offered
   gotoParam(m,PARAMETER_VOLUME); m.screen_.adjustActiveParameter(5-m.screen_.settings().volume); runAuto(m);
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !m.extraction_.calibratable());

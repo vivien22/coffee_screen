@@ -94,6 +94,7 @@ float ScreenController::applyCalibration(float netMl) {
   if (calibrationValue_ != calibrationStart_) {
     const float loss = settings_.loss + CALIBRATION_GAIN * (netMl - calibrationValue_ - settings_.loss);
     settings_.loss = constrain(loss, 0.0f, LOSS_MAX_ML);
+    activate(PARAMETER_VOLUME);   // the calibration is done: back to the volume, not on to the next parameter
   }
   calibrationAvailable_ = false;
   return settings_.loss;

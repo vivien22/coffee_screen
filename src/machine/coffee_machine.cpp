@@ -241,6 +241,10 @@ void CoffeeMachine::handleDoublePush() {
   if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
     // The cup weight entered corrects the loss, used by the next extractions
     extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
+    if (screen_.activeParameter() == PARAMETER_VOLUME) {
+      saveSettings();
+      return;   // a weight was entered: back to the volume, the rest of the cycle is skipped
+    }
   }
   saveSettings();   // the parameter that was edited is validated (written only if it changed)
   screen_.selectNextParameter();

@@ -139,7 +139,7 @@ corrected by the machine itself:
 
 1. brew in AUTO, and weigh the cup (1 g = 1 ml),
 2. a double push goes to **CAL**: turn to enter the real weight,
-3. a double push validates: `new loss = loss + 0.5 x (measured loss - loss)`, kept between 0 and 60 ml, and
+3. a double push validates and goes back to the volume (the rest of the cycle is skipped): `new loss = loss + 0.5 x (measured loss - loss)`, kept between 0 and 60 ml, and
    saved in the EEPROM.
 
 CAL is offered only after an AUTO extraction that ended normally and gave at least 10 ml. If you do not

@@ -51,7 +51,9 @@ class ScreenController {
     // estimateMl is over, the CAL parameter joins the cycle of the double push, starting at estimateMl
     // (the cup weight is entered there). withdrawCalibration(): it leaves the cycle (new extraction).
     // applyCalibration(netMl): the double push that validates CAL; netMl is In - Out of the extraction;
-    // corrects settings().loss, unless the value was not changed, and returns it. CAL leaves the cycle.
+    // corrects settings().loss and selects the volume again; if the value was not changed, nothing is
+    // corrected and CAL stays selected (the caller goes on to the next parameter). Returns the loss.
+    // CAL leaves the cycle.
     void offerCalibration(uint16_t estimateMl);
     void withdrawCalibration();
     float applyCalibration(float netMl);
