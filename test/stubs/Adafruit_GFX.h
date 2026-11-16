@@ -20,6 +20,11 @@ class Adafruit_GFX {
     void writePixel(int16_t x, int16_t y, uint16_t color) {
       if (x >= 0 && x < 240 && y >= 0 && y < 240) frameBuffer[y * 240 + x] = color;
     }
+    // Window and bursts of the driver (Adafruit_SPITFT): the pixels fill the window row by row
+    void setAddrWindow(uint16_t x, uint16_t y, uint16_t w, uint16_t h) { wx_ = x; wy_ = y; ww_ = w; wh_ = h; wi_ = 0; }
+    void writeColor(uint16_t color, uint32_t len) {
+      for (; len; len--, wi_++) writePixel(wx_ + wi_ % ww_, wy_ + wi_ / ww_, color);
+    }
     void setFont(const GFXfont *f) { font_ = f; }
     void setTextColor(uint16_t c) { color_ = c; }
     void setTextSize(uint8_t s) { size_ = s; }
@@ -48,4 +53,6 @@ class Adafruit_GFX {
     uint16_t color_ = 0xFFFF;
     uint8_t size_ = 1;
     int16_t cx_ = 0, cy_ = 0;
+    uint16_t wx_ = 0, wy_ = 0, ww_ = 1, wh_ = 1;
+    uint32_t wi_ = 0;
 };
