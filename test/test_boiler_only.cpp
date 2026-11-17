@@ -1,4 +1,4 @@
-// Without DRIVE_PUMP (the "boiler only" flavour of run.sh, a copy of Config.h with the option switched off): the heater is
+// Without DRIVE_PUMP and DRIVE_VALVE (the "boiler only" flavour of run.sh, a copy of Config.h with the options switched off): the heater is
 // controlled as usual, the pump and the valve relays never go on, and no extraction can be started.
 #include <algorithm>
 #include <vector>
@@ -36,7 +36,7 @@ static void probeAt(double celsius){
 #define VALVE  (pins[PIN_VALVE_RELAY])
 
 int main(){
-#ifdef DRIVE_PUMP
+#if defined(DRIVE_PUMP) || defined(DRIVE_VALVE)
   printf("this test is for the Config.h without DRIVE_PUMP\n"); return 1;
 #endif
   SPI.hook=answer;

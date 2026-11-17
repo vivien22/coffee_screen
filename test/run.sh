@@ -1,11 +1,10 @@
 #!/bin/sh
 # Host tests of the logic (no Arduino needed): ./test/run.sh
-# The sources are copied to a build folder. Four flavours (DRIVE_VALVE is switched on in the first two, which test
-# the extraction with the pump and the valve; the default Config.h drives the pump only):
+# The sources are copied to a build folder. Four flavours (the default Config.h drives the pump and the valve):
 #   test_*.cpp      the flow sensor is replaced by test/mock/FlowSensor.h (values set by the test)
 #   test_sim_*.cpp  the real FlowSimulator (FLOW_SIMULATOR, switched on in the copy of Config.h) follows the pump relay
-#   test_boiler_only.cpp  DRIVE_PUMP switched off in the copy: the heater only, the pump and the valve never go on
-#   test_valve_by_hand.cpp  the Config.h as it is: the pump works, the valve output never goes on
+#   test_boiler_only.cpp  DRIVE_PUMP and DRIVE_VALVE switched off in the copy: the heater only, the pump and the valve never go on
+#   test_valve_by_hand.cpp  DRIVE_VALVE switched off in the copy: the pump works, the valve output never goes on
 set -e
 cd "$(dirname "$0")/.."
 B=${TMPDIR:-/tmp}/coffee_screen_test
@@ -17,10 +16,10 @@ done
 cp test/mock/FlowSensor.h "$B/mock/src/drivers/FlowSensor.h"
 cp test/mock/FlowSensor.h "$B/boiler/src/drivers/FlowSensor.h"
 cp test/mock/FlowSensor.h "$B/pump/src/drivers/FlowSensor.h"
-# DRIVE_VALVE is commented out in Config.h (the valve is operated by hand): the copies for the extraction tests switch it on
-sed -i 's|^// #define DRIVE_VALVE|#define DRIVE_VALVE|' "$B/mock/src/Config.h" "$B/real/src/Config.h"
-# DRIVE_PUMP is on in Config.h: the copy for the boiler-only test switches it off
-sed -i 's|^#define DRIVE_PUMP$|// #define DRIVE_PUMP|' "$B/boiler/src/Config.h"
+# DRIVE_VALVE is switched off in the copy for the test of a valve operated by hand
+sed -i 's|^#define DRIVE_VALVE$|// #define DRIVE_VALVE|' "$B/pump/src/Config.h"
+# the copy for the boiler-only test switches the pump and the valve off
+sed -i 's|^#define DRIVE_PUMP$|// #define DRIVE_PUMP|; s|^#define DRIVE_VALVE$|// #define DRIVE_VALVE|' "$B/boiler/src/Config.h"
 # FLOW_SIMULATOR is commented out in Config.h (the real flow sensors): the copy of the test_sim_* flavour switches it on
 sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' "$B/real/src/Config.h"
 status=0

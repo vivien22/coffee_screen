@@ -1,5 +1,5 @@
-// The Config.h as it is: DRIVE_PUMP on, DRIVE_VALVE off (the 3-way valve is operated by hand). An extraction starts and the
-// pump relay follows its phases, but the valve output never goes on. Run with the "pump" flavour of run.sh.
+// Config.h with DRIVE_PUMP on and DRIVE_VALVE off (the "pump" flavour of run.sh; the 3-way valve is operated by hand). An extraction
+// starts and the pump relay follows its phases, but the valve output never goes on.
 #include <vector>
 #include <string>
 #include <cstring>

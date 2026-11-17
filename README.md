@@ -260,9 +260,9 @@ and `CALIBRATION_MIN_ML`.
 | TFT reset | D8 |
 | TFT backlight | D9 |
 | MAX31865 chip select | D6 |
-| Pump relay | A2 |
+| Pump relay | D4 |
 | Heater relay | D5 |
-| 3-way valve relay | D4 (the wires of the pump and of the valve were swapped on the board) |
+| 3-way valve relay | A2 |
 | Flow sensor In | A0 |
 | Flow sensor Out | A1 |
 
@@ -277,9 +277,9 @@ The pins are defined in `src/Config.h`.
 > [!IMPORTANT]
 > Two options in `Config.h`. `DRIVE_PUMP` (on): the pump relay follows the phases of the extraction. Commented out, the pump
 > stays off and no extraction can be started (a push does nothing when the machine is idle), the **boiler being controlled
-> as usual** (PID, the standby, the temperature screen). `DRIVE_VALVE` (commented out): the 3-way valve relay is driven.
+> as usual** (PID, the standby, the temperature screen). `DRIVE_VALVE` (on): the 3-way valve relay is driven.
 > Commented out, the valve output stays off: the valve is operated by hand, and the extraction (pre-infusion, flush, MANUAL
-> mode) runs with the pump only. Uncomment `DRIVE_VALVE` when the valve is wired.
+> mode) runs with the pump only. Comment out `DRIVE_VALVE` if the valve is operated by hand.
 
 ### Flow sensors and the simulator
 
@@ -317,7 +317,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
-| `DRIVE_VALVE` | commented out | Uncomment when the 3-way valve relay is wired (otherwise the valve is operated by hand) |
+| `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
 | `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1) |
 | `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
