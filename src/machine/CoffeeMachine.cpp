@@ -81,9 +81,10 @@ void CoffeeMachine::update() {
   // An extraction counts as activity (the encoder actions are counted in pollEncoder()).
   if (extraction_.isActive()) {
     lastActivityAt_ = now;
-    standby_ = false;
+    wakeUp();
   } else if (!standby_ && (uint32_t)(now - lastActivityAt_) >= STANDBY_MINUTES * 60000UL) {
     standby_ = true;
+    screen_.enterStandby();   // the welcome picture replaces the screen
   }
 #endif
 
@@ -177,7 +178,7 @@ void CoffeeMachine::pollEncoder() {
 
   lastActivityAt_ = millis();   // any action wakes the machine up...
   if (standby_) {
-    standby_ = false;
+    wakeUp();
     return;                     // ...and is not handled
   }
 
@@ -192,6 +193,14 @@ void CoffeeMachine::pollEncoder() {
     case PUSH_DOUBLE: handleDoublePush(); break;
     case PUSH_LONG:   handleLongPush();   break;
     default: break;
+  }
+}
+
+// The end of the standby: the heater works again and the real screen comes back (see ScreenController::leaveStandby()).
+void CoffeeMachine::wakeUp() {
+  if (standby_) {
+    standby_ = false;
+    screen_.leaveStandby();
   }
 }
 

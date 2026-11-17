@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -14,7 +15,7 @@
 static unsigned long welcomeAt=0, welcomeEnd=0;   // the clock when the welcome picture starts and ends
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
-void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void drawIcons(){L("icons");}
+void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void showStandbyPicture(){L("standbypic");} void drawIcons(){L("icons");}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
@@ -292,14 +293,37 @@ static void calibration(){
   { memset(EEPROM.mem,0xFF,64); CoffeeMachine m3; t=1000; m3.begin(); CHECK(m3.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET); }   // regulated on the probe
   printf("calibration: ok\n");
 }
+static bool startsWith(const std::string &s, const char *prefix);
+static int count(const char*name){ int n=0; for(auto&c:calls) if(c==name) n++; return n; }
 static void standby(){
   memset(EEPROM.mem,0xFF,64); CoffeeMachine m; t=1000; m.begin(); calls.clear();
   unsigned long t0=t; bool before=false;
   while(t<t0+STANDBY_MINUTES*60000UL-2000){ t+=1000; m.update(); before=before||m.standby_; }
   CHECK(!before && !m.standby_);
+  CHECK(count("standbypic(0,0,0,0)")==0);                         // the screen is the normal one until then
   while(t<t0+STANDBY_MINUTES*60000UL+3000){ t+=1000; m.update(); }
   CHECK(m.standby_ && !m.heater_.isOn());                         // heater off
-  m.handleShortPush(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
+  CHECK(count("standbypic(0,0,0,0)")==1);                         // the welcome picture replaces the screen, once
+  // during the standby nothing is drawn over the picture, even when what is shown changes
+  calls.clear();
+  for(int i=0;i<30;i++){ t+=1000; m.screen_.showLiveTemperature(t,80.0+i); m.screen_.showReady(); m.update(); }   // showReady(): the volume and the duration are redrawn if anything is drawn
+  CHECK(calls.empty());
+  // the wake-up: the picture is cleared in the dark, the icons, the drop and every field are drawn again, then the backlight
+  m.wakeUp(); CHECK(!m.standby_);
+  {
+    const int cleared=count("endwelcome(0,0,0,0)")>0 ? (int)(std::find(calls.begin(),calls.end(),"endwelcome(0,0,0,0)")-calls.begin()) : -1;
+    CHECK(cleared==0 && count("icons(0,0,0,0)")==1 && count("show(0,0,0,0)")==1 && calls.back()=="show(0,0,0,0)");
+    bool temperature=false, volume=false, duration=false;
+    for(size_t i=0;i<calls.size();i++){ temperature|=startsWith(calls[i],"temp(")||startsWith(calls[i],"temperr("); volume|=startsWith(calls[i],"vol("); duration|=startsWith(calls[i],"dur("); }
+    CHECK(temperature && volume && duration);
+  }
+  m.wakeUp(); calls.clear(); m.wakeUp(); CHECK(calls.empty());     // already awake: nothing happens
+  // and the standby comes again, then an extraction (not the encoder) wakes it too
+  calls.clear();
+  unsigned long t1=t; while(t<t1+STANDBY_MINUTES*60000UL+3000){ t+=1000; m.update(); }
+  CHECK(m.standby_ && count("standbypic(0,0,0,0)")==1);
+  calls.clear(); m.handleShortPush(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
+  CHECK(count("endwelcome(0,0,0,0)")==1 && count("show(0,0,0,0)")==1);   // the real screen came back
   CoffeeMachine m2; m2.begin(); CHECK(!m2.standby_);               // nothing is remembered
   printf("standby: ok\n");
 }

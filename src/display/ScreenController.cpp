@@ -43,9 +43,42 @@ void ScreenController::show() {
   showDisplay();
 }
 
+// The standby: the picture replaces the screen. What changes meanwhile (the temperature...) only marks the fields
+// dirty: leaveStandby() draws them all again.
+void ScreenController::enterStandby() {
+#if WELCOME_MS > 0
+  standbyShown_ = true;
+  showStandbyPicture();
+#endif
+}
+
+// The end of the standby: the picture is cleared in the dark, then the icons, the drop (as it is: the no-water error
+// may be blinking) and every field are drawn again, and the screen is lit: it comes back complete, as at start-up.
+void ScreenController::leaveStandby() {
+#if WELCOME_MS > 0
+  standbyShown_ = false;
+  endWelcome();
+#ifdef DISPLAY_ICONS
+  drawIcons();
+  drawDrop(dropVisible_, settings_.manual);
+#endif
+  dirty_ = DIRTY_ALL_VALUES | DIRTY_HEATER;
+  temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
+  temperatureKey_ = -1;             // the live temperature is drawn again at once
+  render();
+  showDisplay();
+#endif
+}
+
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
+#if WELCOME_MS > 0
+  if (standbyShown_) {
+    return;   // the picture of the standby is on the screen: nothing is drawn over it
+  }
+#endif
+
   // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
   if (tagBlinking_) {
     if (tagBlinkPending_) {

@@ -49,6 +49,10 @@ void showDisplay();
 void beginWelcome();
 void endWelcome();
 
+// The standby: the welcome picture replaces the whole screen (shown complete, the backlight stays on). endWelcome()
+// takes it away, and the caller then draws the real screen again in full. Does nothing if WELCOME_MS is 0.
+void showStandbyPicture();
+
 #ifdef DISPLAY_ICONS
 // Draw the three icons (thermometer, drop, clock)
 void drawIcons();

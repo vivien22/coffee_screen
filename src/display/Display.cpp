@@ -139,6 +139,19 @@ void endWelcome() {
 #endif
 }
 
+// The standby: the welcome picture replaces the whole screen. The backlight goes off while the screen is cleared and
+// the picture drawn (nothing is seen but the picture appearing complete), then it goes on. The values that were on the
+// screen are gone: the number fields are not valid any more, so the real screen is drawn in full when it comes back
+// (endWelcome() clears the picture, then the caller draws everything).
+void showStandbyPicture() {
+#if WELCOME_MS > 0
+  digitalWrite(PIN_TFT_BL, LOW);
+  tft.fillScreen(COLOR_BG);
+  temperatureField.valid = volumeField.valid = durationField.valid = false;
+  beginWelcome();
+#endif
+}
+
 // The fixed icons: thermometer, drop and clock.
 void drawIcons() {
   drawIcon(ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
@@ -161,6 +174,7 @@ void drawDrop(bool visible, bool manual) {
 void drawDrop(bool, bool) {}
 void beginWelcome() {}
 void endWelcome() {}
+void showStandbyPicture() {}
 #endif  // DISPLAY_ICONS
 
 // ------------------------------------------------------------

@@ -160,8 +160,9 @@ probe reads the same as the water at the grouphead.
 
 ### Standby
 
-After `STANDBY_MINUTES` (30) without activity the heater is switched off. The screen does not change. Any
-action on the encoder wakes the machine up, and that first action is ignored. Nothing is saved: after a
+After `STANDBY_MINUTES` (30) without activity the heater is switched off and the **welcome picture** replaces the
+screen (with `WELCOME_MS` 0 there is no picture, and the screen does not change). Any
+action on the encoder wakes the machine up, the real screen comes back, and that first action is ignored. Nothing is saved: after a
 reboot the machine is awake.
 
 ---
@@ -234,7 +235,7 @@ and `CALIBRATION_MIN_ML`.
 | **Maximum duration** | An extraction stops with an error after `DURATION_MAX` seconds (120 by default) |
 | **Pre-infusion timeout** | The pre-infusion ends after 30 s even if its volume is not reached |
 | **Temperature sensor** | MAX31865 fault or implausible value, `SENSOR_FAULT_TOLERANCE` (3) readings in a row (0.75 s): the heater is off and the screen shows **ERR**. One or two stray readings are ignored |
-| **Standby** | Heater off after 30 minutes without activity |
+| **Standby** | Heater off after 30 minutes without activity, the welcome picture is shown |
 | **Watchdog** | If `loop()` is blocked for 4 s the board resets (pump and valve relays go back to idle) |
 
 > [!NOTE]
@@ -297,7 +298,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `DEFAULT_LOSS_ML` | 30 | Water that does not end in the cup |
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.1 / 500 | PID gains, over a 1 s window |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
-| `WELCOME_MS` | 5000 | The welcome picture stays this long at start-up, ms (0 = none: 1 048 bytes of flash back, the firmware is then 40 bytes larger than master) |
+| `WELCOME_MS` | 5000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
@@ -331,9 +332,9 @@ they are removed from the build otherwise.
 
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **96.7 %** (29 702 bytes, 462 bytes of RAM) with the flow
-> simulator, and at **97.3 %** (29 892 bytes, 469 bytes of RAM) with the real flow sensors (the welcome picture costs
-> about 1 KB: `WELCOME_MS` 0 gives 1 048 bytes back, 40 more than `master` then). The margin is
+> At the last measured build the flash was at **97.3 %** (29 882 bytes, 463 bytes of RAM) with the flow
+> simulator, and at **97.9 %** (30 086 bytes, 470 bytes of RAM) with the real flow sensors (the welcome picture costs
+> about 1.2 KB with its use in the standby: `WELCOME_MS` 0 gives them back, 40 more than `master` then). The margin is
 > small: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
 > strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM
 > (the CI runs it on every push). The flash has no budget: the linker already refuses a program over 30 720 bytes

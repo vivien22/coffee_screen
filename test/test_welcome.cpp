@@ -69,6 +69,15 @@ int main() {
   CHECK(differences(frameBuffer, RAW_DROP, ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT) == 0);
   CHECK(differences(frameBuffer, RAW_CLOCK, ICON_CLOCK_X, ICON_CLOCK_Y, ICON_CLOCK_WIDTH, ICON_CLOCK_HEIGHT) == 0);
 
+  // the standby: the picture replaces the whole screen (the icons are gone with the rest), lit; then it is taken away
+  showStandbyPicture();
+  CHECK(stubPins[PIN_TFT_BL] == HIGH);
+  CHECK(differences(frameBuffer, RAW_WELCOME, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
+  CHECK(outside(frameBuffer, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
+  endWelcome();
+  CHECK(stubPins[PIN_TFT_BL] == LOW);
+  CHECK(outside(frameBuffer, 0, 0, 0, 0) == 0);
+
   printf(fails ? "%d FAIL\n" : "ALL OK\n", fails);
   return fails != 0;
 }

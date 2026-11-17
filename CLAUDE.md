@@ -12,15 +12,15 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, with the welcome picture): 29702 B flash, 462 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 29892 B flash, 469 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, with the welcome picture and the standby): 29882 B flash, 463 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 30086 B flash, 470 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
   `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
-  build is about 190 B larger. With the welcome picture (1048 B) the firmware is 29892 B of
+  build is about 190 B larger. With the welcome picture (1048 B) and its use in the standby (about 190 B) the firmware is 30086 B of
   30720 B with the real sensors,
-  and the feedforward table of the PID tuning (+220 B) will still fit (about 610 B left). With `WELCOME_MS` 0 the firmware
+  and the feedforward table of the PID tuning (+220 B) will still fit (about 410 B left). With `WELCOME_MS` 0 the firmware
   is 40 B larger than master (the faster drawing of the icons and the start-up sequence), with the same RAM.
 
 ## Tests (host, no Arduino)
@@ -82,7 +82,8 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Limits: `TEMPERATURE_MAX` is 150 because the user sets the steaming temperature (140-145 °C) by hand, and
   `DURATION_MAX` is 120 s. The user does NOT want other safety limits on `master` (no cap of the setpoint, no
   over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in the README (hardware).
-- Standby after 30 min without action: heater off, nothing changes on the screen, the first action only wakes the
+- Standby after 30 min without action: heater off, the welcome picture replaces the screen (this branch; nothing is
+  drawn over it until the wake-up), the first action only wakes the
   machine, nothing is saved across a reboot.
 
 ## The machine (what the code cannot tell)

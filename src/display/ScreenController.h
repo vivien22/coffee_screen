@@ -43,6 +43,12 @@ class ScreenController {
     // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
     void show();
 
+    // The standby: the welcome picture replaces the screen, and nothing else is drawn (update() does nothing) until
+    // leaveStandby(), which draws the real screen again in full, in the dark, and lights it. Both do nothing
+    // if there is no welcome picture (WELCOME_MS 0): the screen is then left as it is.
+    void enterStandby();
+    void leaveStandby();
+
     // Call on every loop pass: blinking of the FLUSH tag and of the drop, redraw of the dirty fields.
     void update(uint32_t now);
 
@@ -172,6 +178,7 @@ class ScreenController {
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.
 #if WELCOME_MS > 0
     uint32_t welcomeStartedAt_ = 0;
+    bool standbyShown_ = false;         // the picture of the standby is on the screen: nothing else is drawn
 #endif
 
 };
