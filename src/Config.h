@@ -13,8 +13,8 @@
 #define PIN_TFT_RST       8
 #define PIN_TFT_BL        9     // backlight
 #define PIN_HEATER_RELAY  5
-#define PIN_PUMP_RELAY    4
-#define PIN_VALVE_RELAY   A2
+#define PIN_PUMP_RELAY    A2    // the wires of the pump and of the valve relays were swapped on the board (2026-11-17)
+#define PIN_VALVE_RELAY   4
 #define PIN_MAX31865_CS   6
 #define PIN_FLOW_IN       A0    // flow sensors: both on A0..A5 (PCINT1), see USN_FlowSensor
 #define PIN_FLOW_OUT      A1
@@ -107,10 +107,13 @@
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 
 // ---------- Pump and valve ----------
-// The pump and the 3-way valve relays are driven only if this line is uncommented. Commented out (only the boiler
-// is connected, or being tested): both outputs stay LOW (off), and no extraction can be started (a push does nothing
-// when the machine is idle); the heater is controlled as usual. Uncomment it when the pump and the valve are wired.
-// #define DRIVE_PUMP_AND_VALVE
+// DRIVE_PUMP: the pump relay is driven and extractions can be started. Commented out (only the boiler is connected, or
+// being tested): the pump output stays LOW (off) and no extraction can be started (a push does nothing when the machine
+// is idle); the heater is controlled as usual.
+#define DRIVE_PUMP
+// DRIVE_VALVE: the 3-way valve relay is driven by the phases of the extraction. Commented out (the valve is operated by
+// hand, as now): the valve output stays LOW and the extraction runs as usual with the pump only.
+// #define DRIVE_VALVE
 
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction

@@ -20,7 +20,7 @@ void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 
-#define PUMPON (pins[4]==1)
+#define PUMPON (pins[PIN_PUMP_RELAY]==1)
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
 static void step(CoffeeMachine&m,unsigned long dt){ t+=dt; m.update(); }
 static void scenario(int flush){
@@ -39,7 +39,7 @@ static void scenario(int flush){
     CHECK(!has("dur(0,0,0,1)"));
     m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();      // flush: a double push skips it
-      CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[4]==0 && pins[16]==0); }
+      CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[PIN_PUMP_RELAY]==0 && pins[PIN_VALVE_RELAY]==0); }
     for(int i=0;i<8 && m.screen_.activeParameter()!=PARAMETER_VOLUME;i++) m.screen_.selectNextParameter();   // back to volume
     CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
     m.handleShortPush(); { unsigned long ts=t; for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-ts)/1000.0f*10; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; } }
@@ -137,7 +137,7 @@ static void manualMode(){
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
   m.handleShortPush();                                   // start the pump
-  CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[16]==1);
+  CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[PIN_VALVE_RELAY]==1);
   m.handleLongPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
   m.handleDoublePush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   calls.clear();
@@ -145,7 +145,7 @@ static void manualMode(){
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL);                                   // far above the target (40): no stop
   uint16_t vol=m.extraction_.volumeMl(); CHECK(vol>=20 && vol<=22 && m.extraction_.durationSeconds()>=7);
   m.handleShortPush();                                   // stop
-  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   calls.clear(); unsigned long t0=t;
   while(t<t0+8300){ t+=100; m.update(); }
   CHECK(!has("clearVals(0,0,0,0)"));                     // MANUAL too: no blinking before the last 1.6 s
@@ -193,7 +193,7 @@ static void manualTime(){
     if(has("dur(1,0,0,0)")||has("dur(1,0,0,1)")) seen1=true;
     if(m.extraction_.state()!=EXTRACTION_MANUAL) break; }
   CHECK(seen7 && seen1);
-  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   CHECK(t-t0>=6900 && t-t0<=7300);
   calls.clear(); t+=100; m.update();
   // the final values: elapsed time (7 s), kept 10 s

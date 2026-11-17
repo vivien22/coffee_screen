@@ -19,12 +19,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: boiler only, In sensor (as configured)
+          - name: pump driven, valve by hand, In sensor (as configured)
             edit: "true"
+          - name: boiler only
+            edit: "sed -i 's|^#define DRIVE_PUMP$|// #define DRIVE_PUMP|' src/Config.h"
+          - name: pump and valve driven
+            edit: "sed -i 's|^// #define DRIVE_VALVE|#define DRIVE_VALVE|' src/Config.h"
           - name: In and Out sensors
             edit: "sed -i 's|^// #define FLOW_OUT_SENSOR|#define FLOW_OUT_SENSOR|' src/Config.h"
-          - name: pump and valve driven
-            edit: "sed -i 's|^// #define DRIVE_PUMP_AND_VALVE|#define DRIVE_PUMP_AND_VALVE|' src/Config.h"
           - name: flow simulator
             edit: "sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h"
     steps:
@@ -47,9 +49,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y cppcheck
       # Real bugs only (errors, warnings, portability, performance); style findings are not blocking.
-      # The options are checked with and without: the simulator, the Out sensor, the pump and the valve, and none.
+      # The options are checked with and without: the simulator, the Out sensor, the valve, no pump, and none.
       - run: |
-          for d in "-DFLOW_SIMULATOR" "-DFLOW_OUT_SENSOR" "-DDRIVE_PUMP_AND_VALVE" "-UFLOW_SIMULATOR"; do
+          for d in "-DFLOW_SIMULATOR" "-DFLOW_OUT_SENSOR" "-DDRIVE_VALVE" "-UDRIVE_PUMP" "-UFLOW_SIMULATOR"; do
             cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
               --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -D__AVR_ATmega328P__ -I src $d src
           done

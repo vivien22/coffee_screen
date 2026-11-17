@@ -16,8 +16,9 @@ The README describes the behaviour. The user writes in French: reply in French.
   fuses protect the whole 2 KB boot section: a write above 0x7800 fails (verification error at 0x7800) and leaves a
   broken firmware. Using up to 32256 B would need an ISP programmer on the ICSP header to set BOOTSZ (hfuse 0xDE, like an
   Uno). Never raise `maximum_size` in platformio.ini without that.
-- Last measured (flags above, welcome picture and standby): 29626 B flash, 470 B RAM as configured (the boiler only, the In flow
-  sensor only); 30054 B with the pump and the valve driven (`DRIVE_PUMP_AND_VALVE`), 30092 B with the Out sensor too.
+- Last measured (flags above, welcome picture and standby): 30040 B flash, 470 B RAM as configured (the pump driven, the valve
+  operated by hand, the In flow sensor only); 29626 B boiler only (no `DRIVE_PUMP`), 30054 B with the valve driven too
+  (`DRIVE_VALVE`).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
@@ -29,8 +30,9 @@ The README describes the behaviour. The user writes in French: reply in French.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
-- `test_display` is a property test (incremental drawing must equal a fresh draw). `run.sh` switches `DRIVE_PUMP_AND_VALVE` on
-  in the copies used by the extraction tests; `test_boiler_only` runs with the Config.h as it is (the boiler only).
+- `test_display` is a property test (incremental drawing must equal a fresh draw). `run.sh` switches `DRIVE_VALVE` on
+  in the copies used by the extraction tests; `test_boiler_only` runs with `DRIVE_PUMP` switched off (the boiler only) and
+  `test_valve_by_hand` with the Config.h as it is (the pump works, the valve output stays off).
 - The tests share the Arduino stand-in `test/stubs/ArduinoStubs.cpp` (clock `t`, `pins[]`, `Serial`, `SPI`, `EEPROM`) and
   `test/stubs/TestSupport.h` (`CHECK`): a new test includes `TestSupport.h`, and `run.sh` links the stubs. Do not copy
   those definitions into a test again.
@@ -103,9 +105,10 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Wiring on 2026-11-17 (later that day): everything is connected on the board (probe, encoder, screen, relays, the
   In flow sensor) except the Out flow sensor. So `FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in
   Config.h: the real In sensor is read and A1 is ignored (volume out = 0, the CAL calibration absorbs the OPV return).
-  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve are
-  not driven for now either: `DRIVE_PUMP_AND_VALVE` is commented out (outputs LOW, no extraction can start), only the
-  boiler is controlled. Uncomment it when they are wired.
+  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump relay and the valve
+  relay were then wired too, with their GPIOs swapped (pump A2, valve D4, see `PIN_PUMP_RELAY` in Config.h). The user operates
+  the 3-way valve by hand: `DRIVE_PUMP` is on and `DRIVE_VALVE` is commented out (its output stays LOW, the extraction runs
+  with the pump only). Uncomment `DRIVE_VALVE` when the valve is wired. Without `DRIVE_PUMP` only the boiler is controlled.
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
 
