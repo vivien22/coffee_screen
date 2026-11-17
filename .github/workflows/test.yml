@@ -9,19 +9,22 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./test/run.sh
   firmware:
-    # The firmware is built for the Nano three ways: as configured (the real In flow sensor, the Out one not connected),
-    # with the Out sensor too, and with the flow simulator (config lines uncommented on this runner only).
-    # tools/check_flash.sh shows the flash size and fails over the RAM budget.
+    # The firmware is built for the Nano four ways: as configured (the boiler only, the real In flow sensor, the Out one
+    # not connected), with the pump and the valve driven, with the Out sensor too, and with the flow simulator (the
+    # config lines are uncommented on this runner only). tools/check_flash.sh shows the flash size and fails over the
+    # RAM budget.
     name: firmware (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: In sensor only (as configured)
+          - name: boiler only, In sensor (as configured)
             edit: "true"
           - name: In and Out sensors
             edit: "sed -i 's|^// #define FLOW_OUT_SENSOR|#define FLOW_OUT_SENSOR|' src/Config.h"
+          - name: pump and valve driven
+            edit: "sed -i 's|^// #define DRIVE_PUMP_AND_VALVE|#define DRIVE_PUMP_AND_VALVE|' src/Config.h"
           - name: flow simulator
             edit: "sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h"
     steps:
@@ -44,9 +47,9 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y cppcheck
       # Real bugs only (errors, warnings, portability, performance); style findings are not blocking.
-      # The flow options are checked with and without: the simulator, the Out sensor, and neither.
+      # The options are checked with and without: the simulator, the Out sensor, the pump and the valve, and none.
       - run: |
-          for d in "-DFLOW_SIMULATOR" "-DFLOW_OUT_SENSOR" "-UFLOW_SIMULATOR"; do
+          for d in "-DFLOW_SIMULATOR" "-DFLOW_OUT_SENSOR" "-DDRIVE_PUMP_AND_VALVE" "-UFLOW_SIMULATOR"; do
             cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
               --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -D__AVR_ATmega328P__ -I src $d src
           done

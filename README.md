@@ -272,6 +272,14 @@ The pins are defined in `src/Config.h`.
 **Parts:** Arduino Nano, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
 (pump, heater, valve), two flow sensors (In and Out / OPV return).
 
+### Pump and valve
+
+> [!IMPORTANT]
+> The pump and the 3-way valve relays are **not driven by default**: `// #define DRIVE_PUMP_AND_VALVE` is commented out
+> in `Config.h`. Both outputs then stay off and no extraction can be started (a push does nothing when the machine is
+> idle), while the **boiler is controlled as usual** (PID, the standby, the temperature screen). Uncomment the line when
+> the pump and the valve are wired: the extractions, the pre-infusion, the flush and the MANUAL mode work then.
+
 ### Flow sensors and the simulator
 
 The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56) and `FLOW_K_FACTOR_OUT`
@@ -307,6 +315,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
+| `DRIVE_PUMP_AND_VALVE` | commented out | Uncomment when the pump and the valve are wired (otherwise the boiler only) |
 | `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1) |
 | `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
@@ -337,8 +346,8 @@ they are removed from the build otherwise.
 
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **97.8 %** (30 054 bytes, 470 bytes of RAM) with the real In flow sensor
-> (the wiring of the board; 29 882 bytes with the flow simulator, 30 092 with the Out sensor too; the welcome picture costs
+> At the last measured build the flash was at **96.4 %** (29 626 bytes, 470 bytes of RAM) as configured: the boiler only,
+> the real In flow sensor (30 054 bytes with the pump and the valve driven, 97.8 %; the welcome picture costs
 > about 1.2 KB with its use in the standby: `WELCOME_MS` 0 gives them back, 40 more than `master` then). The margin is
 > small: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
 > strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM

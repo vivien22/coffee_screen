@@ -106,6 +106,12 @@
 #define FLOW_K_FACTOR_OUT            50.0f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 
+// ---------- Pump and valve ----------
+// The pump and the 3-way valve relays are driven only if this line is uncommented. Commented out (only the boiler
+// is connected, or being tested): both outputs stay LOW (off), and no extraction can be started (a push does nothing
+// when the machine is idle); the heater is controlled as usual. Uncomment it when the pump and the valve are wired.
+// #define DRIVE_PUMP_AND_VALVE
+
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 

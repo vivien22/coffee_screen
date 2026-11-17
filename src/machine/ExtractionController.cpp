@@ -350,10 +350,17 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
 }
 
 // The relays are active high.
+// Without DRIVE_PUMP_AND_VALVE (see Config.h) the two relays are never switched on: the outputs stay LOW.
+#ifdef DRIVE_PUMP_AND_VALVE
+static const bool RELAYS_DRIVEN = true;
+#else
+static const bool RELAYS_DRIVEN = false;
+#endif
+
 void ExtractionController::setPump(bool on) {
-  digitalWrite(pumpPin_, on ? HIGH : LOW);
+  digitalWrite(pumpPin_, (RELAYS_DRIVEN && on) ? HIGH : LOW);
 }
 
 void ExtractionController::setValve(bool open) {
-  digitalWrite(valvePin_, open ? HIGH : LOW);
+  digitalWrite(valvePin_, (RELAYS_DRIVEN && open) ? HIGH : LOW);
 }

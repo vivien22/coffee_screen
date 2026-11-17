@@ -247,6 +247,7 @@ void CoffeeMachine::handleShortPush() {
       break;
 
     default:   // IDLE, FINISHED, ERROR
+#ifdef DRIVE_PUMP_AND_VALVE   // without the pump and the valve no extraction can start: the push does nothing
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
         const Settings &settings = screen_.settings();
         saveSettings();   // the volume that was just set is validated by the start (written only if it changed)
@@ -260,6 +261,7 @@ void CoffeeMachine::handleShortPush() {
         }
         screen_.showExtractionStarted();
       }
+#endif
       break;
   }
 }
