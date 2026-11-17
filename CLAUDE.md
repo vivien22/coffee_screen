@@ -16,15 +16,15 @@ The README describes the behaviour. The user writes in French: reply in French.
   fuses protect the whole 2 KB boot section: a write above 0x7800 fails (verification error at 0x7800) and leaves a
   broken firmware. Using up to 32256 B would need an ISP programmer on the ICSP header to set BOOTSZ (hfuse 0xDE, like an
   Uno). Never raise `maximum_size` in platformio.ini without that.
-- Last measured (flags above, with the welcome picture and the standby): 29882 B flash, 463 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 30086 B flash, 470 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, welcome picture and standby): 30054 B flash, 470 B RAM as configured (the In flow sensor only,
+  the board's wiring); 30092 B with the Out sensor too (`FLOW_OUT_SENSOR`); 29882 B / 463 B RAM with `FLOW_SIMULATOR`.
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
-  memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
+  memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
-  `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
-  build is about 190 B larger. With the welcome picture (1048 B) and its use in the standby (about 190 B) the firmware is 30086 B of
-  30720 B with the real sensors,
-  and the feedforward table of the PID tuning (+220 B) will still fit (about 410 B left). With `WELCOME_MS` 0 the firmware
+  `FLASH_BUDGET=<bytes>` gives an optional gate. The simulator is off by default: the real flow sensors build is
+  about 170 B larger than the simulator one. With the welcome picture (1048 B) and its use in the standby (about 190 B) the firmware is 30054 B of
+  30720 B as configured,
+  and the feedforward table of the PID tuning (+220 B) will still fit (about 450 B left). With `WELCOME_MS` 0 the firmware
   is 40 B larger than master (the faster drawing of the icons and the start-up sequence), with the same RAM.
 
 ## Tests (host, no Arduino)
@@ -99,9 +99,10 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Flow sensors: In = water entering the boiler (used by the feedforward); Out = water returning through the OPV
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
-- Wiring on 2026-11-17: the In flow sensor is connected, the Out one is not yet (hence `FLOW_SIMULATOR`; on
-  `pid-tuning` the `FLOW_OUT_SENSOR` line of Config.h has to stay commented out for the same reason). On 2026-11-16
-  the PT100 was not connected yet.
+- Wiring on 2026-11-17 (later that day): everything is connected on the board (probe, encoder, screen, relays, the
+  In flow sensor) except the Out flow sensor. So `FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in
+  Config.h: the real In sensor is read and A1 is ignored (volume out = 0, the CAL calibration absorbs the OPV return).
+  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option).
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
 

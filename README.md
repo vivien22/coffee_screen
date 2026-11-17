@@ -278,9 +278,13 @@ The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56
 (50.0).
 
 > [!IMPORTANT]
-> `Config.h` contains `#define FLOW_SIMULATOR`. While it is active, **no real sensor is read**: a simulator
-> follows the pump relay and produces 3 ml/s with 10 % returning through the OPV. It lets you test the
-> machine without the flow sensors. **Comment this line out to use the real sensors.**
+> The board reads the **In** sensor (A0: the water entering the boiler). The **Out** sensor (A1: the return of the OPV
+> valve) is optional: while it is not connected, leave `// #define FLOW_OUT_SENSOR` commented out in `Config.h` (A1 is then
+> ignored: a floating input would count false pulses, and the volume out is 0, so the CAL calibration absorbs what the
+> OPV returns). Uncomment it when the sensor is wired.
+>
+> `// #define FLOW_SIMULATOR` replaces both sensors by a simulator (3 ml/s while the pump runs, 10 % returning through the
+> OPV): uncomment it to test the machine without any flow sensor. Both lines are commented out by default.
 
 ---
 
@@ -303,7 +307,8 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
-| `FLOW_SIMULATOR` | defined | Comment out with real flow sensors |
+| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1) |
+| `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
 ---
 
@@ -332,8 +337,8 @@ they are removed from the build otherwise.
 
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **97.3 %** (29 882 bytes, 463 bytes of RAM) with the flow
-> simulator, and at **97.9 %** (30 086 bytes, 470 bytes of RAM) with the real flow sensors (the welcome picture costs
+> At the last measured build the flash was at **97.8 %** (30 054 bytes, 470 bytes of RAM) with the real In flow sensor
+> (the wiring of the board; 29 882 bytes with the flow simulator, 30 092 with the Out sensor too; the welcome picture costs
 > about 1.2 KB with its use in the standby: `WELCOME_MS` 0 gives them back, 40 more than `master` then). The margin is
 > small: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
 > strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM

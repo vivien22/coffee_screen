@@ -33,18 +33,23 @@ USN_FlowSensor::USN_FlowSensor() :
 {
 }
 
-// Configure the two inputs and enable PCINT1 for them.
+// Configure the In input (and the Out input if FLOW_OUT_SENSOR) and enable PCINT1 for them.
 void USN_FlowSensor::begin()
 {
     pinMode(PIN_FLOW_IN, INPUT_PULLUP);
+#ifdef FLOW_OUT_SENSOR
     pinMode(PIN_FLOW_OUT, INPUT_PULLUP);
+#endif
 
     instance_ = this;
 
     // Synchronize the port state before enabling the interrupt.
     noInterrupts();
     lastPortC_ = PINC;
-    PCMSK1 |= _BV(FLOW_IN_BIT) | _BV(FLOW_OUT_BIT);
+    PCMSK1 |= _BV(FLOW_IN_BIT);
+#ifdef FLOW_OUT_SENSOR
+    PCMSK1 |= _BV(FLOW_OUT_BIT);
+#endif
     PCIFR |= _BV(PCIF1);  // Clear any pending PORTC pin-change flag.
     PCICR |= _BV(PCIE1);
     interrupts();
@@ -69,9 +74,11 @@ void USN_FlowSensor::handlePortCChange(uint8_t currentPort)
         ++pulsesIn_;
     }
 
+#ifdef FLOW_OUT_SENSOR
     if (fallingEdges & _BV(FLOW_OUT_BIT)) {
         ++pulsesOut_;
     }
+#endif
 
     lastPortC_ = currentPort;
 }
