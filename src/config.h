@@ -131,7 +131,7 @@
 #define LOSS_MAX_ML                  60.0f
 #define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
 #define CALIBRATION_MIN_ML           10
-#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // an extraction without flush: its volume and duration stay on the screen
+#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 #define RESULT_BLINK_WINDOW_MS       3000UL    // during the last part of that time the volume and the duration blink:
 #define RESULT_BLINK_MS              400UL     // they are alternately hidden and shown this long (0 window = no blinking)

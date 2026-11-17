@@ -54,7 +54,7 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 </tr>
 <tr>
 <td align="center"><img src="docs/images/auto-running.png" width="200"><br><b>Extraction</b><br>volume in the cup, time</td>
-<td align="center"><img src="docs/images/auto-result.png" width="200"><br><b>Result</b><br>stays 10 s (blinks during the last 3 s), then the target comes back</td>
+<td align="center"><img src="docs/images/auto-result.png" width="200"><br><b>Result</b><br>stays 10 s after the extraction or the flush (blinks during the last 3 s), then the target comes back</td>
 <td align="center"><img src="docs/images/auto-flush-wait.png" width="200"><br><b>Flush, waiting</b><br>push to rinse the grouphead</td>
 </tr>
 <tr>
@@ -131,7 +131,8 @@ no loss subtracted.
 
 ### After an extraction
 
-The final volume and duration stay on the screen for 10 s, then the target values come back. During the last 3 s
+The final volume and duration stay on the screen for 10 s (from the end of the extraction in MANUAL mode or without flush,
+from the end of the flush otherwise), then the target values come back. During the last 3 s
 they blink (`RESULT_BLINK_WINDOW_MS`, `RESULT_BLINK_MS`) to show that they are about to be replaced. A change of
 mode resets them at once. With a flush, the machine waits for a push to start the rinse.
 

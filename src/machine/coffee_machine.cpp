@@ -91,8 +91,8 @@ void CoffeeMachine::update() {
   const bool flushJustEnded = justStopped && (lastState_ == EXTRACTION_FLUSH_WAIT || lastState_ == EXTRACTION_FLUSHING);
 
   if (flushJustEnded) {
-    // End of the flush: the screen is ready for the next extraction at once
-    screen_.showReady();
+    // End of the flush: the values of the extraction are shown again, for EXTRACTION_RESULT_DISPLAY_MS (below)
+    screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
   } else if (extracting || wasExtracting_) {
     switch (extraction_.state()) {
       case EXTRACTION_PREINFUSION:
@@ -127,9 +127,9 @@ void CoffeeMachine::update() {
     lastState_ = extraction_.state();
   }
 
-  // An extraction that ended without flush: its values stay EXTRACTION_RESULT_DISPLAY_MS, then the target volume
-  // and 0 s are shown. A new extraction cancels it.
-  if (justStopped && !flushJustEnded) {
+  // An extraction that ended (without flush, or at the end of the flush, never before it): its values stay
+  // EXTRACTION_RESULT_DISPLAY_MS, then the target volume and 0 s are shown. A new extraction cancels it.
+  if (justStopped) {
     resultShownUntil_ = now + EXTRACTION_RESULT_DISPLAY_MS;
     resultShown_ = true;
   }
