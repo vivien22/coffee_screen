@@ -5,7 +5,7 @@
 
 // Two pulse flow sensors on the classic ATmega328P Nano/Uno, counted by PCINT1.
 // The inputs (PIN_FLOW_IN, PIN_FLOW_OUT: two different pins of A0..A5), the calibration
-// (FLOW_K_FACTOR_IN / OUT, pulses per millilitre) and FLOW_UPDATE_MS are in config.h.
+// (FLOW_K_FACTOR_IN / OUT, pulses per millilitre) and FLOW_UPDATE_MS are in Config.h.
 // Only one instance is supported because this library owns PCINT1_vect.
 class USN_FlowSensor {
 public:

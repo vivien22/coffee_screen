@@ -1,6 +1,6 @@
 /*
   FlowSimulator: replaces USN_FlowSensor when the flow sensors are not connected (see FLOW_SIMULATOR
-  in config.h). Same interface; no input is read.
+  in Config.h). Same interface; no input is read.
 
   The simulated water follows the pump relay: while the pump is on, water enters the boiler at
   FLOW_SIM_PUMP_ML_PER_S and a part of it (FLOW_SIM_OPV_RATIO) comes back through the OPV valve.
@@ -10,7 +10,7 @@
 
 #pragma once
 #include <Arduino.h>
-#include "../config.h"
+#include "../Config.h"
 
 class FlowSimulator {
   public:

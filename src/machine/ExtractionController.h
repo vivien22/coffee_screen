@@ -1,11 +1,11 @@
 /*
   extraction_controller: the extraction state machine and its actuators:
   the pump relay and the 3-way solenoid valve relay.
-  It uses the flow sensors to know the volume in the cup (estimated, see config.h) and the flow
+  It uses the flow sensors to know the volume in the cup (estimated, see Config.h) and the flow
   of the water entering the boiler.
   Knows nothing about the encoder, the heater or the screen.
 
-  Phases of an extraction (the pre-infusion and flush phases are optional, see config.h):
+  Phases of an extraction (the pre-infusion and flush phases are optional, see Config.h):
 
       IDLE ──start()──> PREINFUSION ──> PREINFUSION_WAIT ──> RUNNING ──finish()──> FLUSH_WAIT
                         (wetting,       (soaking,             (main                (waits for
@@ -36,7 +36,7 @@
   (FLUSH_WAIT too).
 
   PREINFUSION ends when the pre-infusion volume has entered the boiler (In - Out of the flow
-  sensors, see config.h), or after PREINFUSION_TIMEOUT_MS. The target volume (in the cup) is
+  sensors, see Config.h), or after PREINFUSION_TIMEOUT_MS. The target volume (in the cup) is
   checked in RUNNING only; the water of the pre-infusion is counted in the volume, as it stays in
   the puck. RUNNING also ends after DURATION_MAX seconds, or when stop() is called. The volume and
   the duration of the extraction are final at the end of RUNNING: the flush does not change them.
@@ -44,10 +44,10 @@
 
 #pragma once
 #include <Arduino.h>
-#include "../config.h"
-#include "../drivers/flow_sensor.h"
+#include "../Config.h"
+#include "../drivers/FlowSensor.h"
 
-// The phases PREINFUSION..MANUAL are described by the phase table of extraction_controller.cpp
+// The phases PREINFUSION..MANUAL are described by the phase table of ExtractionController.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.
 enum ExtractionState : uint8_t {
   EXTRACTION_IDLE,
@@ -136,7 +136,7 @@ class ExtractionController {
     // Flow of the water entering the boiler (the water to heat), 0 when no extraction is in progress
     float inflowMlPerSec();
 
-    // Water that does not end in the cup (puck, backflush), see config.h: the setting of the user,
+    // Water that does not end in the cup (puck, backflush), see Config.h: the setting of the user,
     // given by the machine. Used to estimate the volume in the cup.
     void setLossMl(float ml) { lossMl_ = ml; }
 

@@ -9,7 +9,7 @@ rm -rf "$B" && mkdir -p "$B/raw"
 cp -r src "$B/src"
 # The Arduino stubs of the tests (their Adafruit_GFX draws into a frame buffer)
 g++ -std=c++11 -w -I"$B" -Itest/stubs tools/render_screens.cpp \
-    "$B/src/display/display.cpp" "$B/src/display/screen_controller.cpp" -o "$B/render"
+    "$B/src/display/Display.cpp" "$B/src/display/ScreenController.cpp" -o "$B/render"
 "$B/render" "$B/raw"
 mkdir -p docs/images
 python3 -I tools/to_png.py "$B/raw" docs/images

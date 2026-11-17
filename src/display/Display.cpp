@@ -1,16 +1,16 @@
 /*
-  display: drawing of the coffee screen (see display.h).
+  display: drawing of the coffee screen (see Display.h).
 */
 
 #include <string.h>
-#include "display.h"
-#include "fonts.h"
+#include "Display.h"
+#include "Fonts.h"
 #include "icons.h"
 
 // ---------- Fonts (digits in two sizes, units) ----------
 #define FONT_SMALL (&FontSmall)   // digits, small size
 #define FONT_LARGE (&FontLarge)   // digits, large size
-#define FONT_UNIT  (&FontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', see fonts.h)
+#define FONT_UNIT  (&FontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', see Fonts.h)
 #define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
 
 // The screen driver
@@ -259,7 +259,7 @@ void drawTemperature(double value, TextSize size) {
     ? roundedTenths / 10
     : (uint16_t)(value + 0.5);
 
-  // The decimal point is the glyph ':' of FontSmall (see fonts.h): the number and its decimal are one text
+  // The decimal point is the glyph ':' of FontSmall (see Fonts.h): the number and its decimal are one text
   char text[6];
   itoa(integerValue, text, 10);
   if (showDecimal && size == TEXT_SIZE_SMALL) {
@@ -280,7 +280,7 @@ void drawTemperature(double value, TextSize size) {
     tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
     tft.print('4');
     tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-    tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
+    tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
   }
 }
 
@@ -297,7 +297,7 @@ void drawTemperatureError() {
 }
 
 // Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
-// codes '0'..';' (see fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
+// codes '0'..';' (see Fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
 static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
   tft.setFont(FONT_TAG);
   tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value

@@ -14,12 +14,12 @@
 #include <Arduino.h>
 
 #include "../drivers/CJMCU111.h"
-#include "../drivers/flow_sensor.h"
-#include "../settings/settings.h"
-#include "../heating/temperature_sensor.h"
-#include "../heating/heater_controller.h"
-#include "extraction_controller.h"
-#include "../display/screen_controller.h"
+#include "../drivers/FlowSensor.h"
+#include "../settings/Settings.h"
+#include "../heating/TemperatureSensor.h"
+#include "../heating/HeaterController.h"
+#include "ExtractionController.h"
+#include "../display/ScreenController.h"
 
 class CoffeeMachine {
   public:

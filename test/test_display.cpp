@@ -1,11 +1,11 @@
 // The number fields redraw only what changed (no flicker). Property: whatever the history of the updates of a
 // field, the picture is the same as drawing the final value from scratch. The frame buffer is the one of the
-// GFX stub (the real font rules), display.cpp is the real one.
+// GFX stub (the real font rules), Display.cpp is the real one.
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
 #include <vector>
-#include "src/display/display.h"
+#include "src/display/Display.h"
 
 uint16_t frameBuffer[240 * 240];
 unsigned long millis() { return 0; }

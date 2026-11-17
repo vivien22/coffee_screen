@@ -1,10 +1,10 @@
 /*
   flow_sensor: the flow sensor used by the machine. FlowSensor is the real USN_FlowSensor
-  (two flow sensors on A0 / A1), or the FlowSimulator when FLOW_SIMULATOR is defined in config.h.
+  (two flow sensors on A0 / A1), or the FlowSimulator when FLOW_SIMULATOR is defined in Config.h.
 */
 
 #pragma once
-#include "../config.h"
+#include "../Config.h"
 
 #ifdef FLOW_SIMULATOR
 #include "FlowSimulator.h"

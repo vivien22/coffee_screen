@@ -1,6 +1,6 @@
 // Adafruit_GFX stand-in for the host: draws into a 240 x 240 RGB565 frame buffer, with the real GFX font rules
 // (bit-packed glyphs, offsets, advance). Used by tools/render_screens.cpp (the pictures of the README) and by
-// test/test_display.cpp. A program that links display.cpp must define frameBuffer.
+// test/test_display.cpp. A program that links Display.cpp must define frameBuffer.
 #pragma once
 #include "Arduino.h"
 

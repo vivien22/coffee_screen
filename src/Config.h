@@ -1,5 +1,5 @@
 /*
-  config.h: every pin, limit, timing and tuning constant of the machine, in one place.
+  Config.h: every pin, limit, timing and tuning constant of the machine, in one place.
 */
 
 #pragma once
@@ -29,7 +29,7 @@
 // ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0
 #define TEMPERATURE_MAX      150     // up to the steaming temperature (140-145 degrees C): set by hand when needed
-// The digits of a value have a fixed width (see display.cpp): the volume has 2 digits at most, and the values
+// The digits of a value have a fixed width (see Display.cpp): the volume has 2 digits at most, and the values
 // shown next to a tag in the duration field (WAIT, FLUSH) 1 digit, so that nothing leaves the round screen or
 // overlaps the tag.
 #define VOLUME_MAX           99

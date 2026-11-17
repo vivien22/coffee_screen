@@ -79,6 +79,6 @@
 
 // ============================ 3. Icons (compressed 2-bit opacity) ============================
 // 0 = background, 1 = 1/3 of the icon color, 2 = 2/3, 3 = full color. The data (size of each icon, then a bit
-// stream of runs, read by drawIcon() in display.cpp) is generated from tools/icons_raw.h by
+// stream of runs, read by drawIcon() in Display.cpp) is generated from tools/icons_raw.h by
 // ./tools/compress_icons.sh: edit the icons there, not here.
 #include "icons_data.h"

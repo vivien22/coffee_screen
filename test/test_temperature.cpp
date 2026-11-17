@@ -1,7 +1,7 @@
 // Temperature sensor: PT100 resistance -> degrees C (polynomial) against the exact Callendar-Van Dusen formula
 #include <cmath>
-#include "src/config.h"
-#include "src/heating/temperature_sensor.h"
+#include "src/Config.h"
+#include "src/heating/TemperatureSensor.h"
 #include <SPI.h>
 #include <cstdio>
 SPIClass SPI;

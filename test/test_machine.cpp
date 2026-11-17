@@ -2,13 +2,13 @@
 #include <string>
 #include <cstring>
 #define private public
-#include "src/machine/coffee_machine.h"
+#include "src/machine/CoffeeMachine.h"
 #undef private
-#include "src/config.h"
+#include "src/Config.h"
 #include <cstdio>
 #include "EEPROM.h"
 #include "settings_test.h"
-#include "src/settings/settings.h"
+#include "src/settings/Settings.h"
 #include <SPI.h>
 SPIClass SPI;
 static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}

@@ -1,7 +1,7 @@
-// coffee_machine.cpp: the main update() pass and the handlers of the encoder actions (short, double, long push).
+// CoffeeMachine.cpp: the main update() pass and the handlers of the encoder actions (short, double, long push).
 
-#include "coffee_machine.h"
-#include "../config.h"
+#include "CoffeeMachine.h"
+#include "../Config.h"
 
 // screen_ is set up by begin(): its members are not given a value by the constructor
 // cppcheck-suppress uninitMemberVar
@@ -247,7 +247,7 @@ void CoffeeMachine::handleShortPush() {
   }
 }
 
-// Double push: validates the parameter being edited and selects the next one (the cycle is in screen_controller.h).
+// Double push: validates the parameter being edited and selects the next one (the cycle is in ScreenController.h).
 // Ignored during an extraction; during a flush it stops the flush first. Validating CAL applies the calibration.
 void CoffeeMachine::handleDoublePush() {
   switch (extraction_.state()) {

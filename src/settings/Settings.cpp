@@ -1,7 +1,7 @@
-// settings.cpp: EEPROM layout, validation of the stored values, writing of the bytes that changed.
+// Settings.cpp: EEPROM layout, validation of the stored values, writing of the bytes that changed.
 
-#include "settings.h"
-#include "../config.h"
+#include "Settings.h"
+#include "../Config.h"
 #include <EEPROM.h>
 
 // EEPROM layout: [magic: 1 byte][temperature: int16][volume: int16][pre-infusion: 1 byte][wait: 1 byte][flush: 1 byte][mode: 1 byte][MANUAL time: 1 byte][loss: float]

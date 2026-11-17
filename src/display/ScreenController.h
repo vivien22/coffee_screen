@@ -3,14 +3,14 @@
 
   It holds the working values edited by the user (not saved yet), the selected parameter
   and the value currently shown in each field. Fields are redrawn only when marked dirty.
-  The only module that calls display.h; it knows nothing about the sensors or the heater,
+  The only module that calls Display.h; it knows nothing about the sensors or the heater,
   which are pushed to it through the show...() methods.
 */
 
 #pragma once
 #include <Arduino.h>
-#include "../settings/settings.h"
-#include "display.h"   // PhaseTag
+#include "../settings/Settings.h"
+#include "Display.h"   // PhaseTag
 
 // Parameter selected on the screen (large digits), adjusted by the encoder.
 // A double push selects the next one, in the order of this enum, then loops back to the volume.
@@ -47,7 +47,7 @@ class ScreenController {
     // The volume is selected again.
     void toggleMode();
 
-    // Calibration of the loss (see config.h). offerCalibration(): an AUTO extraction that gave
+    // Calibration of the loss (see Config.h). offerCalibration(): an AUTO extraction that gave
     // estimateMl is over, the CAL parameter joins the cycle of the double push, starting at estimateMl
     // (the cup weight is entered there). withdrawCalibration(): it leaves the cycle (new extraction).
     // applyCalibration(netMl): the double push that validates CAL; netMl is In - Out of the extraction;

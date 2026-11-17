@@ -1,7 +1,7 @@
 // No-flow safety: the pump runs but the water does not enter the boiler
 #include "EEPROM.h"
-#include "src/config.h"
-#include "src/machine/extraction_controller.h"
+#include "src/Config.h"
+#include "src/machine/ExtractionController.h"
 #include <cstdio>
 static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
 static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}

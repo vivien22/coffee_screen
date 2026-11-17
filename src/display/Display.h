@@ -5,8 +5,8 @@
   (temperature in degrees C, volume in ml, duration in s) and the heater indicator.
   It knows nothing about the machine; what to show and when is decided by screen_controller.
 
-  Positions, colors and icon data are in icons.h, the fonts are in fonts.h
-  (both are only used by display.cpp), the pins are in config.h.
+  Positions, colors and icon data are in icons.h, the fonts are in Fonts.h
+  (both are only used by Display.cpp), the pins are in Config.h.
 
   Requires the Adafruit GFX Library and Adafruit GC9A01A.
 */
@@ -16,7 +16,7 @@
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_GC9A01A.h>
-#include "../config.h"
+#include "../Config.h"
 
 // Size of the digits of a value
 enum TextSize {

@@ -3,10 +3,10 @@
 #include <cstring>
 #include "Arduino.h"
 #include "EEPROM.h"
-#include "src/settings/settings.h"
+#include "src/settings/Settings.h"
 #include "settings_test.h"
-#include "src/machine/extraction_controller.h"
-#include "src/display/screen_controller.h"
+#include "src/machine/ExtractionController.h"
+#include "src/display/ScreenController.h"
 #include <cstdio>
 static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
 static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}

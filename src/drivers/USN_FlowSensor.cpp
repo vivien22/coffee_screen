@@ -1,7 +1,7 @@
 // USN_FlowSensor.cpp: pulse counting of the two flow sensors (pin change interrupt), volumes and flow rate.
-#include "../config.h"
+#include "../Config.h"
 
-// Not compiled when the flow simulator replaces the sensors (see FLOW_SIMULATOR in config.h)
+// Not compiled when the flow simulator replaces the sensors (see FLOW_SIMULATOR in Config.h)
 #ifndef FLOW_SIMULATOR
 
 #include "USN_FlowSensor.h"

@@ -1,8 +1,8 @@
-// screen_controller.cpp: parameter cycle, dirty flags and the redraw rules (what is drawn, when).
+// ScreenController.cpp: parameter cycle, dirty flags and the redraw rules (what is drawn, when).
 
-#include "screen_controller.h"
-#include "../config.h"
-#include "display.h"
+#include "ScreenController.h"
+#include "../Config.h"
+#include "Display.h"
 
 // Starts the screen with the saved settings: the volume is selected and every field is drawn.
 void ScreenController::begin(const Settings &settings) {
@@ -117,7 +117,7 @@ void ScreenController::withdrawCalibration() {
 }
 
 // The cup weight entered in CAL is validated. netMl is In - Out of the extraction. The loss moves towards the
-// measured loss by CALIBRATION_GAIN (see config.h) and is kept between 0 and LOSS_MAX_ML. If the weight was
+// measured loss by CALIBRATION_GAIN (see Config.h) and is kept between 0 and LOSS_MAX_ML. If the weight was
 // not changed nothing is corrected. CAL leaves the cycle either way. Returns the loss.
 float ScreenController::applyCalibration(float netMl) {
   if (calibrationValue_ != calibrationStart_) {

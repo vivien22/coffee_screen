@@ -1,4 +1,4 @@
-// debug.h: serial traces, removed from the build when SERIAL_DEBUG is not defined.
+// Debug.h: serial traces, removed from the build when SERIAL_DEBUG is not defined.
 
 #pragma once
 #include <Arduino.h>

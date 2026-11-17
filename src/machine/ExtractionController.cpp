@@ -1,8 +1,8 @@
-// extraction_controller.cpp: phases of an extraction, safeties (no flow, maximum duration) and the volume estimate.
+// ExtractionController.cpp: phases of an extraction, safeties (no flow, maximum duration) and the volume estimate.
 
-#include "extraction_controller.h"
-#include "../config.h"
-#include "../debug.h"
+#include "ExtractionController.h"
+#include "../Config.h"
+#include "../Debug.h"
 
 // ------------------------------------------------------------
 // Phase table: what each phase does and how it ends. The code below only reads it.

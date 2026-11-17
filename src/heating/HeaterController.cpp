@@ -1,8 +1,8 @@
-// heater_controller.cpp: PID window, feedforward from the water flow, full power when far below the setpoint.
+// HeaterController.cpp: PID window, feedforward from the water flow, full power when far below the setpoint.
 
-#include "heater_controller.h"
-#include "../config.h"
-#include "../debug.h"
+#include "HeaterController.h"
+#include "../Config.h"
+#include "../Debug.h"
 
 // The PID works on the members input_, output_ and setpoint_ (PID_v1 keeps pointers to them).
 HeaterController::HeaterController(uint8_t relayPin) :

@@ -3,16 +3,16 @@
  * Arduino Nano (ATmega328P, 32 KB Flash / 2 KB SRAM)
  *
  * Cooperative loop, no RTOS and no delay(). Everything is in CoffeeMachine
- * (coffee_machine.h), which connects the independent modules:
+ * (CoffeeMachine.h), which connects the independent modules:
  *
- *   config.h               pins, limits, timings, tuning constants
- *   debug.h                serial traces
+ *   Config.h               pins, limits, timings, tuning constants
+ *   Debug.h                serial traces
  *   settings               saved values (EEPROM)
  *   temperature_sensor     MAX31865: reading, validity, filter
  *   heater_controller      PID + feedforward, heater relay
  *   extraction_controller  extraction state machine, pump relay
  *   screen_controller      what is shown and when
- *   display                drawing on the GC9A01 (icons.h, fonts.h)
+ *   display                drawing on the GC9A01 (icons.h, Fonts.h)
  *   CJMCU111               rotary encoder + push button
  *   USN_FlowSensor         flow sensors (PCINT1)
  *
@@ -23,9 +23,9 @@
  */
 
 #include <avr/wdt.h>
-#include "src/config.h"
-#include "src/machine/coffee_machine.h"
-#include "src/debug.h"
+#include "src/Config.h"
+#include "src/machine/CoffeeMachine.h"
+#include "src/Debug.h"
 
 CoffeeMachine machine;
 
