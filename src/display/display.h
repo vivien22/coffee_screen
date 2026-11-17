@@ -31,7 +31,7 @@ enum PhaseTag : uint8_t {
   PHASE_TAG_NONE,              // nothing: normal extraction or no extraction
   PHASE_TAG_PREINFUSION,       // "PRE":  the puck is being wetted (volume field)
   PHASE_TAG_PREINFUSION_WAIT,  // "WAIT": the puck is soaking (duration field)
-  PHASE_TAG_FLUSH,             // "FLUSH": the group head is rinsed, or waits to be (duration field)
+  PHASE_TAG_FLUSH,             // "FLUSH": the grouphead is rinsed, or waits to be (duration field)
   PHASE_TAG_CALIBRATION        // "CAL": the weight of the cup is entered (volume field)
 };
 
@@ -61,6 +61,10 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
+
+// Erase the volume and the duration (their whole fields, tags included); the next drawVolume() / drawDuration()
+// draws them again in full. Used to blink them.
+void clearValues();
 
 // Show or hide the phase tag of the duration field alone (blinking tag): drawn again at its
 // place, or erased.

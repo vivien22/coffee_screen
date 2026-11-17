@@ -22,6 +22,7 @@ for t in test/test_*.cpp; do
     test_flush|test_pre) C="$C $B/$d/src/settings/settings.cpp $B/$d/src/display/screen_controller.cpp";;
     test_temperature) C="$B/$d/src/heating/temperature_sensor.cpp";;
     test_encoder) C="$B/$d/src/lib/CJMCU111.cpp";;
+    test_display) C="$B/$d/src/display/display.cpp";;
     test_machine) C="$C $B/$d/src/settings/settings.cpp $B/$d/src/display/screen_controller.cpp $B/$d/src/machine/coffee_machine.cpp $B/$d/src/heating/heater_controller.cpp $B/$d/src/heating/temperature_sensor.cpp $B/$d/src/lib/CJMCU111.cpp";;
   esac
   g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" \

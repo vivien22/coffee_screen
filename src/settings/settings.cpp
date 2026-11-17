@@ -18,6 +18,8 @@ static const int ADDR_MANUAL           = ADDR_FLUSH + 1;   // 1 = MANUAL, anythi
 static const int ADDR_MANUAL_SECONDS   = ADDR_MANUAL + 1;  // a value out of range (blank 0xFF) = 0: no new magic needed
 static const int ADDR_LOSS             = ADDR_MANUAL_SECONDS + 1;   // a blank EEPROM (NaN) or an out of range value = the default
 
+// Reads the settings. A blank or unknown EEPROM gives the defaults (and writes them); a stored value out of its
+// limits is brought back to the nearest limit.
 Settings SettingsStore::load() const {
   Settings settings;
 

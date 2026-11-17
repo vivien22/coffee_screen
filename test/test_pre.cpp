@@ -16,7 +16,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
+void clearTemperature(){} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
 #define PUMP pins[4]
@@ -65,7 +65,7 @@ int main(){
     CHECK(sc.settings().preinfusionWait==5 && sc.settings().volume==40);
     sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_PREINFUSION_WAIT);
     calls.clear(); sc.update(701); CHECK(has("dur(5,1,2,1)")); CHECK(has("vol(40,0,0,1)"));   // wait in the duration field; the volume field is back to the target, small
-    CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==10);
+    CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(!sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==9);
   }
   // ---- screen during an extraction
   { ScreenController sc; Settings in={93,40,10,5,5}; sc.begin(in); sc.update(0); sc.showExtractionStarted(); sc.update(1);

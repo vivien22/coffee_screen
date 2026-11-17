@@ -20,6 +20,7 @@ USN_FlowSensor* USN_FlowSensor::_instance = nullptr;
 #define FLOW_IN_BIT   (PIN_FLOW_IN - A0)
 #define FLOW_OUT_BIT  (PIN_FLOW_OUT - A0)
 
+// Counts the pulses of the two flow sensors in a pin change interrupt, and turns them into volumes and flow rate.
 USN_FlowSensor::USN_FlowSensor() :
     _pulsesIn(0),
     _pulsesOut(0),

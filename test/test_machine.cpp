@@ -19,7 +19,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 
 static int fails=0;
 #define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
@@ -45,23 +45,37 @@ static void scenario(int flush){
       CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[4]==0 && pins[16]==0); }
     for(int i=0;i<8 && m.screen_.activeParameter()!=PARAMETER_VOLUME;i++) m.screen_.selectNextParameter();   // back to volume
     CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
-    m.handleShortPush(); for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-1000)/1000.0f*100; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; }
+    m.handleShortPush(); { unsigned long ts=t; for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-ts)/1000.0f*10; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; } }
     m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     calls.clear(); unsigned long tf=t;
     for(int i=0;i<100;i++){ t+=100; m.update(); if(!m.extraction_.isActive()) break; }
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
-    // the target volume (40, large because the volume is selected) and 0 s are shown at once, no hold
+    // at the end of the flush the values of the extraction are shown again, not the target yet
+    CHECK(!has("vol(40,1,0,1)")); CHECK(!has("dur(0,0,0,1)"));
+    // they stay 10 s from the end of the flush (and blink during the last 1.6 s), then the target volume (40, large
+    // because the volume is selected) and 0 s come back
+    calls.clear(); unsigned long tfe=t;
+    while(t<tfe+6800){ t+=100; m.update(); }
+    CHECK(!has("clearVals(0,0,0,0)"));
+    while(t<tfe+9900){ t+=100; m.update(); }
+    CHECK(has("clearVals(0,0,0,0)")); CHECK(!has("vol(40,1,0,1)") && !has("dur(0,0,0,1)"));
+    while(t<tfe+10200){ t+=100; m.update(); }
     CHECK(has("vol(40,1,0,1)")); CHECK(has("dur(0,0,0,1)"));
-    printf("flush=%d: values reset %lu ms after the end of the flush\n",flush,0UL);
+    printf("flush=%d: values reset 10 s after the end of the flush\n",flush);
   } else {
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
     // final values shown, held 10 s
     bool final=false; for(auto&c:calls) if(c.rfind("dur(",0)==0 && c!="dur(0,0,0,1)") final=true; CHECK(final);
     calls.clear(); unsigned long t0=t;
+    while(t<t0+8300){ t+=100; m.update(); }
+    CHECK(!has("clearVals(0,0,0,0)"));                              // no blinking before the last 1.6 s
     while(t<t0+9900){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)")); CHECK(!has("vol(40,1,0,1)"));     // still holding at 9.9 s
+    { int hidden=0; for(auto&c:calls) if(c=="clearVals(0,0,0,0)") hidden++; CHECK(hidden>=2 && hidden<=3);   // blinking: hidden then shown every 400 ms
+      bool shownAgain=false; bool afterClear=false; for(auto&c:calls){ if(c=="clearVals(0,0,0,0)") afterClear=true; else if(afterClear && c.rfind("dur(",0)==0) shownAgain=true; } CHECK(shownAgain); }
     while(t<t0+10200){ t+=100; m.update(); }
     CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
+    calls.clear(); { unsigned long t1=t; while(t<t1+3000){ t+=100; m.update(); } } CHECK(!has("clearVals(0,0,0,0)"));   // and no more blinking
     // a new extraction during the hold cancels the reset
     m.handleShortPush(); t+=100; m.update(); calls.clear();
     for(int i=0;i<30;i++){ t+=100; m.flow_.vol=1; m.update(); }
@@ -133,8 +147,11 @@ static void manualMode(){
   m.handleShortPush();                                   // stop
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
   calls.clear(); unsigned long t0=t;
+  while(t<t0+8300){ t+=100; m.update(); }
+  CHECK(!has("clearVals(0,0,0,0)"));                     // MANUAL too: no blinking before the last 1.6 s
   while(t<t0+9900){ t+=100; m.update(); }
   CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
+  CHECK(has("clearVals(0,0,0,0)"));                      // and blink during the last 1.6 s
   while(t<t0+10300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here
@@ -247,7 +264,7 @@ static void calibration(){
   float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
   CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
   CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);        // saved
-  CHECK(m.screen_.activeParameter()==PARAMETER_PREINFUSION && !m.screen_.calibrationAvailable_);
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && !m.screen_.calibrationAvailable_);   // modified: back to the volume
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().loss>expect-0.01f && m2.screen_.settings().loss<expect+0.01f); }
   gotoParam(m,PARAMETER_VOLUME);
   for(int i=0;i<8;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION); }   // gone from the cycle
@@ -256,7 +273,7 @@ static void calibration(){
   runAuto(m); net=m.extraction_.netVolumeMl(); CHECK(net>=40+expect-0.5f && net<40+expect+3);
   // CAL not touched: the loss stays
   gotoParam(m,PARAMETER_CALIBRATION); float before=m.screen_.settings().loss; m.handleDoublePush();
-  CHECK(m.screen_.settings().loss==before);
+  CHECK(m.screen_.settings().loss==before && m.screen_.activeParameter()==PARAMETER_PREINFUSION);   // not modified: the cycle goes on
   // an extraction under CALIBRATION_MIN_ML is not offered
   gotoParam(m,PARAMETER_VOLUME); m.screen_.adjustActiveParameter(5-m.screen_.settings().volume); runAuto(m);
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !m.extraction_.calibratable());

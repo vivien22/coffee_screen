@@ -29,16 +29,19 @@
 // ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0
 #define TEMPERATURE_MAX      199
-#define VOLUME_MAX           999
+// The digits of a value have a fixed width (see display.cpp): the volume has 2 digits at most, and the values
+// shown next to a tag in the duration field (WAIT, FLUSH) 1 digit, so that nothing leaves the round screen or
+// overlaps the tag.
+#define VOLUME_MAX           99
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").
 #define PREINFUSION_MAX_ML                50
 #define DEFAULT_PREINFUSION_ML            10
-#define PREINFUSION_WAIT_MAX_SECONDS      10
+#define PREINFUSION_WAIT_MAX_SECONDS      9
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
-#define FLUSH_MAX_SECONDS                 10
+#define FLUSH_MAX_SECONDS                 9
 #define DEFAULT_FLUSH_SECONDS             5
 
 // Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a long push
@@ -55,9 +58,10 @@
 #define DEFAULT_MANUAL_SECONDS            0
 
 // ---------- Temperature offset and standby ----------
-// The boiler probe is hotter than the water that reaches the group head. The setpoint and the temperature shown
-// are the temperature of the water: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the
-// screen shows probe - TEMPERATURE_OFFSET (degrees C).
+// On this coffee machine (Ascaso Steel Uno Pro) the temperature of the boiler probe is higher than the temperature
+// of the water at the grouphead. The setpoint and the temperature shown are the temperature of the
+// water at the grouphead: the heater regulates the probe at setpoint + TEMPERATURE_OFFSET and the screen shows
+// probe - TEMPERATURE_OFFSET (degrees C). Set it to 0 if your probe reads the same as the water at the grouphead.
 #define TEMPERATURE_OFFSET   5
 
 // Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
@@ -127,8 +131,10 @@
 #define LOSS_MAX_ML                  60.0f
 #define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
 #define CALIBRATION_MIN_ML           10
-#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // an extraction without flush: its volume and duration stay on the screen
+#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
+#define RESULT_BLINK_WINDOW_MS       1600UL    // during the last part of that time the volume and the duration blink (2 blinks):
+#define RESULT_BLINK_MS              400UL     // they are alternately hidden and shown this long (0 window = no blinking)
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.
 //   PREINFUSION       pump ON  + valve open   (until the pre-infusion VOLUME has entered the boiler)
@@ -161,7 +167,7 @@
 // After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a long push resets the error;
 // a short or double push does nothing meanwhile.
 //
-// Flush: after the extraction, the group head is rinsed with hot water.
+// Flush: after the extraction, the grouphead is rinsed with hot water.
 //   FLUSH_WAIT        pump OFF + valve closed (waits for a short push)
 //   FLUSHING          pump ON  + valve open   (flush time, set on the screen)
 // The flush time is a setting (0 to FLUSH_MAX_SECONDS, saved in EEPROM):

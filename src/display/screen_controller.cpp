@@ -4,6 +4,7 @@
 #include "../config.h"
 #include "display.h"
 
+// Starts the screen with the saved settings: the volume is selected and every field is drawn.
 void ScreenController::begin(const Settings &settings) {
   settings_ = settings;
   active_ = PARAMETER_VOLUME;
@@ -19,6 +20,8 @@ void ScreenController::begin(const Settings &settings) {
 #endif
 }
 
+// Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
+// Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
   // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
   if (tagBlinking_) {
@@ -49,6 +52,7 @@ void ScreenController::update(uint32_t now) {
   render();
 }
 
+// The drop icon blinks while the no-water error lasts, and stays on again once it is cleared.
 void ScreenController::showNoWater(bool error) {
   if (error && !dropBlinking_) {
     dropBlinking_ = true;
@@ -63,9 +67,29 @@ void ScreenController::showNoWater(bool error) {
   }
 }
 
+// The volume and the duration of the result are hidden and shown again until blinking is false (the machine
+// stops it when the target values come back, or when a new extraction starts).
+void ScreenController::blinkResult(uint32_t now, bool blinking) {
+  if (!blinking) {
+    if (resultHidden_) {
+      resultHidden_ = false;
+      dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+    }
+  } else if ((int32_t)(now - resultToggleAt_) >= 0) {
+    resultToggleAt_ = now + RESULT_BLINK_MS;
+    resultHidden_ = !resultHidden_;
+    if (resultHidden_) {
+      clearValues();
+    } else {
+      dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+    }
+  }
+}
+
 // ------------------------------------------------------------
 // User actions
 
+// AUTO <-> MANUAL: the letter in the drop changes and the volume is selected again.
 void ScreenController::toggleMode() {
   settings_.manual = !settings_.manual;
   drawDrop(dropVisible_, settings_.manual);
@@ -81,27 +105,34 @@ bool ScreenController::availableInMode(ActiveParameter p) const {
   return p != PARAMETER_MANUAL_TIME && (p != PARAMETER_CALIBRATION || calibrationAvailable_);
 }
 
+// An AUTO extraction just ended: CAL joins the cycle, starting at the volume the machine estimated.
 void ScreenController::offerCalibration(uint16_t estimateMl) {
   calibrationAvailable_ = true;
   calibrationValue_ = calibrationStart_ = estimateMl;
 }
 
+// A new extraction starts: the previous one can no longer be used to calibrate.
 void ScreenController::withdrawCalibration() {
   calibrationAvailable_ = false;
 }
 
+// The cup weight entered in CAL is validated. netMl is In - Out of the extraction. The loss moves towards the
+// measured loss by CALIBRATION_GAIN (see config.h) and is kept between 0 and LOSS_MAX_ML. If the weight was
+// not changed nothing is corrected. CAL leaves the cycle either way. Returns the loss.
 float ScreenController::applyCalibration(float netMl) {
   if (calibrationValue_ != calibrationStart_) {
     const float loss = settings_.loss + CALIBRATION_GAIN * (netMl - calibrationValue_ - settings_.loss);
     settings_.loss = constrain(loss, 0.0f, LOSS_MAX_ML);
+    activate(PARAMETER_VOLUME);   // the calibration is done: back to the volume, not on to the next parameter
   }
   calibrationAvailable_ = false;
   return settings_.loss;
 }
 
 void ScreenController::selectNextParameter() {
-  // AUTO: volume -> pre-infusion -> wait -> flush -> temperature -> volume
+  // AUTO:   volume -> [CAL, only after an extraction] -> pre-infusion -> wait -> flush -> temperature -> volume
   // MANUAL: volume -> MANUAL time -> temperature -> volume
+  // The loop skips the parameters that do not exist in the current mode.
   ActiveParameter next = active_;
   do {
     next = (ActiveParameter)((next + 1) % PARAMETER_COUNT);
@@ -109,6 +140,8 @@ void ScreenController::selectNextParameter() {
   activate(next);
 }
 
+// Selects a parameter and sets what its field shows: the setpoint while the temperature is edited, the target
+// volume when the volume is selected, the live temperature again when the temperature is left.
 void ScreenController::activate(ActiveParameter next) {
   const ActiveParameter previous = active_;
   active_ = next;
@@ -130,6 +163,7 @@ void ScreenController::activate(ActiveParameter next) {
   dirty_ |= DIRTY_ALL_VALUES;           // the size of the digits changes
 }
 
+// Changes the selected parameter by delta, kept between its limits. Returns true if the value changed.
 bool ScreenController::adjustActiveParameter(int16_t delta) {
   if (settings_.manual && active_ == PARAMETER_VOLUME) {
     return false;   // MANUAL mode: the volume is not a target, the field shows 0
@@ -182,6 +216,7 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
 // ------------------------------------------------------------
 // Machine state to show
 
+// The probe is faulty: "ERR" replaces the temperature.
 void ScreenController::showTemperatureError() {
   if (!temperatureError_) {
     temperatureError_ = true;
@@ -189,6 +224,8 @@ void ScreenController::showTemperatureError() {
   }
 }
 
+// The measured temperature (water temperature, offset already removed). Refreshed at most every
+// TEMPERATURE_DISPLAY_MS, and redrawn only if the displayed text changes.
 void ScreenController::showLiveTemperature(uint32_t now, double celsius) {
   liveTemperature_ = celsius;
   if (temperatureError_) {
@@ -218,6 +255,7 @@ void ScreenController::showLiveTemperature(uint32_t now, double celsius) {
   }
 }
 
+// The heater indicator is redrawn only when the heater switches.
 void ScreenController::showHeaterState(bool on) {
   if (heaterKnown_ && on == heaterShown_) {
     return;
@@ -227,6 +265,7 @@ void ScreenController::showHeaterState(bool on) {
   dirty_ |= DIRTY_HEATER;
 }
 
+// An extraction starts: volume and duration start again at 0, without tag.
 void ScreenController::showExtractionStarted() {
   volumeShown_ = 0;
   durationShown_ = 0;
@@ -247,6 +286,7 @@ uint16_t ScreenController::readyDuration() const {
   return settings_.manual ? settings_.manualSeconds : 0;
 }
 
+// Nothing is going on: the fields show the target volume (0 in MANUAL) and 0 s (the MANUAL time in MANUAL).
 void ScreenController::showReady() {
   volumeShown_ = readyVolume();   // the target volume, not the last extraction
   durationShown_ = readyDuration();
@@ -257,18 +297,23 @@ void ScreenController::showReady() {
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
+// The next four functions give the screen the values of the phase in progress, each with its tag.
+// Main extraction (or the final values of a finished one): volume and elapsed time, no tag.
 void ScreenController::showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds) {
   showExtractionValues(volumeMl, PHASE_TAG_NONE, durationSeconds, PHASE_TAG_NONE);
 }
 
+// Pre-infusion: the millilitres left to send, tag "PRE".
 void ScreenController::showPreinfusion(uint16_t mlLeft, uint16_t durationSeconds) {
   showExtractionValues(mlLeft, PHASE_TAG_PREINFUSION, durationSeconds, PHASE_TAG_NONE);
 }
 
+// Pre-infusion wait: the seconds left, tag "WAIT".
 void ScreenController::showPreinfusionWait(uint16_t volumeMl, uint16_t secondsLeft) {
   showExtractionValues(volumeMl, PHASE_TAG_NONE, secondsLeft, PHASE_TAG_PREINFUSION_WAIT);
 }
 
+// Flush: the tag "FLUSH" is fixed while waiting for the push, and blinks while flushing.
 void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool flushing) {
   showExtractionValues(volumeMl, PHASE_TAG_NONE, secondsLeft, PHASE_TAG_FLUSH);
 
@@ -311,6 +356,8 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
 // ------------------------------------------------------------
 // Drawing: only the dirty fields
 
+// Draws the fields marked dirty. The size of the digits shows which parameter is selected (large = selected),
+// and the field of a parameter being edited shows that parameter instead of the extraction values.
 void ScreenController::render() {
   if (dirty_ == DIRTY_NONE) {
     return;

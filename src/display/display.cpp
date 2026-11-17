@@ -2,6 +2,7 @@
   display: drawing of the coffee screen (see display.h).
 */
 
+#include <string.h>
 #include "display.h"
 #include "fonts.h"
 #include "icons.h"
@@ -15,6 +16,16 @@
 // The screen driver
 static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
+// What a number field shows, to erase only what is needed (see drawNumber)
+struct NumberField {
+  int16_t xEnd;     // where the number ended: the unit follows
+  uint8_t size;     // TextSize of the digits
+  uint8_t tag;      // PhaseTag shown next to it
+  bool valid;       // false: the field is not known to show anything (start, or something else was drawn over it)
+};
+static NumberField temperatureField, volumeField, durationField;
+
+// Starts the GC9A01 and clears the screen.
 void beginDisplay() {
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black
   pinMode(PIN_TFT_BL, OUTPUT);
@@ -22,6 +33,7 @@ void beginDisplay() {
 
   tft.begin();
   tft.fillScreen(COLOR_BG);
+  temperatureField.valid = volumeField.valid = durationField.valid = false;
 
   // Set Blk Pin to High
   digitalWrite(PIN_TFT_BL, HIGH);
@@ -55,12 +67,14 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *levels, uint8_t width,
   tft.endWrite();
 }
 
+// The fixed icons: thermometer, drop and clock.
 void drawIcons() {
   drawIcon(ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
   drawIcon(ICON_DROP_X,        ICON_DROP_Y,        ICON_DROP,        ICON_DROP_WIDTH,        ICON_DROP_HEIGHT);
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
+// The drop icon with the letter of the mode: A (AUTO) or M (MANUAL). Not visible = the icon is erased (blinking).
 void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
@@ -78,28 +92,132 @@ void drawDrop(bool, bool) {}
 // ------------------------------------------------------------
 // Values
 
-// Erase the zone of a value, then draw it (small or large digits) left-aligned
-// at x, on the given baseline. Returns the x position after the number, where the unit goes.
-static int16_t drawNumber(int16_t value,
-                          TextSize size,
-                          int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
-                          int16_t x, int16_t baseline) {
-  char text[6];
-  itoa(value, text, 10);
-
-  tft.fillRect(zoneX, zoneY, zoneWidth, zoneHeight, COLOR_BG);
-  tft.setTextColor(COLOR_TEXT);
-  if (size == TEXT_SIZE_SMALL) {
-    tft.setFont(FONT_SMALL);
-  } else {
-    tft.setFont(FONT_LARGE);
-  }
-  tft.setCursor(x, baseline);
-  tft.print(text);
-
-  return tft.getCursorX();
+static const uint8_t *glyphBitmap(const GFXfont *font) {
+#ifdef __AVR__
+  return (const uint8_t *)pgm_read_word(&font->bitmap);
+#else
+  return font->bitmap;
+#endif
 }
 
+// A glyph of a digit font. The fonts are in flash on the AVR: their fields are read with pgm_read_*.
+// All the fonts start at '0'.
+static const GFXglyph *glyphOf(const GFXfont *font, char c) {
+#ifdef __AVR__
+  const GFXglyph *glyphs = (const GFXglyph *)pgm_read_word(&font->glyph);
+#else
+  const GFXglyph *glyphs = font->glyph;
+#endif
+  return &glyphs[c - '0'];
+}
+
+// Width of the cell of a digit: the same for all the digits of a font (the widest one), so that the end of
+// a number, and the unit that follows it, move only when the number gets one digit longer or shorter, not
+// each time a digit changes ("1" is much narrower than "4"). The decimal point keeps its own width.
+#define DIGIT_CELL_SMALL 26
+#define DIGIT_CELL_LARGE 39
+
+// Width of the cell of a character: how far the cursor moves after it.
+static uint8_t advanceOf(const GFXfont *font, char c) {
+  if (c == ':') {
+    return pgm_read_byte(&glyphOf(font, c)->xAdvance);
+  }
+  return (font == FONT_SMALL) ? DIGIT_CELL_SMALL : DIGIT_CELL_LARGE;
+}
+
+// Draws one character as a block of the zone height, in one burst: the pixels of the glyph in the text color
+// and all the others in the background color. The old character is replaced at once, without a moment where
+// the place is blank (what a erase followed by a print would show).
+// The block is as wide as the cell of the character, and the glyph is centered in it: no glyph goes beyond its
+// cell (checked for all the digits of the two fonts), so the blocks never overlap.
+static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline) {
+  const GFXglyph *glyph = glyphOf(font, c);
+  const uint8_t width = pgm_read_byte(&glyph->width);
+  const uint8_t rows = pgm_read_byte(&glyph->height);
+  // The glyph is centered in its (wider) cell
+  const int16_t xOffset = (int8_t)pgm_read_byte(&glyph->xOffset)
+                          + (advanceOf(font, c) - pgm_read_byte(&glyph->xAdvance)) / 2;
+  const int16_t top = baseline + (int8_t)pgm_read_byte(&glyph->yOffset);   // first row of the glyph
+  const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
+
+  const uint8_t blockWidth = advanceOf(font, c);
+
+  tft.startWrite();
+  tft.setAddrWindow(x, y, blockWidth, height);
+
+  // The pixels are sent in runs of the same color
+  uint16_t runColor = COLOR_BG;
+  uint16_t runLength = 0;
+  for (int16_t row = 0; row < height; row++) {
+    const int16_t glyphRow = y + row - top;
+    for (int16_t column = 0; column < blockWidth; column++) {
+      const int16_t glyphColumn = column - xOffset;
+      uint16_t color = COLOR_BG;
+      if (glyphRow >= 0 && glyphRow < rows && glyphColumn >= 0 && glyphColumn < width) {
+        const uint16_t bit = glyphRow * width + glyphColumn;
+        if (pgm_read_byte(&bits[bit >> 3]) & (0x80 >> (bit & 7))) {
+          color = COLOR_TEXT;
+        }
+      }
+      if (color != runColor && runLength) {
+        tft.writeColor(runColor, runLength);
+        runLength = 0;
+      }
+      runColor = color;
+      runLength++;
+    }
+  }
+  tft.writeColor(runColor, runLength);
+  tft.endWrite();
+}
+
+// Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
+// replaces what was there (see drawGlyphBlock), so nothing is erased first and nothing flickers, even if the
+// digits are the same as before. The rest of the zone is erased only where it is needed:
+//   - left of the number and right of it, when the field did not show the same look before (first draw, other
+//     digit size, other tag) or when force is set;
+//   - right of the number, when it ends elsewhere than before (shorter number...).
+// moved is set when the end of the number is not where it was: the unit that follows must be drawn again.
+// Returns the x position after the number, where the unit goes.
+static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
+                          int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
+                          int16_t x, int16_t baseline, bool &moved) {
+  // Three digits do not fit in large digits (the cells are wide): a long value is shown in small digits
+  if (strlen(text) > 2) {
+    size = TEXT_SIZE_SMALL;
+  }
+
+  const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
+  const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
+
+  // One block per digit, from left to right
+  int16_t xEnd = x;
+  for (const char *c = text; *c; c++) {
+    drawGlyphBlock(font, *c, xEnd, zoneY, zoneHeight, baseline);
+    xEnd += advanceOf(font, *c);
+  }
+
+  moved = !sameLook || xEnd != field.xEnd;
+
+  // Around the blocks: the left margin of the zone (new look), and the right of the number, up to the end of the
+  // zone, if it moved (the old one was longer, the unit is going to be drawn again)
+  if (!sameLook && x > zoneX) {
+    tft.fillRect(zoneX, zoneY, x - zoneX, zoneHeight, COLOR_BG);
+  }
+  if (moved && xEnd < zoneX + zoneWidth) {
+    tft.fillRect(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight, COLOR_BG);
+  }
+
+  tft.setTextColor(COLOR_TEXT);   // for the unit that follows (the tag drawn last changed the color)
+
+  field.xEnd = xEnd;
+  field.size = size;
+  field.tag = tag;
+  field.valid = true;
+  return xEnd;
+}
+
+// Temperature: a decimal is added below 100 degrees (small digits only); the unit follows the number.
 void drawTemperature(double value, TextSize size) {
   // Display one decimal below 100 °C; use an integer at 100 °C and above.
   const uint16_t roundedTenths = (uint16_t)(value * 10.0 + 0.5);
@@ -108,31 +226,35 @@ void drawTemperature(double value, TextSize size) {
     ? roundedTenths / 10
     : (uint16_t)(value + 0.5);
 
-  int16_t xNumberEnd = drawNumber(integerValue,
-                                  size,
-                                  TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
-                                  TEMPERATURE_X, TEMPERATURE_BASELINE);
-
+  // The decimal point is the glyph ':' of FontSmall (see fonts.h): the number and its decimal are one text
+  char text[6];
+  itoa(integerValue, text, 10);
   if (showDecimal && size == TEXT_SIZE_SMALL) {
-    // Decimal point and first decimal digit, in the digit font still selected by drawNumber():
-    // the decimal point is the glyph ':' of FontSmall (see fonts.h).
-    const char decimal[3] = { ':', (char)('0' + (roundedTenths % 10)), 0 };
-    tft.setCursor(xNumberEnd, TEMPERATURE_BASELINE);
-    tft.print(decimal);
-    xNumberEnd = tft.getCursorX();
+    const uint8_t length = strlen(text);
+    text[length] = ':';
+    text[length + 1] = (char)('0' + (roundedTenths % 10));
+    text[length + 2] = 0;
   }
 
-  // Degree sign (glyph '4' of FontUnit, centered on the cursor), then the unit
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
-  tft.print('4');
-  tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-  tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
+  bool moved;
+  const int16_t xNumberEnd = drawNumber(temperatureField, text, size, PHASE_TAG_NONE, false,
+                                        TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT,
+                                        TEMPERATURE_X, TEMPERATURE_BASELINE, moved);
+
+  if (moved) {
+    // Degree sign (glyph '4' of FontUnit, centered on the cursor), then the unit
+    tft.setFont(FONT_UNIT);
+    tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
+    tft.print('4');
+    tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
+    tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see fonts.h)
+  }
 }
 
 // "ERR" in white, twice the size of the tag letters: FontTag ('2' = E, '1' = R) has the only capitals
 void drawTemperatureError() {
   tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
+  temperatureField.valid = false;   // the temperature has to be drawn again in full
   tft.setFont(FONT_TAG);
   tft.setTextColor(COLOR_TEXT);
   tft.setTextSize(2);
@@ -152,67 +274,90 @@ static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
             (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
 }
 
+// Volume in ml, with its tag (PRE, CAL...) when there is one. The tag is redrawn only if redrawTag.
 void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
-  // The tag already drawn is kept when only the number changes: the zone erased before the
-  // number stops where the tag starts.
+  // The tag already drawn is kept when only the number changes: the zone of the number stops where the
+  // tag starts.
   const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
   int16_t zoneWidth = VOLUME_ZONE_WIDTH;
   if (keepTag) {
     zoneWidth = VOLUME_TAG_X - VOLUME_ZONE_X;
   }
 
-  int16_t xNumberEnd = drawNumber(value,
-                                  size,
-                                  VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
-                                  VOLUME_X, VOLUME_BASELINE);
+  char text[6];
+  itoa(value, text, 10);
 
-  // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone
-  // above does not cover: erased too, below the tag.
-  if (keepTag) {
-    tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
-                 VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
-                 VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+  bool moved;
+  const int16_t xNumberEnd = drawNumber(volumeField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
+                                        VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
+                                        VOLUME_X, VOLUME_BASELINE, moved);
+
+  if (moved) {
+    // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone
+    // above does not cover: erased too, below the tag.
+    if (keepTag) {
+      tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
+                   VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
+                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+    }
+
+    tft.setFont(FONT_UNIT);
+    tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
+    tft.print(F("21"));
   }
-
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
-  tft.print(F("21"));
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
     drawTag(tag, VOLUME_TAG_X, VOLUME_TAG_BASELINE);
   }
 }
 
+// Duration in seconds, with its tag (WAIT, FLUSH) when there is one.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
-  // The tag already drawn is kept when only the number changes: the zone erased before the
-  // number stops where the tag starts.
+  // The tag already drawn is kept when only the number changes: the zone of the number stops where the
+  // tag starts.
   const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
   int16_t zoneWidth = DURATION_ZONE_WIDTH;
   if (keepTag) {
     zoneWidth = DURATION_TAG_X - DURATION_ZONE_X;
   }
 
-  int16_t xNumberEnd = drawNumber(value,
-                                  size,
-                                  DURATION_ZONE_X, DURATION_ZONE_Y, zoneWidth, DURATION_ZONE_HEIGHT,
-                                  DURATION_X, DURATION_BASELINE);
+  char text[6];
+  itoa(value, text, 10);
 
-  // Large digits: the "s" is under the tag, in a part of the field that the zone above does not cover.
-  if (keepTag && size == TEXT_SIZE_LARGE) {
-    tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE + 1,
-                 DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X,
-                 DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
+  const bool wasLarge = durationField.valid && durationField.size == TEXT_SIZE_LARGE;
+
+  bool moved;
+  const int16_t xNumberEnd = drawNumber(durationField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
+                                        DURATION_ZONE_X, DURATION_ZONE_Y, zoneWidth, DURATION_ZONE_HEIGHT,
+                                        DURATION_X, DURATION_BASELINE, moved);
+
+  if (moved) {
+    // Large digits: the "s" is under the tag, in a part of the field that the zone above does not cover
+    // (also when it was drawn there by the previous large value).
+    if (keepTag && (size == TEXT_SIZE_LARGE || wasLarge)) {
+      tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE + 1,
+                   DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X,
+                   DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
+    }
+
+    tft.setFont(FONT_UNIT);
+    tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
+    tft.print('3');
   }
-
-  tft.setFont(FONT_UNIT);
-  tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
-  tft.print('3');
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
     drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
   }
 }
 
+// Volume and duration erased (blinking of the result of an extraction).
+void clearValues() {
+  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
+  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
+  volumeField.valid = durationField.valid = false;
+}
+
+// Only the tag (used for the blinking of FLUSH).
 void drawPhaseTag(PhaseTag tag, bool visible) {
   if (visible) {
     drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
@@ -223,6 +368,7 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
   }
 }
 
+// The small dot next to the temperature that shows the heater is on.
 void drawHeaterIndicator(bool visible) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
   tft.setFont(FONT_UNIT);
