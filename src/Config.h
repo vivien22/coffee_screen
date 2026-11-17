@@ -98,7 +98,10 @@
 #define HEATER_POWER_W           1100.0f   // power of the heating element (W): set it to your boiler
 #define WATER_INLET_TEMPERATURE  22.0f     // temperature of the water entering the boiler (degrees C)
 #define WATER_SPECIFIC_HEAT      4.186f    // J/(g.K)
-#define FEEDFORWARD_GAIN         0.3f      // 0 = feedforward off, 1 = full estimate; tune on a real extraction
+// 1.0 = the full estimate, measured on the real boiler (2026-11-17, pid-tuning branch, 20 s of pump = 100 ml): the probe drop
+// goes from 11.5 C (0) to 9.7 (0.3), 8.7 (0.5), 8.0 (0.7), 7.75 (1.0). The element (1100 W) is already at full power from the
+// start of the flow, so a delay of the feedforward only makes it worse: none here.
+#define FEEDFORWARD_GAIN         1.0f      // 0 = feedforward off, 1 = full estimate
 
 // ---------- Flow sensors ----------
 // Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
