@@ -1,0 +1,13 @@
+series started 2026-11-17T18:24:09, setpoint 97, pump 20 s
+ff 0.3 delay System.Object[]: before 96,76  minimum 87,08 (drop 9,68) at +34 s  back within 0.5 C after +78 s  max after the minimum 97,68  peak heating 881 ms  volume 101 ml
+series finished 2026-11-17T18:27:53
+series started 2026-11-17T18:31:45, setpoint 97, pump 20 s
+ff 0.5 delay 0: before 96,95  minimum 88,27 (drop 8,68) at +31 s  back within 0.5 C after +68 s  max after the minimum 97,79  peak heating 1?000 ms  volume 102 ml
+ff 0.7 delay 0: before 97,47  minimum 89,49 (drop 7,98) at +32 s  back within 0.5 C after +108 s  max after the minimum 97,01  peak heating 1?000 ms  volume 102 ml
+ff 1.0 delay 0: before 96,97  minimum 89,22 (drop 7,75) at +31 s  back within 0.5 C after +69 s  max after the minimum 97,01  peak heating 1?000 ms  volume 101 ml
+series finished 2026-11-17T18:40:29
+series started 2026-11-17T18:40:54, setpoint 97, pump 20 s
+ff 1.0 delay 3: before 96,72  minimum 87,52 (drop 9,20) at +30 s  back within 0.5 C after +62 s  max after the minimum 97,57  peak heating 1?000 ms  volume 102 ml
+ff 1.0 delay 6: before 96,76  minimum 87,38 (drop 9,38) at +32 s  back within 0.5 C after +66 s  max after the minimum 97,74  peak heating 1?000 ms  volume 102 ml
+ff 0.7 delay 3: before 97,04  minimum 87,67 (drop 9,37) at +31 s  back within 0.5 C after +69 s  max after the minimum 97,24  peak heating 1?000 ms  volume 101 ml
+series finished 2026-11-17T18:47:29

@@ -1,0 +1,9 @@
+series started 2026-11-17T19:26:04, setpoint 97, ff 1, pump 20 s
+kp 40 ki 0.1 kd 500: before 96.57 (setpoint error -0.43)  min 89.13 (drop 7.44)  back within 0.5 C at +74  within 0.2 C at +82  max after min 96.72  mean of the last 20 s 96.57
+kp 40 ki 0.3 kd 500: before 96.51 (setpoint error -0.49)  min 89.99 (drop 6.52)  back within 0.5 C at +62  within 0.2 C at +68  max after min 97.11  mean of the last 20 s 96.98
+kp 40 ki 0.6 kd 500: before 96.98 (setpoint error -0.02)  min 90.21 (drop 6.77)  back within 0.5 C at +57  within 0.2 C at +61  max after min 97.74  mean of the last 20 s 97.35
+kp 80 ki 0.1 kd 500: before 97.34 (setpoint error 0.34)  min 90.69 (drop 6.65)  back within 0.5 C at +51  within 0.2 C at +52  max after min 98.70  mean of the last 20 s 96.57
+kp 20 ki 0.1 kd 500: before 96.58 (setpoint error -0.42)  min 90.35 (drop 6.23)  back within 0.5 C at +111  within 0.2 C at +120  max after min 96.44  mean of the last 20 s 96.33
+kp 40 ki 0.1 kd 0: before 96.56 (setpoint error -0.44)  min 89.78 (drop 6.78)  back within 0.5 C at +56  within 0.2 C at +57  max after min 98.44  mean of the last 20 s 96.32
+kp 40 ki 0.1 kd 1000: before 96.55 (setpoint error -0.45)  min 89.69 (drop 6.86)  back within 0.5 C at +60  within 0.2 C at +74  max after min 96.74  mean of the last 20 s 96.47
+series finished 2026-11-17T19:56:44
