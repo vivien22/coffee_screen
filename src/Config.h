@@ -189,7 +189,7 @@
 #define DISPLAY_ICONS
 
 // The welcome picture (a cup of coffee) stays on the screen this long at start-up (ms); 0 = none, and its data
-// (about 0.9 KB of flash) is then not in the flash. Needs DISPLAY_ICONS.
+// (about 1 KB of flash) is then not in the flash. Needs DISPLAY_ICONS.
 #define WELCOME_MS               5000UL
 
 // ---------- Screen refresh ----------

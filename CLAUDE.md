@@ -12,14 +12,15 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, with the welcome picture): 29538 B flash, 458 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 29730 B flash, 465 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, with the welcome picture): 29722 B flash, 462 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 29912 B flash, 469 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
   `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
-  build is about 190 B larger. With the welcome picture (924 B) the firmware is 29730 B of 30720 B with the real sensors,
-  and the feedforward table of the PID tuning (+220 B) will still fit.
+  build is about 190 B larger. With the welcome picture (about 1.1 KB with its start-up code) the firmware is 29912 B of
+  30720 B with the real sensors,
+  and the feedforward table of the PID tuning (+220 B) will still fit (about 590 B left).
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
@@ -48,6 +49,10 @@ The README describes the behaviour. The user writes in French: reply in French.
 ## Display
 - Custom bit-packed Adafruit GFX fonts (`src/display/Fonts.h`), already reduced to the glyphs in use.
 - Digits are drawn as opaque glyph blocks with fixed-width cells so a number changes without a blank moment.
+- Start-up sequence: `ScreenController::begin()` shows the welcome picture, the probe and the flow sensors start while it is
+  shown, `finishWelcome()` waits for the rest of `WELCOME_MS`, clears the picture and draws the icons in the dark, then
+  `update()` draws the values and `show()` lights the screen. Measured on the board: 311 ms of black screen between the
+  picture and the real screen, 193 ms of which are the first values (the drawing of the digit blocks is the slow part).
 - Limits that keep the layout valid: volume <= 99, pre-infusion <= 50, wait and flush <= 9 s, manual <= 99 s.
 
 ## Code conventions (asked by the user)
