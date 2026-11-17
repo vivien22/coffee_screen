@@ -36,7 +36,9 @@ The README describes the behaviour. The user writes in French: reply in French.
   commits is not the user's approval: do not push, ask for "pousse".
 - Never force-push or rewrite a published branch without an explicit request.
 - Branches: `master` (working), `pid-tuning` (tuning firmware without the UI, serial console, own tests),
-  `preinfusion-time` (old), `phase-table` (merged into master).
+  `preinfusion-time` (old), `phase-table` (merged into master), `welcome-image` (welcome picture of 5 s at start-up, kept
+  on its own branch by the user until the software is finished: do not merge it unless asked. It costs 924 B and the
+  real flow sensors build is the larger one (29730 B, 70 B under the CI budget): merging it means raising the budget).
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 
 ## Display
