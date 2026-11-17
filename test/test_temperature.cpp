@@ -4,12 +4,7 @@
 #include "src/heating/TemperatureSensor.h"
 #include <SPI.h>
 #include <cstdio>
-SPIClass SPI;
-static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
-void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t,uint8_t){} int digitalRead(uint8_t){return 0;}
-void noInterrupts(){} void interrupts(){} SerialT Serial;
-static int fails=0;
-#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
+#include "TestSupport.h"
 // The MAX31865 answers the RTD register (2 bytes after the address): 15 bits of ratio, then the fault bit
 static uint16_t rtdRegister=0; static int byteIndex=0;
 static uint8_t answer(uint8_t v){ if(v==0x01){ byteIndex=0; return 0; } if(v!=0) { byteIndex=-1; return 0; }

@@ -3,11 +3,7 @@
 #include "src/drivers/CJMCU111.h"
 #undef private
 #include <cstdio>
-static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
-static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}
-int digitalRead(uint8_t p){return pins[p];} void noInterrupts(){} void interrupts(){} SerialT Serial;
-static int fails=0;
-#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
+#include "TestSupport.h"
 // Set Ga / Gb, 10 ms later, and run the interrupt routine
 static void set(int ga,int gb){ t+=10; pins[2]=ga; pins[3]=gb; CJMCU111::isrGx(); }
 int main(){

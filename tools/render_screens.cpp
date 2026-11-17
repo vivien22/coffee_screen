@@ -10,14 +10,9 @@
 
 uint16_t frameBuffer[240 * 240];
 
-// The little of the Arduino API that the display code needs
-static unsigned long now_ = 0;
-unsigned long millis() { return now_; }
-void delay(unsigned long) {}
-void pinMode(uint8_t, uint8_t) {}
-void digitalWrite(uint8_t, uint8_t) {}
-int digitalRead(uint8_t) { return 0; }
-char *itoa(int v, char *s, int) { sprintf(s, "%d", v); return s; }
+// The Arduino API that the display code needs is the one of the tests (test/stubs/ArduinoStubs.cpp);
+// the clock of the screens is its clock
+static unsigned long &now_ = stubNow;
 
 static std::string outDir;
 

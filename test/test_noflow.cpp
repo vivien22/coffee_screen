@@ -3,11 +3,7 @@
 #include "src/Config.h"
 #include "src/machine/ExtractionController.h"
 #include <cstdio>
-static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
-static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}
-int digitalRead(uint8_t){return 0;} void noInterrupts(){} void interrupts(){} SerialT Serial; EEPROMClass EEPROM;
-static int fails=0;
-#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
+#include "TestSupport.h"
 #define PUMP pins[4]
 #define VALVE pins[16]
 int main(){

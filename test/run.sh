@@ -25,7 +25,7 @@ for t in test/test_*.cpp; do
     test_display) C="$B/$d/src/display/Display.cpp";;
     test_machine) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/machine/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
   esac
-  g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" \
+  g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
   printf "%s: " "$n"; "$B/$n" | tail -3 || status=1
 done

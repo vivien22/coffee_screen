@@ -8,7 +8,7 @@ B=${TMPDIR:-/tmp}/coffee_screen_render
 rm -rf "$B" && mkdir -p "$B/raw"
 cp -r src "$B/src"
 # The Arduino stubs of the tests (their Adafruit_GFX draws into a frame buffer)
-g++ -std=c++11 -w -I"$B" -Itest/stubs tools/render_screens.cpp \
+g++ -std=c++11 -w -I"$B" -Itest/stubs tools/render_screens.cpp test/stubs/ArduinoStubs.cpp \
     "$B/src/display/Display.cpp" "$B/src/display/ScreenController.cpp" -o "$B/render"
 "$B/render" "$B/raw"
 mkdir -p docs/images

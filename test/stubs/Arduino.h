@@ -25,6 +25,9 @@ void pinMode(uint8_t,uint8_t); void digitalWrite(uint8_t,uint8_t); int digitalRe
 void noInterrupts(); void interrupts();
 struct SerialT { template<class T> void print(T){} template<class T,class U> void print(T,U){} template<class T> void println(T){} template<class T,class U> void println(T,U){} void begin(long){} };
 extern SerialT Serial;
+// The state of this stand-in (ArduinoStubs.cpp), driven by the tests
+extern unsigned long stubNow;   // what millis() returns
+extern int stubPins[32];        // the level written to each pin by digitalWrite(), read by digitalRead()
 char* itoa(int,char*,int);
 #define pgm_read_byte(p) (*(p))
 #define pgm_read_word(p) (*(p))

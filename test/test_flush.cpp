@@ -8,9 +8,7 @@
 #include "src/machine/ExtractionController.h"
 #include "src/display/ScreenController.h"
 #include <cstdio>
-static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}
-static int pins[32]; void pinMode(uint8_t,uint8_t){} void digitalWrite(uint8_t p,uint8_t v){pins[p]=v;}
-int digitalRead(uint8_t){return 0;} void noInterrupts(){} void interrupts(){} SerialT Serial; EEPROMClass EEPROM;
+#include "TestSupport.h"
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
 void beginDisplay(){} void drawIcons(){}
@@ -18,8 +16,6 @@ void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
 void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-static int fails=0;
-#define CHECK(c) do{ if(!(c)){printf("FAIL line %d: %s\n",__LINE__,#c);fails++;} }while(0)
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
 #define PUMP pins[4]
 #define VALVE pins[16]

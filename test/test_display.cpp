@@ -6,17 +6,10 @@
 #include <cstdlib>
 #include <vector>
 #include "src/display/Display.h"
+#include "TestSupport.h"
 
 uint16_t frameBuffer[240 * 240];
-unsigned long millis() { return 0; }
-void delay(unsigned long) {}
-void pinMode(uint8_t, uint8_t) {}
-void digitalWrite(uint8_t, uint8_t) {}
-int digitalRead(uint8_t) { return 0; }
-char *itoa(int v, char *s, int) { sprintf(s, "%d", v); return s; }
 
-static int fails = 0;
-#define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
 typedef std::vector<uint16_t> Picture;
 // Only the pixels inside the round screen count: what is drawn outside is not visible
