@@ -1,4 +1,5 @@
-# Host tests of the logic (no Arduino needed) and static analysis, on every push and pull request
+# Host tests of the logic (no Arduino needed), static analysis, and the build of the firmware for the Nano
+# with its flash budget, on every push and pull request
 name: tests
 on: [push, pull_request]
 jobs:
@@ -7,6 +8,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: ./test/run.sh
+  firmware:
+    # The firmware is built twice: with the flow simulator (config.h as it is) and with the real flow sensors
+    # (the simulator is switched off on this runner only). tools/check_flash.sh fails over the flash / RAM budget.
+    name: firmware (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: flow simulator
+            real_sensors: false
+          - name: real flow sensors
+            real_sensors: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - run: pip install platformio
+      - if: matrix.real_sensors == true
+        run: sed -i '/^#define FLOW_SIMULATOR/d' src/Config.h
+      - run: ./tools/check_flash.sh
+        env:
+          LABEL: ${{ matrix.name }}
   cppcheck:
     runs-on: ubuntu-latest
     steps:
