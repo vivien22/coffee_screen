@@ -15,6 +15,7 @@ void ScreenController::begin(const Settings &settings) {
   dirty_ = DIRTY_ALL_VALUES;
 
   beginDisplay();
+  showWelcome();   // the welcome picture for WELCOME_MS, then the screen is clear and dark again
 #ifdef DISPLAY_ICONS
   drawIcons();
   drawDrop(true, settings_.manual);   // with the letter of the mode

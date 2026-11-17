@@ -81,6 +81,7 @@ struct IconBits {
 // the first two bits are the level of the pixels of the token:
 //     00 nnnnn   nnnnn + 1 pixels of level 0       01   one pixel of level 1       10   one pixel of level 2
 //     11 nnnn    nnnn + 1 pixels of level 3
+//     00 11111 v mmmmmm   the escape (nnnnn = 31): mmmmmm + 1 pixels of level 1 (v = 0) or 2 (v = 1), for large areas
 // Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
 // Levels 1, 2, 3 are 5/15, 10/15, 15/15 of the icon color.
 static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, uint8_t height) {
@@ -93,6 +94,10 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
       if (!run) {
         level = bits.get(2);
         run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
+        if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2
+          level = 1 + bits.get(1);
+          run = bits.get(6) + 1;
+        }
       }
       run--;
       if (level) {
@@ -101,6 +106,19 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
     }
   }
   tft.endWrite();
+}
+
+// The welcome picture, at start-up: drawn while the backlight is off, so that it appears complete, then shown for
+// WELCOME_MS, then the backlight goes off again and the screen is cleared for the real screen (which is drawn
+// in the dark too, see showDisplay()).
+void showWelcome() {
+#if WELCOME_MS > 0
+  drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
+  digitalWrite(PIN_TFT_BL, HIGH);
+  delay(WELCOME_MS);
+  digitalWrite(PIN_TFT_BL, LOW);
+  tft.fillScreen(COLOR_BG);
+#endif
 }
 
 // The fixed icons: thermometer, drop and clock.
@@ -123,6 +141,7 @@ void drawDrop(bool visible, bool manual) {
 }
 #else
 void drawDrop(bool, bool) {}
+void showWelcome() {}
 #endif  // DISPLAY_ICONS
 
 // ------------------------------------------------------------

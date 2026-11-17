@@ -13,7 +13,7 @@
 #include "TestSupport.h"
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
-void beginDisplay(){} void showDisplay(){L("show");} void drawIcons(){}
+void beginDisplay(){} void showDisplay(){L("show");} void showWelcome(){L("welcome");} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
@@ -312,6 +312,9 @@ static void startup(){
   bool temperature=false, volume=false, duration=false;
   for(int i=0;i<show;i++){ temperature|=startsWith(calls[i],"temp(")||startsWith(calls[i],"temperr("); volume|=startsWith(calls[i],"vol("); duration|=startsWith(calls[i],"dur("); }
   CHECK(temperature && volume && duration);                         // all drawn before the backlight
+  // the welcome picture comes first, before the real screen is drawn
+  int welcome=-1; for(size_t i=0;i<calls.size();i++) if(calls[i]=="welcome(0,0,0,0)"){ CHECK(welcome<0); welcome=(int)i; }
+  CHECK(welcome==0);
   printf("start-up: ok\n");
 }
 int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

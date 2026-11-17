@@ -43,6 +43,11 @@ void beginDisplay();
 // Switch the backlight on: the screen appears complete.
 void showDisplay();
 
+// The welcome picture, shown WELCOME_MS (it blocks that long: call it once at start-up, right after beginDisplay()).
+// The backlight is off again when it returns, and the screen is clear.
+// Does nothing if WELCOME_MS is 0.
+void showWelcome();
+
 #ifdef DISPLAY_ICONS
 // Draw the three icons (thermometer, drop, clock)
 void drawIcons();

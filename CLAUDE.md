@@ -12,10 +12,12 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, compressed icons, probe fault tolerance): 28590 B flash, 457 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 28782 B flash, 464 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, with the welcome picture): 29538 B flash, 458 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 29730 B flash, 465 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds and fails over 29800 B of flash or 1600 B of RAM; the CI runs it for both flow
-  configurations on every push. About 1 KB is kept free for the feedforward table of the PID tuning: do not raise
+  configurations on every push. About 1 KB was kept free for the feedforward table of the PID tuning (+220 B): the
+  welcome picture (924 B) uses it, leaving 70 B under the budget with the real sensors. Raising the budget, a smaller
+  picture or `WELCOME_MS` 0 is the user's choice; do not raise
   the budget without asking.
 
 ## Tests (host, no Arduino)
@@ -30,6 +32,9 @@ The README describes the behaviour. The user writes in French: reply in French.
   that are not meant to change the look.
 - The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
   `tools/icons_raw.h`; after changing it run `./tools/compress_icons.sh` (it checks that the decoded icons equal the source).
+  It also holds the welcome picture (96 x 96, shown `WELCOME_MS` = 5 s at start-up): to change it, convert a PNG with
+  `tools/png_to_icon.ps1` (Windows PowerShell, the palette maps each color to a level 0..3, see its header), paste the
+  result in `icons_raw.h` and run the script. `test_welcome` checks that the decoder draws the pictures exactly.
 
 ## Git rules
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed

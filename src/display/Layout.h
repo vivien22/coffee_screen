@@ -24,6 +24,9 @@
 #define MODE_LETTER_DY                36    // from ICON_DROP_Y to its baseline
 #define ICON_CLOCK_X                  56   // ink x 56 -> 94: compromise between the original place (x 65) and the axis of the thermometer (x 46)
 #define ICON_CLOCK_Y                  167
+// The welcome picture of the start-up: in the middle of the screen
+#define WELCOME_X                     ((240 - ICON_WELCOME_WIDTH) / 2)
+#define WELCOME_Y                     ((240 - ICON_WELCOME_HEIGHT) / 2)
 
 // For texts, Y is the baseline of the GFX font (_BASELINE).
 // Zones (_ZONE_) are erased with COLOR_BG before each value update.
