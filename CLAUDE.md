@@ -20,7 +20,7 @@ The README describes the behaviour. The user writes in French: reply in French.
 - `test_display` is a property test (incremental drawing must equal a fresh draw).
 - `./tools/render_screens.sh` regenerates the README PNGs; they must stay identical after display changes
   that are not meant to change the look.
-- The icons are stored compressed (`src/display/icons_data.h`, generated, do not edit). The readable source is
+- The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
   `tools/icons_raw.h`; after changing it run `./tools/compress_icons.sh` (it checks that the decoded icons equal the source).
 
 ## Git rules

@@ -1,5 +1,5 @@
 // The icons of the coffee screen as 2-bit opacity masks (4 pixels per byte): the readable source of the data of
-// src/display/icons.h, which holds them compressed. Edit the icons here, then run ./tools/compress_icons.sh.
+// src/display/IconsData.h, which holds them compressed. Edit the icons here, then run ./tools/compress_icons.sh.
 //
 // Pixel i: byte i/4, bits 7-6 for the first pixel of the byte, then 5-4, 3-2, 1-0.
 // 0 = background, 1 = 1/3 of the icon color, 2 = 2/3, 3 = full color.

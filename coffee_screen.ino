@@ -12,7 +12,7 @@
  *   heater_controller      PID + feedforward, heater relay
  *   extraction_controller  extraction state machine, pump relay
  *   screen_controller      what is shown and when
- *   display                drawing on the GC9A01 (icons.h, Fonts.h)
+ *   display                drawing on the GC9A01 (Layout.h, Fonts.h)
  *   CJMCU111               rotary encoder + push button
  *   USN_FlowSensor         flow sensors (PCINT1)
  *

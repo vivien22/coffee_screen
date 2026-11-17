@@ -1,9 +1,9 @@
-// Display data for the GC9A01 coffee screen (240 x 240): colors, POSITIONS, icons
+// Layout of the GC9A01 coffee screen (240 x 240): colors, sizes and POSITIONS of everything that is drawn
 // Mockup: Interface_circulaire_minimaliste_92_C_38_ml_48s.png (1186 px circle -> 240 px screen)
 //
 //   1. Colors (background, text, icons)
-//   2. Positions of icons and texts (everything is here: the sketch contains no coordinates)
-//   3. Icons: 2-bit opacity masks, compressed (icons_data.h), drawn with COLOR_ICON
+//   2. Sizes and positions of icons and texts (everything is here: the code contains no coordinates)
+//   3. Icons: 2-bit opacity masks, compressed (IconsData.h, included at the end), drawn with COLOR_ICON
 #pragma once
 #include <Arduino.h>
 
@@ -27,6 +27,12 @@
 
 // For texts, Y is the baseline of the GFX font (_BASELINE).
 // Zones (_ZONE_) are erased with COLOR_BG before each value update.
+
+// ---------- Digits: width of the cell of a digit (small and large digits) ----------
+// All the digits of a font have the cell of the widest one ("4"), so that a number and the unit after it only move
+// when it gets one digit longer or shorter. The decimal point keeps its own width. No glyph goes beyond its cell.
+#define DIGIT_CELL_SMALL              26
+#define DIGIT_CELL_LARGE              39
 
 // ---------- Temperature: "92 °C" (left-aligned, up to 3 digits) ----------
 // The row is shifted to the left so that 199 stays inside the round screen.
@@ -81,4 +87,4 @@
 // 0 = background, 1 = 1/3 of the icon color, 2 = 2/3, 3 = full color. The data (size of each icon, then a bit
 // stream of runs, read by drawIcon() in Display.cpp) is generated from tools/icons_raw.h by
 // ./tools/compress_icons.sh: edit the icons there, not here.
-#include "icons_data.h"
+#include "IconsData.h"

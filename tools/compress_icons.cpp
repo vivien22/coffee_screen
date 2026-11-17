@@ -1,7 +1,7 @@
-// compress_icons: turns the 2-bit icons of tools/icons_raw.h into the compressed data of src/display/icons.h.
+// compress_icons: turns the 2-bit icons of tools/icons_raw.h into the compressed data of src/display/IconsData.h.
 // It decodes what it wrote and compares it with the source: a difference stops it (nothing is written).
 //
-//   usage: compress_icons > src/display/icons_data.h      (or ./tools/compress_icons.sh)
+//   usage: compress_icons > src/display/IconsData.h      (or ./tools/compress_icons.sh)
 //
 // Format (lossless): the pixels, row by row, as a stream of bits, the first bit being the most significant
 // bit of the first byte. Each token starts with two bits, the level of its first pixel:

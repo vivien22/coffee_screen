@@ -5,7 +5,7 @@
 #include <string.h>
 #include "Display.h"
 #include "Fonts.h"
-#include "icons.h"
+#include "Layout.h"
 
 // ---------- Fonts (digits in two sizes, units) ----------
 #define FONT_SMALL (&FontSmall)   // digits, small size
@@ -144,11 +144,9 @@ static const GFXglyph *glyphOf(const GFXfont *font, char c) {
   return &glyphs[c - '0'];
 }
 
-// Width of the cell of a digit: the same for all the digits of a font (the widest one), so that the end of
-// a number, and the unit that follows it, move only when the number gets one digit longer or shorter, not
-// each time a digit changes ("1" is much narrower than "4"). The decimal point keeps its own width.
-#define DIGIT_CELL_SMALL 26
-#define DIGIT_CELL_LARGE 39
+// The cell of a digit has the same width for all the digits of a font (DIGIT_CELL_SMALL / DIGIT_CELL_LARGE in
+// Layout.h), so that the end of a number, and the unit that follows it, move only when the number gets one digit
+// longer or shorter, not each time a digit changes ("1" is much narrower than "4").
 
 // Width of the cell of a character: how far the cursor moves after it.
 static uint8_t advanceOf(const GFXfont *font, char c) {
