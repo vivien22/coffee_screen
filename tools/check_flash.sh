@@ -28,8 +28,8 @@ if [ -z "$flash" ] || [ -z "$ram" ]; then
   exit 1
 fi
 
-# the share of the flash, in tenths of percent (96.2 %)
-tenths=$((flash * 1000 / FLASH_LIMIT))
+# the share of the flash, in tenths of percent, rounded like pio does (96.2 %)
+tenths=$(((flash * 1000 + FLASH_LIMIT / 2) / FLASH_LIMIT))
 percent="$((tenths / 10)).$((tenths % 10))"
 
 echo "flash: $flash B of $FLASH_LIMIT B ($percent %)"
