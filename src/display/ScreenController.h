@@ -151,6 +151,7 @@ class ScreenController {
     double liveTemperature_ = 0.0;
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none
     bool temperatureError_ = false;     // sensor fault: "ERR" is shown instead of the live temperature
+    bool temperatureErrorShown_ = false; // "ERR" is on the screen now (it is not drawn again while it is)
     uint32_t lastTemperatureAt_ = 0;
 
     bool heaterShown_ = false;

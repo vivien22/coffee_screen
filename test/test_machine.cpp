@@ -116,8 +116,11 @@ static void temperatureError(){
   CHECK(!has("temperr(0,0,0,0)"));
   sc.showTemperatureError(); calls.clear(); sc.update(1); CHECK(has("temperr(0,0,0,0)"));
   sc.showTemperatureError(); calls.clear(); sc.update(2); CHECK(calls.empty());             // drawn once
+  // a double push while ERR is on the screen: that field does not change, so ERR is not erased and drawn again (flicker)
+  sc.selectNextParameter(); calls.clear(); sc.update(2); CHECK(!has("temperr(0,0,0,0)"));
+  sc.selectNextParameter(); calls.clear(); sc.update(2); CHECK(!has("temperr(0,0,0,0)"));
   // the setpoint is still shown while it is edited
-  for(int i=0;i<4;i++) sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_TEMPERATURE);
+  for(int i=0;i<2;i++) sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_TEMPERATURE);
   calls.clear(); sc.update(3); CHECK(!has("temperr(0,0,0,0)"));
   sc.selectNextParameter(); calls.clear(); sc.update(4); CHECK(has("temperr(0,0,0,0)"));     // back to the live value: still ERR
   sc.showLiveTemperature(5000,90.0); calls.clear(); sc.update(5000); CHECK(!has("temperr(0,0,0,0)") && !calls.empty());

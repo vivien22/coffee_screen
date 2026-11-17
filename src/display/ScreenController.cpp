@@ -11,6 +11,7 @@ void ScreenController::begin(const Settings &settings) {
   volumeShown_ = readyVolume();
   durationShown_ = readyDuration();
   temperatureShown_ = 0.0;
+  temperatureErrorShown_ = false;   // the screen is filled again by beginDisplay()
   dirty_ = DIRTY_ALL_VALUES;
 
   beginDisplay();
@@ -367,9 +368,15 @@ void ScreenController::render() {
   dirty_ = DIRTY_NONE;
 
   if ((dirty & DIRTY_TEMPERATURE) && temperatureError_ && active_ != PARAMETER_TEMPERATURE) {
-    drawTemperatureError();
+    // "ERR" erases its zone before it is drawn: it is drawn again only if something else was drawn there since,
+    // not each time the field is marked dirty without a change (a double push to the next parameter)
+    if (!temperatureErrorShown_) {
+      drawTemperatureError();
+      temperatureErrorShown_ = true;
+    }
   } else if (dirty & DIRTY_TEMPERATURE) {
     drawTemperature(temperatureShown_, active_ == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
+    temperatureErrorShown_ = false;
   }
   if (dirty & (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)) {
     // The tag is redrawn only if the whole field is dirty (not when only the number changed).
