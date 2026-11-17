@@ -74,12 +74,12 @@ class CJMCU111 {
     // Only one instance is possible: the ISR and its state are static
     static void isrGx();
 
-    static byte rotaryPinGa;
-    static byte rotaryPinGb;
+    static byte rotaryPinGa_;
+    static byte rotaryPinGb_;
 
 #ifdef CJMCU_111_DEBUG
-    static byte rotaryIsrDebugPinA;
-    static byte rotaryIsrDebugPinB;
+    static byte rotaryIsrDebugPinA_;
+    static byte rotaryIsrDebugPinB_;
 #endif
 
     enum RotationInputStatus {
@@ -92,33 +92,33 @@ class CJMCU111 {
       kRotationStatusWaitForFinishR, // Ga: LOW, Gb RISING
     };
 
-    static volatile RotationInputStatus rotationStatus;
+    static volatile RotationInputStatus rotationStatus_;
 
-    static volatile bool rotaryInputDetected;
-    static volatile byte rotationCountL;
-    static volatile byte rotationCountR;
-    static volatile byte rotaryPushCount;
-    static volatile unsigned long rotaryPushDuration; // msec, last push
-    static volatile unsigned long rotaryPressStart;   // time (ms) the button was pressed
-    static volatile unsigned long rotaryPushPressTime; // time (ms) the last registered push was pressed
-    static volatile bool rotaryPressCandidate;        // true while Ga stays LOW and Gb HIGH after a fresh press
+    static volatile bool rotaryInputDetected_;
+    static volatile byte rotationCountL_;
+    static volatile byte rotationCountR_;
+    static volatile byte rotaryPushCount_;
+    static volatile unsigned long rotaryPushDuration_; // msec, last push
+    static volatile unsigned long rotaryPressStart_;   // time (ms) the button was pressed
+    static volatile unsigned long rotaryPushPressTime_; // time (ms) the last registered push was pressed
+    static volatile bool rotaryPressCandidate_;        // true while Ga stays LOW and Gb HIGH after a fresh press
 
-    static const byte isrGxDebounceDuration = 2; // msec
+    static const byte isrGxDebounceDuration_ = 2; // msec
 
-    static volatile unsigned long isrGxTime;
-    static volatile unsigned long isrGxLastTime;
+    static volatile unsigned long isrGxTime_;
+    static volatile unsigned long isrGxLastTime_;
 
     // Push classification (main context only, used by update())
-    unsigned int longPushThresholdMs;
-    unsigned int doublePushWindowMs;
-    bool shortPushPending;            // a short push is waiting to know if a second one follows
-    unsigned long shortPushTime;      // time (ms) of the pending short push
-    PushEvent queuedPushEvent;        // event to return on the next update() call
-    bool longPushReported;            // long push already reported while held: ignore its release
-    unsigned long eventPressMs;       // press time of the push behind the last event
-    unsigned long shortPushPressMs;   // press time of the pending short push
-    unsigned long queuedEventPressMs; // press time of the queued event
-    unsigned long lastReadPushPressMs;// press time of the last push read from the ISR
+    unsigned int longPushThresholdMs_;
+    unsigned int doublePushWindowMs_;
+    bool shortPushPending_;            // a short push is waiting to know if a second one follows
+    unsigned long shortPushTime_;      // time (ms) of the pending short push
+    PushEvent queuedPushEvent_;        // event to return on the next update() call
+    bool longPushReported_;            // long push already reported while held: ignore its release
+    unsigned long eventPressMs_;       // press time of the push behind the last event
+    unsigned long shortPushPressMs_;   // press time of the pending short push
+    unsigned long queuedEventPressMs_; // press time of the queued event
+    unsigned long lastReadPushPressMs_;// press time of the last push read from the ISR
 
     // True while the button is held down; heldMs = time since the press, pressStartMs = time of the press
     bool pushHeld(unsigned long &heldMs, unsigned long &pressStartMs);

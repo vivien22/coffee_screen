@@ -10,74 +10,74 @@
 
 #include "CJMCU111.h"
 
-byte CJMCU111::rotaryPinGa = 2;
-byte CJMCU111::rotaryPinGb = 3;
+byte CJMCU111::rotaryPinGa_ = 2;
+byte CJMCU111::rotaryPinGb_ = 3;
 
 #ifdef CJMCU_111_DEBUG
-byte CJMCU111::rotaryIsrDebugPinA = 4;
-byte CJMCU111::rotaryIsrDebugPinB = 5;
+byte CJMCU111::rotaryIsrDebugPinA_ = 4;
+byte CJMCU111::rotaryIsrDebugPinB_ = 5;
 #endif
 
-volatile CJMCU111::RotationInputStatus CJMCU111::rotationStatus = CJMCU111::kRotationStatusWaiting;
+volatile CJMCU111::RotationInputStatus CJMCU111::rotationStatus_ = CJMCU111::kRotationStatusWaiting;
 
-volatile bool CJMCU111::rotaryInputDetected = false;
-volatile byte CJMCU111::rotationCountL = 0;
-volatile byte CJMCU111::rotationCountR = 0;
-volatile byte CJMCU111::rotaryPushCount = 0;
-volatile unsigned long CJMCU111::rotaryPushDuration = 0;
-volatile unsigned long CJMCU111::rotaryPressStart = 0;
-volatile unsigned long CJMCU111::rotaryPushPressTime = 0;
-volatile bool CJMCU111::rotaryPressCandidate = false;
+volatile bool CJMCU111::rotaryInputDetected_ = false;
+volatile byte CJMCU111::rotationCountL_ = 0;
+volatile byte CJMCU111::rotationCountR_ = 0;
+volatile byte CJMCU111::rotaryPushCount_ = 0;
+volatile unsigned long CJMCU111::rotaryPushDuration_ = 0;
+volatile unsigned long CJMCU111::rotaryPressStart_ = 0;
+volatile unsigned long CJMCU111::rotaryPushPressTime_ = 0;
+volatile bool CJMCU111::rotaryPressCandidate_ = false;
 
-volatile unsigned long CJMCU111::isrGxTime = 0;
-volatile unsigned long CJMCU111::isrGxLastTime = 0;
+volatile unsigned long CJMCU111::isrGxTime_ = 0;
+volatile unsigned long CJMCU111::isrGxLastTime_ = 0;
 
 
 CJMCU111::CJMCU111(byte pinGa, byte pinGb, unsigned int longPushMs, unsigned int doublePushMs) {
-  rotaryPinGa = pinGa;
-  rotaryPinGb = pinGb;
-  longPushThresholdMs = longPushMs;
-  doublePushWindowMs = doublePushMs;
-  shortPushPending = false;
-  shortPushTime = 0;
-  queuedPushEvent = PUSH_NONE;
-  longPushReported = false;
-  eventPressMs = 0;
-  shortPushPressMs = 0;
-  queuedEventPressMs = 0;
-  lastReadPushPressMs = 0;
+  rotaryPinGa_ = pinGa;
+  rotaryPinGb_ = pinGb;
+  longPushThresholdMs_ = longPushMs;
+  doublePushWindowMs_ = doublePushMs;
+  shortPushPending_ = false;
+  shortPushTime_ = 0;
+  queuedPushEvent_ = PUSH_NONE;
+  longPushReported_ = false;
+  eventPressMs_ = 0;
+  shortPushPressMs_ = 0;
+  queuedEventPressMs_ = 0;
+  lastReadPushPressMs_ = 0;
 }
 
 void CJMCU111::begin() {
-  rotationStatus = kRotationStatusWaiting;
+  rotationStatus_ = kRotationStatusWaiting;
 
-  pinMode(rotaryPinGa, INPUT_PULLUP);
-  pinMode(rotaryPinGb, INPUT_PULLUP);
+  pinMode(rotaryPinGa_, INPUT_PULLUP);
+  pinMode(rotaryPinGb_, INPUT_PULLUP);
 
 #ifdef CJMCU_111_DEBUG
-  pinMode(rotaryIsrDebugPinA, OUTPUT);
-  digitalWrite(rotaryIsrDebugPinA, HIGH);
-  pinMode(rotaryIsrDebugPinB, OUTPUT);
-  digitalWrite(rotaryIsrDebugPinB, HIGH);
+  pinMode(rotaryIsrDebugPinA_, OUTPUT);
+  digitalWrite(rotaryIsrDebugPinA_, HIGH);
+  pinMode(rotaryIsrDebugPinB_, OUTPUT);
+  digitalWrite(rotaryIsrDebugPinB_, HIGH);
 #endif
 
-  attachInterrupt(digitalPinToInterrupt(rotaryPinGa), isrGx, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(rotaryPinGb), isrGx, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(rotaryPinGa_), isrGx, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(rotaryPinGb_), isrGx, CHANGE);
 }
 
 //===========
 
 bool CJMCU111::pushHeld(unsigned long &heldMs, unsigned long &pressStartMs) {
   noInterrupts(); // the status (enum) and the time are multi-byte values
-  bool held = rotaryPressCandidate && (rotationStatus == kRotationStatusStartLorPush);
-  pressStartMs = rotaryPressStart;
+  bool held = rotaryPressCandidate_ && (rotationStatus_ == kRotationStatusStartLorPush);
+  pressStartMs = rotaryPressStart_;
   interrupts();
   heldMs = held ? (millis() - pressStartMs) : 0;
   return held;
 }
 
 unsigned long CJMCU111::eventPressTime() const {
-  return eventPressMs;
+  return eventPressMs_;
 }
 
 bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
@@ -86,10 +86,10 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
   event = PUSH_NONE;
 
   // an event queued by the previous call goes first (rotation is kept for the next call)
-  if (queuedPushEvent != PUSH_NONE) {
-    event = queuedPushEvent;
-    eventPressMs = queuedEventPressMs;
-    queuedPushEvent = PUSH_NONE;
+  if (queuedPushEvent_ != PUSH_NONE) {
+    event = queuedPushEvent_;
+    eventPressMs_ = queuedEventPressMs_;
+    queuedPushEvent_ = PUSH_NONE;
     return true;
   }
 
@@ -102,14 +102,14 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
   unsigned long pushDurationMs = 0;
   read(left, right, push, pushDurationMs);
 
-  if (longPushReported) {
+  if (longPushReported_) {
     if (push) {
       // release of a long push already reported while held: ignore it
-      longPushReported = false;
+      longPushReported_ = false;
       push--;
     } else if (!held) {
       // the press ended without a push (rotation while pressed)
-      longPushReported = false;
+      longPushReported_ = false;
     }
   }
 
@@ -117,80 +117,80 @@ bool CJMCU111::update(byte &left, byte &right, PushEvent &event) {
     unsigned long now = millis();
     if (push >= 2) {
       // two pushes registered since the last call: double push
-      shortPushPending = false;
+      shortPushPending_ = false;
       event = PUSH_DOUBLE;
-      eventPressMs = lastReadPushPressMs;
-    } else if (pushDurationMs >= longPushThresholdMs) {
+      eventPressMs_ = lastReadPushPressMs_;
+    } else if (pushDurationMs >= longPushThresholdMs_) {
       // long push not seen while held (update() was not called in time): report it on release
-      if (shortPushPending) {
-        shortPushPending = false;
+      if (shortPushPending_) {
+        shortPushPending_ = false;
         event = PUSH_SHORT;
-        eventPressMs = shortPushPressMs;
-        queuedPushEvent = PUSH_LONG;
-        queuedEventPressMs = lastReadPushPressMs;
+        eventPressMs_ = shortPushPressMs_;
+        queuedPushEvent_ = PUSH_LONG;
+        queuedEventPressMs_ = lastReadPushPressMs_;
       } else {
         event = PUSH_LONG;
-        eventPressMs = lastReadPushPressMs;
+        eventPressMs_ = lastReadPushPressMs_;
       }
-    } else if (shortPushPending && (now - shortPushTime) < doublePushWindowMs) {
-      shortPushPending = false;
+    } else if (shortPushPending_ && (now - shortPushTime_) < doublePushWindowMs_) {
+      shortPushPending_ = false;
       event = PUSH_DOUBLE;
-      eventPressMs = lastReadPushPressMs;
+      eventPressMs_ = lastReadPushPressMs_;
     } else {
-      if (shortPushPending) {
+      if (shortPushPending_) {
         // previous short push, not followed in time
         event = PUSH_SHORT;
-        eventPressMs = shortPushPressMs;
+        eventPressMs_ = shortPushPressMs_;
       }
-      shortPushPending = true;
-      shortPushTime = now;
-      shortPushPressMs = lastReadPushPressMs;
+      shortPushPending_ = true;
+      shortPushTime_ = now;
+      shortPushPressMs_ = lastReadPushPressMs_;
     }
-  } else if (held && !longPushReported && heldMs >= longPushThresholdMs) {
+  } else if (held && !longPushReported_ && heldMs >= longPushThresholdMs_) {
     // the button has been held long enough: report the long push now
-    longPushReported = true;
-    if (shortPushPending) {
-      shortPushPending = false;
+    longPushReported_ = true;
+    if (shortPushPending_) {
+      shortPushPending_ = false;
       event = PUSH_SHORT;
-      eventPressMs = shortPushPressMs;
-      queuedPushEvent = PUSH_LONG;
-      queuedEventPressMs = pressStartMs;
+      eventPressMs_ = shortPushPressMs_;
+      queuedPushEvent_ = PUSH_LONG;
+      queuedEventPressMs_ = pressStartMs;
     } else {
       event = PUSH_LONG;
-      eventPressMs = pressStartMs;
+      eventPressMs_ = pressStartMs;
     }
   }
 
   // a short push alone: report it once the double push delay has passed
-  if (event == PUSH_NONE && shortPushPending && (millis() - shortPushTime) >= doublePushWindowMs) {
-    shortPushPending = false;
+  if (event == PUSH_NONE && shortPushPending_ && (millis() - shortPushTime_) >= doublePushWindowMs_) {
+    shortPushPending_ = false;
     event = PUSH_SHORT;
-    eventPressMs = shortPushPressMs;
+    eventPressMs_ = shortPushPressMs_;
   }
 
   return left || right || event != PUSH_NONE;
 }
 
-// Equivalent of the "if (rotaryInputDetected) { ... }" block in the demo's loop()
+// Equivalent of the "if (rotaryInputDetected_) { ... }" block in the demo's loop()
 bool CJMCU111::read(byte &left, byte &right, byte &push) {
   unsigned long pushDurationMs;
   return read(left, right, push, pushDurationMs);
 }
 
 bool CJMCU111::read(byte &left, byte &right, byte &push, unsigned long &pushDurationMs) {
-  if (!rotaryInputDetected) return false;
+  if (!rotaryInputDetected_) return false;
 
   noInterrupts(); // necessary when reading a multi-byte variable from the ISR
-  left = rotationCountL;
-  right = rotationCountR;
-  push = rotaryPushCount;
-  pushDurationMs = rotaryPushDuration;
-  lastReadPushPressMs = rotaryPushPressTime;
-  rotationCountL = 0;
-  rotationCountR = 0;
-  rotaryPushCount = 0;
-  rotaryPushDuration = 0;
-  rotaryInputDetected = false;
+  left = rotationCountL_;
+  right = rotationCountR_;
+  push = rotaryPushCount_;
+  pushDurationMs = rotaryPushDuration_;
+  lastReadPushPressMs_ = rotaryPushPressTime_;
+  rotationCountL_ = 0;
+  rotationCountR_ = 0;
+  rotaryPushCount_ = 0;
+  rotaryPushDuration_ = 0;
+  rotaryInputDetected_ = false;
   interrupts();
   return true;
 }
@@ -201,102 +201,102 @@ void CJMCU111::isrGx() {
      This should be the case for the Arduino hardware.
   */
 #ifdef CJMCU_111_DEBUG
-  digitalWrite(rotaryIsrDebugPinA, LOW);
+  digitalWrite(rotaryIsrDebugPinA_, LOW);
 #endif
 
-  byte rotationInputA = digitalRead(rotaryPinGa);
-  byte rotationInputB = digitalRead(rotaryPinGb);
+  byte rotationInputA = digitalRead(rotaryPinGa_);
+  byte rotationInputB = digitalRead(rotaryPinGb_);
 
-  isrGxTime = millis();
+  isrGxTime_ = millis();
 
-  switch (rotationStatus) {
+  switch (rotationStatus_) {
     case kRotationStatusWaiting:
       if (HIGH == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusStartR;
+        rotationStatus_ = kRotationStatusStartR;
       }
       else if (LOW == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusStartLorPush;
-        isrGxLastTime = isrGxTime; // debounce
-        rotaryPressStart = isrGxTime;
-        rotaryPressCandidate = true;
+        rotationStatus_ = kRotationStatusStartLorPush;
+        isrGxLastTime_ = isrGxTime_; // debounce
+        rotaryPressStart_ = isrGxTime_;
+        rotaryPressCandidate_ = true;
       }
       break;
 
     case kRotationStatusStartLorPush:
       if (HIGH == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusWaiting;
+        rotationStatus_ = kRotationStatusWaiting;
         // A push is Ga LOW then HIGH again while Gb never moved. If the knob started a left turn
         // (both LOW) and came back, the candidate was cancelled: it is not a push.
-        const bool wasPress = rotaryPressCandidate;
-        rotaryPressCandidate = false;
-        if (wasPress && (isrGxTime - isrGxLastTime) > isrGxDebounceDuration) {
-          ++rotaryPushCount;
-          rotaryPushDuration = isrGxTime - isrGxLastTime; // press -> release, msec
-          rotaryPushPressTime = isrGxLastTime;            // time of the press
-          rotaryInputDetected = true;
+        const bool wasPress = rotaryPressCandidate_;
+        rotaryPressCandidate_ = false;
+        if (wasPress && (isrGxTime_ - isrGxLastTime_) > isrGxDebounceDuration_) {
+          ++rotaryPushCount_;
+          rotaryPushDuration_ = isrGxTime_ - isrGxLastTime_; // press -> release, msec
+          rotaryPushPressTime_ = isrGxLastTime_;            // time of the press
+          rotaryInputDetected_ = true;
         }
       }
       else if (LOW == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusTurningL;
-        rotaryPressCandidate = false;
+        rotationStatus_ = kRotationStatusTurningL;
+        rotaryPressCandidate_ = false;
       }
       break;
 
     case kRotationStatusStartR:
       if (HIGH == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusWaiting;
+        rotationStatus_ = kRotationStatusWaiting;
       }
       else if (LOW == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusTurningR;
+        rotationStatus_ = kRotationStatusTurningR;
       }
       break;
 
     case kRotationStatusTurningL:
       if (LOW == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusStartLorPush;
+        rotationStatus_ = kRotationStatusStartLorPush;
       }
       else if (HIGH == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusWaitForFinishL;
+        rotationStatus_ = kRotationStatusWaitForFinishL;
       }
       break;
 
     case kRotationStatusTurningR:
       if (HIGH == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusStartR;
+        rotationStatus_ = kRotationStatusStartR;
       }
       else if (LOW == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusWaitForFinishR;
+        rotationStatus_ = kRotationStatusWaitForFinishR;
       }
       break;
 
     case kRotationStatusWaitForFinishL:
       if (LOW == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusTurningL;
+        rotationStatus_ = kRotationStatusTurningL;
       }
       else if (HIGH == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusWaiting;
-        rotationCountR = 0;
-        ++rotationCountL;
-        rotaryInputDetected = true;
-        isrGxLastTime = isrGxTime; // debounce
+        rotationStatus_ = kRotationStatusWaiting;
+        rotationCountR_ = 0;
+        ++rotationCountL_;
+        rotaryInputDetected_ = true;
+        isrGxLastTime_ = isrGxTime_; // debounce
       }
       break;
 
     case kRotationStatusWaitForFinishR:
       if (LOW == rotationInputA && LOW == rotationInputB) {
-        rotationStatus = kRotationStatusTurningR;
+        rotationStatus_ = kRotationStatusTurningR;
       }
       else if (HIGH == rotationInputA && HIGH == rotationInputB) {
-        rotationStatus = kRotationStatusWaiting;
-        rotationCountL = 0;
-        ++rotationCountR;
-        rotaryInputDetected = true;
-        isrGxLastTime = isrGxTime;
+        rotationStatus_ = kRotationStatusWaiting;
+        rotationCountL_ = 0;
+        ++rotationCountR_;
+        rotaryInputDetected_ = true;
+        isrGxLastTime_ = isrGxTime_;
       }
       break;
   }
 
 #ifdef CJMCU_111_DEBUG
-  digitalWrite(rotaryIsrDebugPinA, HIGH);
+  digitalWrite(rotaryIsrDebugPinA_, HIGH);
 #endif
 }

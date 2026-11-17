@@ -25,33 +25,33 @@ public:
     void resetVolume();
 
     // Flow rates are returned in mL/min.
-    float getInflowRate() { return _lastInRate; }
-    float getOutflowRate() { return _lastOutRate; }
+    float getInflowRate() { return lastInRate_; }
+    float getOutflowRate() { return lastOutRate_; }
 
     // Accumulated volumes are returned in mL.
-    float getVolumeIn() { return _volumeIn; }
-    float getVolumeOut() { return _volumeOut; }
-    float getNetVolume() { return _volumeIn - _volumeOut; }   // inflow minus outflow
+    float getVolumeIn() { return volumeIn_; }
+    float getVolumeOut() { return volumeOut_; }
+    float getNetVolume() { return volumeIn_ - volumeOut_; }   // inflow minus outflow
 
     // Called by the PCINT1 interrupt handler; do not call from application code.
     void handlePortCChange(uint8_t currentPort);
 
     // Used by the interrupt handler to access the single active instance.
-    static USN_FlowSensor* _instance;
+    static USN_FlowSensor* instance_;
 
 private:
     // Modified by the ISR and copied/reset atomically in update().
     // 16 bits are enough: the counters are emptied every FLOW_UPDATE_MS.
-    volatile uint16_t _pulsesIn;
-    volatile uint16_t _pulsesOut;
-    volatile uint8_t _lastPortC;
+    volatile uint16_t pulsesIn_;
+    volatile uint16_t pulsesOut_;
+    volatile uint8_t lastPortC_;
 
-    uint32_t _lastUpdateAt;
+    uint32_t lastUpdateAt_;
 
-    float _volumeIn;
-    float _volumeOut;
-    float _lastInRate;
-    float _lastOutRate;
+    float volumeIn_;
+    float volumeOut_;
+    float lastInRate_;
+    float lastOutRate_;
 };
 
 #endif
