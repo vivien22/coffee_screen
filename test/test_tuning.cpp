@@ -96,6 +96,12 @@ int main() {
   send("pump 30");    CHECK(m.pumpIsOn());
   send("stop");       CHECK(!m.pumpIsOn() && m.heater().setpoint() == 0 && said("OK stop"));
 
+  // "valve": the valve alone, without the pump; "stop" closes it
+  send("valve 1");    CHECK(said("OK valve 1") && pins[PIN_VALVE_RELAY] == 1 && pins[PIN_PUMP_RELAY] == 0 && !m.pumpIsOn());
+  send("valve 0");    CHECK(said("OK valve 0") && pins[PIN_VALVE_RELAY] == 0);
+  send("valve 1");    CHECK(pins[PIN_VALVE_RELAY] == 1);
+  send("stop");       CHECK(pins[PIN_VALVE_RELAY] == 0);
+
   // The duration is limited
   send("pump 1000");  CHECK(m.pumpIsOn());
   send("pump 0");

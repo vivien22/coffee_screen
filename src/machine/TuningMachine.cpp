@@ -166,8 +166,9 @@ void TuningMachine::execute(char *line) {
     if (pumpOn_) {
       stopPump(F("stop"));
     }
+    digitalWrite(PIN_VALVE_RELAY, LOW);   // the valve too, even when it was opened by hand with "valve 1"
     heater_.setSetpoint(0);
-    Serial.println(F("OK stop: pump off, setpoint 0"));
+    Serial.println(F("OK stop: pump and valve off, setpoint 0"));
   } else if (!hasValue) {
     Serial.println(F("ERR a number is expected (help)"));
   } else if (!strcmp(line, "set")) {
@@ -202,6 +203,10 @@ void TuningMachine::execute(char *line) {
     // milliseconds, 0 = off
     telemetryPeriodMs_ = value < 0.0f ? 0UL : (uint32_t)value;
     Serial.print(F("OK stream ")); Serial.println(telemetryPeriodMs_);
+  } else if (!strcmp(line, "valve")) {
+    // the valve alone, open or closed until the next "valve" or "stop" (the pump command opens it too)
+    digitalWrite(PIN_VALVE_RELAY, value != 0.0f ? HIGH : LOW);
+    Serial.print(F("OK valve ")); Serial.println(value != 0.0f ? 1 : 0);
   } else if (!strcmp(line, "pump")) {
     // seconds, 0 = stop
     if (value <= 0.0f) {
@@ -265,8 +270,9 @@ void TuningMachine::printHelp() {
   Serial.println(F("# delay <s>    feedforward delay, seconds"));
   Serial.println(F("# power <W>    heater power;  inlet <C> inlet water temperature"));
   Serial.println(F("# heater <0|1> heater disabled / enabled"));
+  Serial.println(F("# valve <0|1>  the valve alone: open / closed"));
   Serial.println(F("# pump <s>     pump + valve for s seconds (0 = stop)"));
   Serial.println(F("# stream <ms>  telemetry period (0 = off)"));
   Serial.println(F("# status       parameters (to copy into Config.h) and one line"));
-  Serial.println(F("# stop         pump off and setpoint 0"));
+  Serial.println(F("# stop         pump and valve off, setpoint 0"));
 }

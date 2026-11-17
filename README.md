@@ -36,10 +36,11 @@ lines starting with `#` are comments.
 | `power <W>` | power of the heating element, used by the feedforward |
 | `inlet <°C>` | temperature of the water entering the boiler, used by the feedforward |
 | `heater <0\|1>` | 0: the heater stays off whatever the controller computes; 1: normal |
+| `valve <0|1>` | the valve alone: 1 opens it, 0 closes it (until the next `valve` or `stop`; `pump` opens it too) |
 | `pump <s>` | pump + valve on for `s` seconds (at most `PUMP_MAX_SECONDS`), `pump 0` stops it |
 | `stream <ms>` | period of the telemetry lines, 0 = off |
 | `status` | the current values, named as in `Config.h` (to copy them there), and one telemetry line |
-| `stop` | pump off and setpoint 0 (heater off) |
+| `stop` | pump and valve off, setpoint 0 (heater off) |
 | `help` | the list |
 
 The pump also stops by itself when the In flow sensor does not count `NO_FLOW_MIN_ML` every
