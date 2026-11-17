@@ -23,20 +23,25 @@ void CoffeeMachine::begin() {
 
   const Settings settings = store_.load();
 
-  screen_.begin(settings);
-  encoder_.begin();
+  screen_.begin(settings);   // the welcome picture is shown from here, for WELCOME_MS
+
+  // The sensors start while the picture is shown (the probe waits 100 ms): the screen stays dark for less time
+  // afterwards. The encoder does not: a push during the picture must not start anything.
   temperature_.begin();
   flow_.begin();
 
   heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
   extraction_.setLossMl(settings.loss);
-  lastActivityAt_ = millis();
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(millis(), temperature_.celsius() - TEMPERATURE_OFFSET);
   } else {
     screen_.showTemperatureError();
   }
+
+  screen_.finishWelcome();   // the rest of the time of the picture, then the icons are drawn in the dark
+  encoder_.begin();
+  lastActivityAt_ = millis();
   screen_.update(millis());
 
   // Everything is drawn (icons, mode letter, the three values): only now does the backlight come on

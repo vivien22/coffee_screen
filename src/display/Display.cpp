@@ -84,40 +84,56 @@ struct IconBits {
 //     00 11111 v mmmmmm   the escape (nnnnn = 31): mmmmmm + 1 pixels of level 1 (v = 0) or 2 (v = 1), for large areas
 // Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
 // Levels 1, 2, 3 are 5/15, 10/15, 15/15 of the icon color.
+//
+// A run is drawn as one burst of one color (a window of one row, then the pixels), not pixel by pixel: setting
+// a window costs more than a pixel, so the runs of the icons and of the welcome picture are drawn several times
+// faster. A run that reaches the end of a row goes on in the next one (a burst per row).
 static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, uint8_t height) {
   IconBits bits = {data, 0, 0};
-  uint8_t level = 0, run = 0;   // the token in progress: its level and the pixels left in it
+  uint8_t row = 0, column = 0;   // the next pixel of the icon
 
   tft.startWrite();
-  for (uint8_t row = 0; row < height; row++) {
-    for (uint8_t column = 0; column < width; column++) {
-      if (!run) {
-        level = bits.get(2);
-        run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
-        if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2
-          level = 1 + bits.get(1);
-          run = bits.get(6) + 1;
-        }
-      }
-      run--;
+  while (row < height) {
+    uint8_t level = bits.get(2);
+    uint8_t run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
+    if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2
+      level = 1 + bits.get(1);
+      run = bits.get(6) + 1;
+    }
+
+    while (run && row < height) {
+      const uint8_t part = (run < width - column) ? run : (uint8_t)(width - column);   // up to the end of the row
       if (level) {
-        tft.writePixel(x + column, y + row, level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)));
+        tft.setAddrWindow(x + column, y + row, part, 1);
+        tft.writeColor(level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)), part);
+      }
+      run -= part;
+      column += part;
+      if (column == width) {   // next row
+        column = 0;
+        row++;
       }
     }
   }
   tft.endWrite();
 }
 
-// The welcome picture, at start-up: drawn while the backlight is off, so that it appears complete, then shown for
-// WELCOME_MS, then the backlight goes off again and the screen is cleared for the real screen (which is drawn
-// in the dark too, see showDisplay()).
-void showWelcome() {
+// The welcome picture, at start-up: drawn while the backlight is off, so that it appears complete, then the
+// backlight goes on. It stays until endWelcome().
+void beginWelcome() {
 #if WELCOME_MS > 0
   drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
   digitalWrite(PIN_TFT_BL, HIGH);
-  delay(WELCOME_MS);
+#endif
+}
+
+// The end of the welcome picture: the backlight goes off and only the square of the picture is cleared (the rest of
+// the screen is already clear: 6 times less to send than a whole screen, and nothing is seen anyway). The real screen
+// is then drawn in the dark, and shown at once by showDisplay().
+void endWelcome() {
+#if WELCOME_MS > 0
   digitalWrite(PIN_TFT_BL, LOW);
-  tft.fillScreen(COLOR_BG);
+  tft.fillRect(WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT, COLOR_BG);
 #endif
 }
 
@@ -141,7 +157,8 @@ void drawDrop(bool visible, bool manual) {
 }
 #else
 void drawDrop(bool, bool) {}
-void showWelcome() {}
+void beginWelcome() {}
+void endWelcome() {}
 #endif  // DISPLAY_ICONS
 
 // ------------------------------------------------------------

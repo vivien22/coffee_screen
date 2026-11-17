@@ -15,7 +15,21 @@ void ScreenController::begin(const Settings &settings) {
   dirty_ = DIRTY_ALL_VALUES;
 
   beginDisplay();
-  showWelcome();   // the welcome picture for WELCOME_MS, then the screen is clear and dark again
+  beginWelcome();                // the welcome picture is shown (the backlight goes on)
+  welcomeStartedAt_ = millis();
+}
+
+// The end of the welcome picture: waits for what is left of WELCOME_MS (the caller has started the sensors
+// meanwhile), then the picture is cleared in the dark and the fixed part of the real screen is drawn: the icons and the
+// letter of the mode. The values are drawn by the next update() and the backlight comes on with show().
+void ScreenController::finishWelcome() {
+#if WELCOME_MS > 0
+  const uint32_t shownFor = millis() - welcomeStartedAt_;
+  if (shownFor < WELCOME_MS) {
+    delay(WELCOME_MS - shownFor);
+  }
+#endif
+  endWelcome();
 #ifdef DISPLAY_ICONS
   drawIcons();
   drawDrop(true, settings_.manual);   // with the letter of the mode

@@ -31,8 +31,14 @@ enum ActiveParameter {
 
 class ScreenController {
   public:
-    // Initialize the display (the backlight stays off); the first drawing is done by the first update().
+    // Initialize the display and show the welcome picture (the backlight goes on). The real screen is not drawn yet:
+    // do what has to be done at start-up (it takes place while the picture is shown), then finishWelcome(),
+    // update() and show().
     void begin(const Settings &settings);
+
+    // Waits until the welcome picture has been shown WELCOME_MS since begin(), clears it in the dark, and draws the
+    // icons. Blocks for the rest of that time: call it once, at start-up.
+    void finishWelcome();
 
     // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
     void show();
@@ -155,6 +161,7 @@ class ScreenController {
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none
     bool temperatureError_ = false;     // sensor fault: "ERR" is shown instead of the live temperature
     bool temperatureErrorShown_ = false; // "ERR" is on the screen now (it is not drawn again while it is)
+    uint32_t welcomeStartedAt_ = 0;     // when the welcome picture was shown (millis)
     uint32_t lastTemperatureAt_ = 0;
 
     bool heaterShown_ = false;

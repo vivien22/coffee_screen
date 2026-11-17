@@ -1,6 +1,6 @@
 // The welcome picture and the three icons, drawn by the real decoder of Display.cpp (compressed data of IconsData.h),
-// are exactly the 2-bit source of tools/icons_raw.h. The screen is looked at while the welcome picture is shown
-// (during the delay), and after it.
+// are exactly the 2-bit source of tools/icons_raw.h. The welcome picture is looked at while it is shown (before
+// endWelcome()), and the screen after its end.
 #include <cstdio>
 #include <vector>
 #include "src/Config.h"
@@ -16,12 +16,6 @@
 
 uint16_t frameBuffer[240 * 240];
 
-static std::vector<uint16_t> shown;   // the screen while the welcome picture is shown
-static unsigned long shownFor = 0;
-static void onDelay(unsigned long ms) {
-  shown.assign(frameBuffer, frameBuffer + 240 * 240);
-  shownFor = ms;
-}
 
 // The color of a level: COLOR_ICON over COLOR_BG, 5/15, 10/15, 15/15 (the blend of Display.cpp)
 static uint16_t colorOf(int level) {
@@ -55,17 +49,17 @@ static int outside(const uint16_t *screen, int x0, int y0, int width, int height
 
 int main() {
   beginDisplay();
-  stubDelayHook = onDelay;
-  showWelcome();
-  stubDelayHook = nullptr;
+  beginWelcome();
 
-  // while it is shown: the whole picture, nothing else, for WELCOME_MS
-  CHECK(shown.size() == 240 * 240 && shownFor == WELCOME_MS);
-  CHECK(differences(shown.data(), RAW_WELCOME, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
-  CHECK(outside(shown.data(), WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
-  // and the picture is in the middle of the round screen
+  // the welcome picture is on the screen and lit: the whole picture, nothing else
+  CHECK(stubPins[PIN_TFT_BL] == HIGH);
+  CHECK(differences(frameBuffer, RAW_WELCOME, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
+  CHECK(outside(frameBuffer, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
+  // and it is in the middle of the round screen
   CHECK(WELCOME_X == 72 && WELCOME_Y == 72);
-  // afterwards: backlight off and the screen clear, ready for the real screen
+
+  // its end: backlight off and the screen clear, ready for the real screen
+  endWelcome();
   CHECK(stubPins[PIN_TFT_BL] == LOW);
   CHECK(outside(frameBuffer, 0, 0, 0, 0) == 0);
 
