@@ -67,6 +67,26 @@ void ScreenController::showNoWater(bool error) {
   }
 }
 
+// The volume and the duration of the result are hidden and shown again until blinking is false (the machine
+// stops it when the target values come back, or when a new extraction starts).
+void ScreenController::blinkResult(uint32_t now, bool blinking) {
+  if (!blinking) {
+    if (resultHidden_) {
+      resultHidden_ = false;
+      dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+    }
+    resultToggleAt_ = 0;   // the next blinking starts at once
+  } else if ((int32_t)(now - resultToggleAt_) >= 0) {
+    resultToggleAt_ = now + RESULT_BLINK_MS;
+    resultHidden_ = !resultHidden_;
+    if (resultHidden_) {
+      clearValues();
+    } else {
+      dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+    }
+  }
+}
+
 // ------------------------------------------------------------
 // User actions
 

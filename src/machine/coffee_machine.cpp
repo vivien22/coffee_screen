@@ -141,6 +141,8 @@ void CoffeeMachine::update() {
       screen_.showReady();
     }
   }
+  // The last seconds of the display of the result: the values blink, they are about to be replaced
+  screen_.blinkResult(now, resultShown_ && (int32_t)(resultShownUntil_ - now) <= (int32_t)RESULT_BLINK_WINDOW_MS);
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(now, temperature_.celsius() - TEMPERATURE_OFFSET);
