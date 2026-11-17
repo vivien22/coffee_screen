@@ -52,16 +52,49 @@ void beginDisplay() {
 #define BLEND_COLOR(opacity) \
   ((uint16_t)((BLEND_CHANNEL(11, 0x1F, opacity) << 11) | (BLEND_CHANNEL(5, 0x3F, opacity) << 5) | BLEND_CHANNEL(0, 0x1F, opacity)))
 
-// Draw an icon stored as 2-bit opacity (PROGMEM): four pixels per byte, the first pixel in the
-// high bits. Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
+// The bits of a compressed icon (PROGMEM), most significant bit first
+struct IconBits {
+  const uint8_t *next;   // next byte to load
+  uint8_t current;       // the bits of the byte not read yet, in the high bits
+  uint8_t left;          // how many of them
+
+  uint8_t get(uint8_t count) {
+    uint8_t value = 0;
+    while (count--) {
+      if (!left) {
+        current = pgm_read_byte(next++);
+        left = 8;
+      }
+      value = (value << 1) | (current >> 7);
+      current <<= 1;
+      left--;
+    }
+    return value;
+  }
+};
+
+// Draw an icon stored as 2-bit opacity, compressed (PROGMEM), row by row. The data is a stream of tokens
+// (tools/compress_icons.cpp writes it from tools/icons_raw.h):
+// the first two bits are the level of the pixels of the token:
+//     00 nnnnn   nnnnn + 1 pixels of level 0       01   one pixel of level 1       10   one pixel of level 2
+//     11 nnnn    nnnn + 1 pixels of level 3
+// Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
 // Levels 1, 2, 3 are 5/15, 10/15, 15/15 of the icon color.
-static void drawIcon(int16_t x, int16_t y, const uint8_t *levels, uint8_t width, uint8_t height) {
+static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, uint8_t height) {
+  IconBits bits = {data, 0, 0};
+  uint8_t level = 0, run = 0;   // the token in progress: its level and the pixels left in it
+
   tft.startWrite();
-  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
-    const uint8_t level = (pgm_read_byte(&levels[i >> 2]) >> (6 - 2 * (i & 3))) & 0x03;
-    if (level) {
-      tft.writePixel(x + i % width, y + i / width,
-                     level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)));
+  for (uint8_t row = 0; row < height; row++) {
+    for (uint8_t column = 0; column < width; column++) {
+      if (!run) {
+        level = bits.get(2);
+        run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
+      }
+      run--;
+      if (level) {
+        tft.writePixel(x + column, y + row, level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)));
+      }
     }
   }
   tft.endWrite();
