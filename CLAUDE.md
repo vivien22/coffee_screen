@@ -3,6 +3,8 @@
 Espresso-machine controller (Ascaso Steel Uno Pro) on an Arduino Nano (ATmega328P): GC9A01 round display,
 CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, two flow sensors.
 The README describes the behaviour. The user writes in French: reply in French.
+**This is the `pid-tuning` branch**: no display, encoder, settings or extraction phases (see its README). What CLAUDE.md says about
+those (Display, the UI behaviours, icons, the pre-infusion limits) applies to `master`; the build, tests, Git and naming rules apply here too.
 
 ## Build (PlatformIO, env `nanoatmega328new`)
 - The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here.
