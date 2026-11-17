@@ -38,6 +38,9 @@ void CoffeeMachine::begin() {
     screen_.showTemperatureError();
   }
   screen_.update(millis());
+
+  // Everything is drawn (icons, mode letter, the three values): only now does the backlight come on
+  screen_.show();
 }
 
 // One pass of the main loop, called as often as possible (no delay anywhere). Order of the work:

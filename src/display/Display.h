@@ -36,8 +36,12 @@ enum PhaseTag : uint8_t {
 };
 
 // Initialize the screen and fill it with the background color.
-// The backlight stays off until the screen is filled, to avoid artefacts at power-on.
+// The backlight stays off, to avoid artefacts at power-on and so that the first drawing (icons, values) is not
+// seen piece by piece: call showDisplay() once everything is drawn.
 void beginDisplay();
+
+// Switch the backlight on: the screen appears complete.
+void showDisplay();
 
 #ifdef DISPLAY_ICONS
 // Draw the three icons (thermometer, drop, clock)

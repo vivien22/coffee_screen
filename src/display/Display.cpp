@@ -25,7 +25,8 @@ struct NumberField {
 };
 static NumberField temperatureField, volumeField, durationField;
 
-// Starts the GC9A01 and clears the screen.
+// Starts the GC9A01 and clears the screen. The backlight stays off (until showDisplay()): nothing is seen while the
+// screen is filled and drawn.
 void beginDisplay() {
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black
   pinMode(PIN_TFT_BL, OUTPUT);
@@ -34,8 +35,10 @@ void beginDisplay() {
   tft.begin();
   tft.fillScreen(COLOR_BG);
   temperatureField.valid = volumeField.valid = durationField.valid = false;
+}
 
-  // Set Blk Pin to High
+// Switches the backlight on: the screen appears as it has been drawn.
+void showDisplay() {
   digitalWrite(PIN_TFT_BL, HIGH);
 }
 

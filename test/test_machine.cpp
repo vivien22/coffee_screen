@@ -13,7 +13,7 @@
 #include "TestSupport.h"
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
-void beginDisplay(){} void drawIcons(){}
+void beginDisplay(){} void showDisplay(){L("show");} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
@@ -302,4 +302,16 @@ static void standby(){
   CoffeeMachine m2; m2.begin(); CHECK(!m2.standby_);               // nothing is remembered
   printf("standby: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); manualMode(); manualTime(); calibration(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// Start-up: the backlight is switched on once everything is drawn (the icons, the letter of the mode and the three
+// values), so that the screen appears complete, not the icons first and the values a moment later
+static bool startsWith(const std::string &s, const char *prefix){ return s.rfind(prefix,0)==0; }
+static void startup(){
+  calls.clear(); CoffeeMachine m; t=1000; m.begin();
+  int show=-1; for(size_t i=0;i<calls.size();i++) if(calls[i]=="show(0,0,0,0)"){ CHECK(show<0); show=(int)i; }
+  CHECK(show>=0 && show==(int)calls.size()-1);                      // the last thing of the start-up
+  bool temperature=false, volume=false, duration=false;
+  for(int i=0;i<show;i++){ temperature|=startsWith(calls[i],"temp(")||startsWith(calls[i],"temperr("); volume|=startsWith(calls[i],"vol("); duration|=startsWith(calls[i],"dur("); }
+  CHECK(temperature && volume && duration);                         // all drawn before the backlight
+  printf("start-up: ok\n");
+}
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

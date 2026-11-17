@@ -21,6 +21,11 @@ void ScreenController::begin(const Settings &settings) {
 #endif
 }
 
+// The backlight goes on after the first drawing: the whole screen appears at once.
+void ScreenController::show() {
+  showDisplay();
+}
+
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {

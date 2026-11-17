@@ -31,8 +31,11 @@ enum ActiveParameter {
 
 class ScreenController {
   public:
-    // Initialize the display; the first drawing is done by the first update().
+    // Initialize the display (the backlight stays off); the first drawing is done by the first update().
     void begin(const Settings &settings);
+
+    // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
+    void show();
 
     // Call on every loop pass: blinking of the FLUSH tag and of the drop, redraw of the dirty fields.
     void update(uint32_t now);
