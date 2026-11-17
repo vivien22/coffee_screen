@@ -52,7 +52,7 @@ static void scenario(int flush){
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
     // at the end of the flush the values of the extraction are shown again, not the target yet
     CHECK(!has("vol(40,1,0,1)")); CHECK(!has("dur(0,0,0,1)"));
-    // they stay 10 s from the end of the flush (and blink during the last 3 s), then the target volume (40, large
+    // they stay 10 s from the end of the flush (and blink during the last 1.6 s), then the target volume (40, large
     // because the volume is selected) and 0 s come back
     calls.clear(); unsigned long tfe=t;
     while(t<tfe+6800){ t+=100; m.update(); }
@@ -67,11 +67,11 @@ static void scenario(int flush){
     // final values shown, held 10 s
     bool final=false; for(auto&c:calls) if(c.rfind("dur(",0)==0 && c!="dur(0,0,0,1)") final=true; CHECK(final);
     calls.clear(); unsigned long t0=t;
-    while(t<t0+6800){ t+=100; m.update(); }
-    CHECK(!has("clearVals(0,0,0,0)"));                              // no blinking before the last 3 s
+    while(t<t0+8300){ t+=100; m.update(); }
+    CHECK(!has("clearVals(0,0,0,0)"));                              // no blinking before the last 1.6 s
     while(t<t0+9900){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)")); CHECK(!has("vol(40,1,0,1)"));     // still holding at 9.9 s
-    { int hidden=0; for(auto&c:calls) if(c=="clearVals(0,0,0,0)") hidden++; CHECK(hidden>=3 && hidden<=5);   // blinking: hidden then shown every 400 ms
+    { int hidden=0; for(auto&c:calls) if(c=="clearVals(0,0,0,0)") hidden++; CHECK(hidden>=2 && hidden<=3);   // blinking: hidden then shown every 400 ms
       bool shownAgain=false; bool afterClear=false; for(auto&c:calls){ if(c=="clearVals(0,0,0,0)") afterClear=true; else if(afterClear && c.rfind("dur(",0)==0) shownAgain=true; } CHECK(shownAgain); }
     while(t<t0+10200){ t+=100; m.update(); }
     CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
@@ -147,11 +147,11 @@ static void manualMode(){
   m.handleShortPush();                                   // stop
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[16]==0);
   calls.clear(); unsigned long t0=t;
-  while(t<t0+6800){ t+=100; m.update(); }
-  CHECK(!has("clearVals(0,0,0,0)"));                     // MANUAL too: no blinking before the last 3 s
+  while(t<t0+8300){ t+=100; m.update(); }
+  CHECK(!has("clearVals(0,0,0,0)"));                     // MANUAL too: no blinking before the last 1.6 s
   while(t<t0+9900){ t+=100; m.update(); }
   CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
-  CHECK(has("clearVals(0,0,0,0)"));                      // and blink during the last 3 s
+  CHECK(has("clearVals(0,0,0,0)"));                      // and blink during the last 1.6 s
   while(t<t0+10300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here

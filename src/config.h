@@ -133,7 +133,7 @@
 #define CALIBRATION_MIN_ML           10
 #define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
-#define RESULT_BLINK_WINDOW_MS       3000UL    // during the last part of that time the volume and the duration blink:
+#define RESULT_BLINK_WINDOW_MS       1600UL    // during the last part of that time the volume and the duration blink (2 blinks):
 #define RESULT_BLINK_MS              400UL     // they are alternately hidden and shown this long (0 window = no blinking)
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.
