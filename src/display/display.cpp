@@ -19,7 +19,6 @@ static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 // What a number field shows, to erase only what is needed (see drawNumber)
 struct NumberField {
   int16_t xEnd;     // where the number ended: the unit follows
-  int16_t xInkEnd;  // where its last block ended (1 px further for an overhanging character)
   uint8_t size;     // TextSize of the digits
   uint8_t tag;      // PhaseTag shown next to it
   bool valid;       // false: the field is not known to show anything (start, or something else was drawn over it)
@@ -129,10 +128,9 @@ static uint8_t advanceOf(const GFXfont *font, char c) {
 // Draws one character as a block of the zone height, in one burst: the pixels of the glyph in the text color
 // and all the others in the background color. The old character is replaced at once, without a moment where
 // the place is blank (what a erase followed by a print would show).
-// The block is as wide as the cell, or wider if the glyph goes beyond it:
-// the characters are drawn from right to left so that this overhang is not erased by the next character.
-// Returns the width of the block.
-static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline) {
+// The block is as wide as the cell of the character, and the glyph is centered in it: no glyph goes beyond its
+// cell (checked for all the digits of the two fonts), so the blocks never overlap.
+static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline) {
   const GFXglyph *glyph = glyphOf(font, c);
   const uint8_t width = pgm_read_byte(&glyph->width);
   const uint8_t rows = pgm_read_byte(&glyph->height);
@@ -142,10 +140,7 @@ static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y,
   const int16_t top = baseline + (int8_t)pgm_read_byte(&glyph->yOffset);   // first row of the glyph
   const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
 
-  uint8_t blockWidth = advanceOf(font, c);
-  if (xOffset + width > blockWidth) {
-    blockWidth = xOffset + width;
-  }
+  const uint8_t blockWidth = advanceOf(font, c);
 
   tft.startWrite();
   tft.setAddrWindow(x, y, blockWidth, height);
@@ -174,8 +169,6 @@ static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y,
   }
   tft.writeColor(runColor, runLength);
   tft.endWrite();
-
-  return blockWidth;
 }
 
 // Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
@@ -197,41 +190,27 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
   const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
 
-  uint8_t length = strlen(text);
+  // One block per digit, from left to right
   int16_t xEnd = x;
-  for (uint8_t i = 0; i < length; i++) {
-    xEnd += advanceOf(font, text[i]);
-  }
-
-  // From right to left (see drawGlyphBlock). The end of the last block is the end of the number, or 1 px
-  // further for an overhanging character.
-  int16_t xBlock = xEnd;
-  int16_t xBlocksEnd = xEnd;
-  for (uint8_t i = length; i > 0; i--) {
-    xBlock -= advanceOf(font, text[i - 1]);
-    const int16_t blockEnd = xBlock + drawGlyphBlock(font, text[i - 1], xBlock, zoneY, zoneHeight, baseline);
-    if (i == length) {
-      xBlocksEnd = blockEnd;
-    }
+  for (const char *c = text; *c; c++) {
+    drawGlyphBlock(font, *c, xEnd, zoneY, zoneHeight, baseline);
+    xEnd += advanceOf(font, *c);
   }
 
   moved = !sameLook || xEnd != field.xEnd;
 
-  // Around the blocks: the left margin of the zone, and the right of the number: up to the end of the zone if the
-  // number moved (the old one was longer, the unit is going to be drawn again), else what was left of the old
-  // last character
+  // Around the blocks: the left margin of the zone (new look), and the right of the number, up to the end of the
+  // zone, if it moved (the old one was longer, the unit is going to be drawn again)
   if (!sameLook && x > zoneX) {
     tft.fillRect(zoneX, zoneY, x - zoneX, zoneHeight, COLOR_BG);
   }
-  const int16_t xEraseEnd = moved ? zoneX + zoneWidth : field.xInkEnd;
-  if (xBlocksEnd < xEraseEnd) {
-    tft.fillRect(xBlocksEnd, zoneY, xEraseEnd - xBlocksEnd, zoneHeight, COLOR_BG);
+  if (moved && xEnd < zoneX + zoneWidth) {
+    tft.fillRect(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight, COLOR_BG);
   }
 
   tft.setTextColor(COLOR_TEXT);   // for the unit that follows (the tag drawn last changed the color)
 
   field.xEnd = xEnd;
-  field.xInkEnd = xBlocksEnd;
   field.size = size;
   field.tag = tag;
   field.valid = true;
