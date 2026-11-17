@@ -1,5 +1,5 @@
 /*
-  screen_controller: what the screen shows and when it is redrawn.
+  ScreenController: what the screen shows and when it is redrawn.
 
   It holds the working values edited by the user (not saved yet), the selected parameter
   and the value currently shown in each field. Fields are redrawn only when marked dirty.

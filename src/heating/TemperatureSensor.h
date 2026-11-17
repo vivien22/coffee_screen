@@ -1,5 +1,5 @@
 /*
-  temperature_sensor: MAX31865 reading every SENSOR_PERIOD_MS, validity check
+  TemperatureSensor: MAX31865 reading every SENSOR_PERIOD_MS, validity check
   (sensor fault, implausible value) and low-pass filter.
   Minimal driver on the hardware SPI (shared with the screen, own chip select):
   the chip converts continuously, so reading it never blocks the loop.

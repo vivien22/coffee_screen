@@ -12,12 +12,20 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, compressed icons): 28568 B flash, 456 B RAM with `FLOW_SIMULATOR` on (what config.h has);
-  28756 B flash, 463 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, compressed icons, probe fault tolerance): 28590 B flash, 457 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 28782 B flash, 464 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- `./tools/check_flash.sh` builds and fails over 29800 B of flash or 1600 B of RAM; the CI runs it for both flow
+  configurations on every push. About 1 KB is kept free for the feedforward table of the PID tuning: do not raise
+  the budget without asking.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
 - `test_display` is a property test (incremental drawing must equal a fresh draw).
+- The tests share the Arduino stand-in `test/stubs/ArduinoStubs.cpp` (clock `t`, `pins[]`, `Serial`, `SPI`, `EEPROM`) and
+  `test/stubs/TestSupport.h` (`CHECK`): a new test includes `TestSupport.h`, and `run.sh` links the stubs. Do not copy
+  those definitions into a test again.
+- File names are case-sensitive on the CI (Linux) but not on Windows: write every `#include` and every script path with
+  the exact case of the file, and rename a file with `git mv` (twice for a change of case only).
 - `./tools/render_screens.sh` regenerates the README PNGs; they must stay identical after display changes
   that are not meant to change the look.
 - The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
@@ -32,13 +40,16 @@ The README describes the behaviour. The user writes in French: reply in French.
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 
 ## Display
-- Custom bit-packed Adafruit GFX fonts (`src/display/fonts.h`), already reduced to the glyphs in use.
+- Custom bit-packed Adafruit GFX fonts (`src/display/Fonts.h`), already reduced to the glyphs in use.
 - Digits are drawn as opaque glyph blocks with fixed-width cells so a number changes without a blank moment.
 - Limits that keep the layout valid: volume <= 99, pre-infusion <= 50, wait and flush <= 9 s, manual <= 99 s.
 
 ## Code conventions (asked by the user)
 - Identifiers and comments in English. Comments are generous and say why; the code is airy (blank lines between
   steps) and easy for a human to read before it is short. The word is "grouphead".
+- Naming: a source file in `src/` has the name of its class in CamelCase (`CoffeeMachine.cpp`), data members end with
+  `_` (`pumpPin_`), tests, tools and scripts are snake_case. `coffee_screen.ino` keeps its name (the Arduino IDE wants
+  the name of the folder). The folders are `machine`, `heating`, `settings`, `display`, `drivers`.
 - Still a prototype: no EEPROM versioning or migration. When the layout changes, change `SETTINGS_MAGIC`: the
   settings take their defaults once.
 - One change per commit when several are asked. A risky refactor is tried on a branch, its flash size measured, and
@@ -54,8 +65,11 @@ The README describes the behaviour. The user writes in French: reply in French.
   0 s come back. Same in AUTO and MANUAL; a change of mode resets it.
 - MANUAL: the volume at rest is 0 (it is not a target); a MANUAL time above 0 counts down and stays shown.
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
-- Errors: no water makes the drop blink every 600 ms until a long push; a probe fault shows a white, larger "ERR"
-  in place of the temperature (heater off).
+- Errors: no water makes the drop blink every 600 ms until a long push; a probe fault (3 readings in a row,
+  `SENSOR_FAULT_TOLERANCE`) shows a white, larger "ERR" in place of the temperature (heater off).
+- Limits: `TEMPERATURE_MAX` is 150 because the user sets the steaming temperature (140-145 °C) by hand, and
+  `DURATION_MAX` is 120 s. The user does NOT want other safety limits on `master` (no cap of the setpoint, no
+  over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in the README (hardware).
 - Standby after 30 min without action: heater off, nothing changes on the screen, the first action only wakes the
   machine, nothing is saved across a reboot.
 
@@ -68,7 +82,7 @@ The README describes the behaviour. The user writes in French: reply in French.
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
 - Wiring on 2026-11-17: the In flow sensor is connected, the Out one is not yet (hence `FLOW_SIMULATOR`; on
-  `pid-tuning` the `FLOW_OUT_SENSOR` line of config.h has to stay commented out for the same reason). On 2026-11-16
+  `pid-tuning` the `FLOW_OUT_SENSOR` line of Config.h has to stay commented out for the same reason). On 2026-11-16
   the PT100 was not connected yet.
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).

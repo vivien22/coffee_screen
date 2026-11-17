@@ -1,5 +1,5 @@
 /*
-  coffee_machine: the application. It owns every module and connects them:
+  CoffeeMachine: the application. It owns every module and connects them:
 
       encoder ──> user actions ──> screen / extraction / settings / heater setpoint
       temperature sensor ───────> heater controller (+ flow from the extraction)

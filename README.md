@@ -145,7 +145,7 @@ byte by byte, only for the bytes that differ, to spare its life):
 - at the start of an extraction,
 - at a change of mode.
 
-The EEPROM layout is in `src/settings/settings.cpp`.
+The EEPROM layout is in `src/settings/Settings.cpp`.
 
 ### Temperature offset
 
@@ -230,13 +230,19 @@ and `CALIBRATION_MIN_ML`.
 | **No-flow** | If the water entering the boiler (In sensor) does not increase by 2 ml in 5 s while the pump runs, the extraction stops and the drop blinks. A long push clears it |
 | **Maximum duration** | An extraction stops with an error after `DURATION_MAX` seconds (120 by default) |
 | **Pre-infusion timeout** | The pre-infusion ends after 30 s even if its volume is not reached |
-| **Temperature sensor** | MAX31865 fault or implausible value: the heater is off and the screen shows **ERR** |
+| **Temperature sensor** | MAX31865 fault or implausible value, `SENSOR_FAULT_TOLERANCE` (3) readings in a row (0.75 s): the heater is off and the screen shows **ERR**. One or two stray readings are ignored |
 | **Standby** | Heater off after 30 minutes without activity |
 | **Watchdog** | If `loop()` is blocked for 4 s the board resets (pump and valve relays go back to idle) |
 
 > [!NOTE]
 > The watchdog needs a bootloader that handles it correctly. On some old Nano bootloaders a watchdog reset
-> can lock the board: if yours does, remove `WATCHDOG_TIMEOUT` in `config.h`.
+> can lock the board: if yours does, remove `WATCHDOG_TIMEOUT` in `Config.h`.
+
+> [!TIP]
+> **Relay inputs.** The relays are driven active HIGH. After a reset (the watchdog's included) the pins of the
+> Nano are floating inputs until `setup()` runs again, and a floating input can switch a relay on. Wire a
+> 10 kΩ pull-down resistor between each relay input (pump, valve, heater) and GND: the relays then stay off
+> while the pin is not driven. Some relay modules already have one: check yours.
 
 ---
 
@@ -257,7 +263,7 @@ and `CALIBRATION_MIN_ML`.
 | Flow sensor Out | A1 |
 
 The TFT and the MAX31865 share the hardware SPI (SCK D13, MOSI D11, MISO D12), each with its own chip select.
-The pins are defined in `src/config.h`.
+The pins are defined in `src/Config.h`.
 
 **Parts:** Arduino Nano, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
 (pump, heater, valve), two flow sensors (In and Out / OPV return).
@@ -268,7 +274,7 @@ The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56
 (50.0).
 
 > [!IMPORTANT]
-> `config.h` contains `#define FLOW_SIMULATOR`. While it is active, **no real sensor is read**: a simulator
+> `Config.h` contains `#define FLOW_SIMULATOR`. While it is active, **no real sensor is read**: a simulator
 > follows the pump relay and produces 3 ml/s with 10 % returning through the OPV. It lets you test the
 > machine without the flow sensors. **Comment this line out to use the real sensors.**
 
@@ -276,12 +282,12 @@ The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56
 
 ## ⚙️ Configuration
 
-Every pin, limit, timing and tuning constant is in `src/config.h`, with comments. The main ones:
+Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments. The main ones:
 
 | Constant | Default | Meaning |
 |---|---|---|
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
-| `DEFAULT_TEMPERATURE` | 93 | Water temperature, °C |
+| `DEFAULT_TEMPERATURE` / `TEMPERATURE_MAX` | 93 / 150 | Water temperature, °C (150: the steaming temperature can be set by hand) |
 | `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the grouphead of this machine, °C |
 | `DEFAULT_VOLUME` | 40 | Target volume, ml (`VOLUME_MAX` 99) |
 | `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults (`WAIT` and `FLUSH` are limited to 9: one digit next to their tag) |
@@ -289,6 +295,8 @@ Every pin, limit, timing and tuning constant is in `src/config.h`, with comments
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.1 / 500 | PID gains, over a 1 s window |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |
+| `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
+| `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `FLOW_SIMULATOR` | defined | Comment out with real flow sensors |
 
@@ -314,14 +322,16 @@ code smaller: `-mcall-prologues` (about 1 KB, shared function prologues, a littl
 code to fit) and `-fno-ipa-cp -mstrict-X -fno-gcse -fshort-enums` (about 1.3 KB more). If you build with another
 project file, copy these `build_flags`.
 
-Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/debug.h` (115200 baud);
+Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/Debug.h` (115200 baud);
 they are removed from the build otherwise.
 
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **99.0 %** (30 406 bytes) and RAM at 21.6 %. The margin is
-> small: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
-> strings. The branch `phase-table` drives the phases from a table and brings the flash down to 97.6 %.
+> At the last measured build the flash was at **93.1 %** (28 590 bytes, 457 bytes of RAM) with the flow
+> simulator, and at **93.7 %** (28 782 bytes, 464 bytes of RAM) with the real flow sensors. The margin is
+> about 2 KB: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
+> strings. `./tools/check_flash.sh` builds the firmware and fails over the budget of 29 800 bytes of flash
+> (the CI runs it on every push); change `FLASH_BUDGET` there if you need the last kilobyte.
 
 ---
 
@@ -335,8 +345,13 @@ computer, with no Arduino:
 ```
 
 It compiles every `test/test_*.cpp` with `g++`, with stubs of the Arduino libraries in `test/stubs` and a
-mock of the flow sensor in `test/mock`. The `test_sim_*` tests use the real flow simulator. A GitHub Action
-runs the tests and a `cppcheck` static analysis on every push (`.github/workflows/test.yml`).
+mock of the flow sensor in `test/mock`. The Arduino API that all the tests share (clock, pins, `Serial`, `SPI`,
+`EEPROM`) is in `test/stubs/ArduinoStubs.cpp`, and `test/stubs/TestSupport.h` gives them `CHECK`. The
+`test_sim_*` tests use the real flow simulator.
+
+**Continuous integration** (`.github/workflows/test.yml`), on every push: the tests, a `cppcheck` static
+analysis, and the build of the firmware for the Nano with the flow simulator and with the real flow sensors,
+which fails over the flash and RAM budget (`./tools/check_flash.sh`).
 
 **Screen pictures.** `./tools/render_screens.sh` draws every screen with the real display code into a frame
 buffer and writes the PNG files of `docs/images` (needs `g++` and Python with Pillow). Run it again after a
@@ -348,35 +363,42 @@ change of the display code.
 
 ```
 coffee_screen.ino          setup / loop, watchdog
+platformio.ini             the PlatformIO project: board, libraries, build flags that make the firmware fit
 src/
-  config.h                 pins, limits, timings, tuning constants
-  debug.h                  serial traces
+  Config.h                 pins, limits, timings, tuning constants
+  Debug.h                  serial traces
   machine/
-    coffee_machine         the application: owns every module, handles the encoder actions
-    extraction_controller  extraction state machine, pump / valve relays, safeties, cup volume
+    CoffeeMachine          the application: owns every module, handles the encoder actions
+    ExtractionController   extraction state machine, pump / valve relays, safeties, cup volume
   heating/
-    temperature_sensor     MAX31865 reading, validity, filter, PT100 polynomial
-    heater_controller      PID + feedforward on the flow, heater relay
+    TemperatureSensor      MAX31865 reading, validity, filter, PT100 polynomial
+    HeaterController       PID + feedforward on the flow, heater relay
   settings/
-    settings               saved values (EEPROM)
+    Settings               saved values (EEPROM)
   display/
-    screen_controller      what is shown and when it is redrawn (dirty flags)
-    display                drawing on the GC9A01
-    icons.h, fonts.h       colours, positions, icons, reduced fonts
-  lib/
+    ScreenController       what is shown and when it is redrawn (dirty flags)
+    Display                drawing on the GC9A01
+    Layout.h, Fonts.h      colours, sizes and positions; the reduced fonts
+    IconsData.h            the icons, compressed (generated from tools/icons_raw.h)
+  drivers/
     CJMCU111               rotary encoder + push button (short, double, long push)
     USN_FlowSensor         flow sensors (pin change interrupt)
     FlowSimulator.h        replaces the flow sensors when FLOW_SIMULATOR is defined
-    flow_sensor.h          FlowSensor = the real sensor or the simulator
-test/                      host tests (stubs, mocks)
-tools/                     picture generator for this README
+    FlowSensor.h           FlowSensor = the real sensor or the simulator
+test/                      host tests (run.sh, stubs, mocks)
+tools/                     screen pictures (render_screens), icons (compress_icons), flash budget (check_flash)
 docs/images/               the screen pictures
+.github/workflows/         continuous integration: tests, cppcheck, firmware build
 ```
 
 The main loop is cooperative: no RTOS and no `delay()`. Each pass calls `CoffeeMachine::update()`, which
 polls the encoder, runs the extraction, reads the temperature, drives the heater and redraws what changed.
 The modules do not know each other: `CoffeeMachine` connects them, and the heater and the extraction
 receive their inputs as parameters.
+
+**Conventions.** Identifiers and comments are in English. A source file has the name of the class it holds
+(`CoffeeMachine.cpp`), the data members of a class end with `_` (`pumpPin_`), and the tests, tools and
+scripts are in snake_case.
 
 ---
 

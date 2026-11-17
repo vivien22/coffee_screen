@@ -7,12 +7,12 @@
  *
  *   Config.h               pins, limits, timings, tuning constants
  *   Debug.h                serial traces
- *   settings               saved values (EEPROM)
- *   temperature_sensor     MAX31865: reading, validity, filter
- *   heater_controller      PID + feedforward, heater relay
- *   extraction_controller  extraction state machine, pump relay
- *   screen_controller      what is shown and when
- *   display                drawing on the GC9A01 (Layout.h, Fonts.h)
+ *   Settings               saved values (EEPROM)
+ *   TemperatureSensor      MAX31865: reading, validity, filter
+ *   HeaterController       PID + feedforward, heater relay
+ *   ExtractionController   extraction state machine, pump relay
+ *   ScreenController       what is shown and when
+ *   Display                drawing on the GC9A01 (Layout.h, Fonts.h)
  *   CJMCU111               rotary encoder + push button
  *   USN_FlowSensor         flow sensors (PCINT1)
  *

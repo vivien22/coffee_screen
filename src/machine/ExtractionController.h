@@ -1,5 +1,5 @@
 /*
-  extraction_controller: the extraction state machine and its actuators:
+  ExtractionController: the extraction state machine and its actuators:
   the pump relay and the 3-way solenoid valve relay.
   It uses the flow sensors to know the volume in the cup (estimated, see Config.h) and the flow
   of the water entering the boiler.

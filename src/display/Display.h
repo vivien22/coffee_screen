@@ -3,7 +3,7 @@
 
   It only draws what it is given: the three values shown on the screen
   (temperature in degrees C, volume in ml, duration in s) and the heater indicator.
-  It knows nothing about the machine; what to show and when is decided by screen_controller.
+  It knows nothing about the machine; what to show and when is decided by ScreenController.
 
   Positions, colors and icon data are in Layout.h, the fonts are in Fonts.h
   (both are only used by Display.cpp), the pins are in Config.h.

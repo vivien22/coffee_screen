@@ -1,5 +1,5 @@
 /*
-  heater_controller: time-proportional heater control.
+  HeaterController: time-proportional heater control.
   PID + feedforward on the flow of water entering the boiler, over a PID_WINDOW_MS window.
   Takes its inputs as parameters (temperature, flow): it does not know the sensor,
   the extraction or the screen.
