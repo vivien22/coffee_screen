@@ -65,12 +65,12 @@ int main(){
   // ---- valve opens before the pump when the flush starts: checked by order in code (setValve then setPump)
   // ---- settings
   memset(EEPROM.mem,0xFF,64); SettingsStore st; Settings s=st.load();
-  CHECK(s.flush==DEFAULT_FLUSH_SECONDS && s.preinfusion==DEFAULT_PREINFUSION_ML && s.preinfusionWait==5 && EEPROM.mem[0]==0xA8);
+  CHECK(s.flush==DEFAULT_FLUSH_SECONDS && s.preinfusion==10 && s.preinfusionWait==5 && EEPROM.mem[0]==0xA8);
   SAVE(st,flush,8); SAVE(st,preinfusion,2); s=st.load(); CHECK(s.flush==8 && s.preinfusion==2);
   SAVE(st,flush,0); s=st.load(); CHECK(s.flush==0);
   // unknown magic (old layouts are no longer migrated): defaults
   memset(EEPROM.mem,0xFF,64); EEPROM.mem[0]=0xA6; int16_t tv=91,vv=36; memcpy(EEPROM.mem+1,&tv,2); memcpy(EEPROM.mem+3,&vv,2); EEPROM.mem[5]=7; EEPROM.mem[6]=2;
-  s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.volume==DEFAULT_VOLUME&&s.preinfusion==DEFAULT_PREINFUSION_ML&&s.preinfusionWait==5&&s.flush==5&&EEPROM.mem[0]==0xA8);
+  s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.volume==DEFAULT_VOLUME&&s.preinfusion==10&&s.preinfusionWait==5&&s.flush==5&&EEPROM.mem[0]==0xA8);
   s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.flush==5);   // stable on the next boot
   SAVE(st,temperature,95); SAVE(st,volume,75); SAVE(st,preinfusion,7); SAVE(st,preinfusionWait,0); SAVE(st,flush,9);
   s=st.load(); CHECK(s.temperature==95&&s.volume==75&&s.preinfusion==7&&s.preinfusionWait==0&&s.flush==9);
