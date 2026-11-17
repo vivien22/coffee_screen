@@ -86,6 +86,9 @@ flow sensors A0 (In) and A1 (Out). The screen and the encoder are not used. With
 `#define FLOW_SIMULATOR` in `Config.h`: the pump relay then makes simulated water flow (3 ml/s) and the
 feedforward can be seen working. Comment it out to use the real sensors.
 
+The tuning only needs the **In** sensor (feedforward, no-flow safety). While the Out sensor is not connected,
+comment out `#define FLOW_OUT_SENSOR` in `config.h`: A1 is then ignored and `vol_out` stays 0.
+
 Build with PlatformIO, environment `nanoatmega328new` (the Adafruit libraries of `master` are no longer
 needed, only `br3ttb/PID`).
 
