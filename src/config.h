@@ -77,6 +77,7 @@
 #define RTD_THREE_WIRE             false   // true for a 3-wire PT100 (2-wire and 4-wire: false)
 #define MAX31865_SPI_HZ            1000000UL
 #define SENSOR_PERIOD_MS           250UL
+#define SENSOR_FAULT_TOLERANCE     3       // faulty readings in a row (fault flag, implausible value) before "ERR" and heater off
 #define TEMP_FILTER_TIME_CONSTANT  2.0     // low-pass filter time constant (s)
 
 // ---------- Heater: PID + feedforward ----------

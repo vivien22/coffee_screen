@@ -19,7 +19,8 @@ class TemperatureSensor {
     // Call on every loop pass; the sensor is read once per SENSOR_PERIOD_MS.
     void update(uint32_t now);
 
-    // False after a sensor fault or an implausible value: the heater must stay off.
+    // False after SENSOR_FAULT_TOLERANCE faulty readings in a row (sensor fault or implausible value): the heater
+    // must stay off. One or two stray readings do not count: the last good temperature is kept meanwhile.
     bool isValid() const { return valid_; }
 
     // Filtered temperature (degrees C), meaningful when isValid().
@@ -27,10 +28,12 @@ class TemperatureSensor {
 
   private:
     void sample(uint32_t now);
+    void countBadReading();
     double filter(double raw, uint32_t now);
 
     uint8_t csPin_;
     bool valid_;
+    uint8_t badReadings_;       // faulty readings in a row (fault flag or implausible value)
     bool filterInitialized_;
     double filtered_;
     uint32_t lastFilterAt_;

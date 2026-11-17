@@ -32,5 +32,26 @@ int main(){
   { rtdRegister=0; TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }                      // 0 ohm
   { rtdRegister=(uint16_t)(32767u<<1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); }   // 428 ohm: far above 199 C
   { rtdRegister=(uint16_t)((8000u<<1)|1); TemperatureSensor s(6); s.begin(); CHECK(!s.isValid()); } // fault bit
+  // Stray readings: fewer than SENSOR_FAULT_TOLERANCE faulty readings in a row keep the sensor valid (with the last
+  // good temperature), SENSOR_FAULT_TOLERANCE of them make it invalid, and one good reading brings it back
+  {
+    const double A=3.9083e-3,B=-5.775e-7; const double r=RNOMINAL*(1+A*93+B*93*93);
+    const uint16_t good=(uint16_t)(((uint16_t)(r/RREF*32768.0+0.5))<<1);
+    const uint16_t faultBit=(uint16_t)((8000u<<1)|1), tooHot=(uint16_t)(32767u<<1);
+    for(int kind=0;kind<2;kind++){                                 // 0: fault bit, 1: implausible value
+      const uint16_t bad = kind==0 ? faultBit : tooHot;
+      rtdRegister=good; TemperatureSensor s(6); t=0; s.begin(); CHECK(s.isValid());
+      const double before=s.celsius();
+      for(int n=1;n<=SENSOR_FAULT_TOLERANCE;n++){
+        rtdRegister=bad; t+=SENSOR_PERIOD_MS; s.update(t);
+        CHECK(s.isValid()==(n<SENSOR_FAULT_TOLERANCE));
+        if(n<SENSOR_FAULT_TOLERANCE) CHECK(s.celsius()==before);   // the last good temperature is kept
+      }
+      rtdRegister=good; t+=SENSOR_PERIOD_MS; s.update(t); CHECK(s.isValid());      // one good reading: valid again
+      for(int n=1;n<SENSOR_FAULT_TOLERANCE;n++){                   // and the count started again from zero
+        rtdRegister=bad; t+=SENSOR_PERIOD_MS; s.update(t); CHECK(s.isValid());
+      }
+    }
+  }
   printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0;
 }

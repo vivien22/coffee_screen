@@ -69,6 +69,7 @@ static uint8_t baseConfig() {
 TemperatureSensor::TemperatureSensor(uint8_t csPin) :
   csPin_(csPin),
   valid_(false),
+  badReadings_(0),
   filterInitialized_(false),
   filtered_(0.0),
   lastFilterAt_(0),
@@ -104,7 +105,7 @@ void TemperatureSensor::sample(uint32_t now) {
   if (rtdRegister & 0x01) {   // fault flag
     const uint8_t fault = readRegister8(csPin_, REG_FAULT_STATUS);
     writeRegister(csPin_, REG_CONFIG, baseConfig() | CONFIG_FAULT_CLEAR);
-    valid_ = false;
+    countBadReading();
     (void)fault;   // only used by the debug trace
     DEBUG_PRINT(F("MAX31865 fault: 0x"));
     DEBUG_PRINTLN(fault, HEX);
@@ -116,12 +117,25 @@ void TemperatureSensor::sample(uint32_t now) {
   const float raw = (RTD_C2 * x + RTD_C1) * x + RTD_C0;
 
   if (raw <= VALID_TEMPERATURE_MIN || raw > VALID_TEMPERATURE_MAX) {
-    valid_ = false;
+    countBadReading();
     return;
   }
 
+  badReadings_ = 0;
   filtered_ = filter(raw, now);
   valid_ = true;
+}
+
+// A faulty reading: the sensor is declared invalid only after SENSOR_FAULT_TOLERANCE of them in a row, so that a
+// stray reading does not switch the heater off and flash "ERR" on the screen. Until then the last good
+// temperature stays valid.
+void TemperatureSensor::countBadReading() {
+  if (badReadings_ < SENSOR_FAULT_TOLERANCE) {
+    badReadings_++;
+  }
+  if (badReadings_ >= SENSOR_FAULT_TOLERANCE) {
+    valid_ = false;
+  }
 }
 
 // First-order low-pass filter, time constant TEMP_FILTER_TIME_CONSTANT.
