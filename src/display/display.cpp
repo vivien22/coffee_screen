@@ -112,26 +112,37 @@ static const GFXglyph *glyphOf(const GFXfont *font, char c) {
   return &glyphs[c - '0'];
 }
 
-// Width of the cell of a character: how far the cursor moves when it is printed.
+// Width of the cell of a digit: the same for all the digits of a font (the widest one), so that the end of
+// a number, and the unit that follows it, move only when the number gets one digit longer or shorter, not
+// each time a digit changes ("1" is much narrower than "4"). The decimal point keeps its own width.
+#define DIGIT_CELL_SMALL 26
+#define DIGIT_CELL_LARGE 39
+
+// Width of the cell of a character: how far the cursor moves after it.
 static uint8_t advanceOf(const GFXfont *font, char c) {
-  return pgm_read_byte(&glyphOf(font, c)->xAdvance);
+  if (c == ':') {
+    return pgm_read_byte(&glyphOf(font, c)->xAdvance);
+  }
+  return (font == FONT_SMALL) ? DIGIT_CELL_SMALL : DIGIT_CELL_LARGE;
 }
 
 // Draws one character as a block of the zone height, in one burst: the pixels of the glyph in the text color
 // and all the others in the background color. The old character is replaced at once, without a moment where
 // the place is blank (what a erase followed by a print would show).
-// The block is as wide as the cell, or wider if the glyph goes beyond it (the large '7' goes 1 px beyond):
+// The block is as wide as the cell, or wider if the glyph goes beyond it:
 // the characters are drawn from right to left so that this overhang is not erased by the next character.
 // Returns the width of the block.
 static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline) {
   const GFXglyph *glyph = glyphOf(font, c);
   const uint8_t width = pgm_read_byte(&glyph->width);
   const uint8_t rows = pgm_read_byte(&glyph->height);
-  const int8_t xOffset = (int8_t)pgm_read_byte(&glyph->xOffset);
+  // The glyph is centered in its (wider) cell
+  const int16_t xOffset = (int8_t)pgm_read_byte(&glyph->xOffset)
+                          + (advanceOf(font, c) - pgm_read_byte(&glyph->xAdvance)) / 2;
   const int16_t top = baseline + (int8_t)pgm_read_byte(&glyph->yOffset);   // first row of the glyph
   const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
 
-  uint8_t blockWidth = pgm_read_byte(&glyph->xAdvance);
+  uint8_t blockWidth = advanceOf(font, c);
   if (xOffset + width > blockWidth) {
     blockWidth = xOffset + width;
   }
