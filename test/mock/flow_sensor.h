@@ -1,4 +1,4 @@
-// Test replacement of src/lib/flow_sensor.h: the flow sensor values are set by the tests.
+// Test replacement of src/drivers/flow_sensor.h: the flow sensor values are set by the tests.
 #pragma once
 #include <Arduino.h>
 

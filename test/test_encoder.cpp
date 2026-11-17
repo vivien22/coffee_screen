@@ -1,6 +1,6 @@
 // CJMCU111: pushes and rotations decoded by the interrupt routine (pins driven by the test)
 #define private public
-#include "src/lib/CJMCU111.h"
+#include "src/drivers/CJMCU111.h"
 #undef private
 #include <cstdio>
 static unsigned long t=0; unsigned long millis(){return t;} void delay(unsigned long){}

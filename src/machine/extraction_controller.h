@@ -45,7 +45,7 @@
 #pragma once
 #include <Arduino.h>
 #include "../config.h"
-#include "../lib/flow_sensor.h"
+#include "../drivers/flow_sensor.h"
 
 // The phases PREINFUSION..MANUAL are described by the phase table of extraction_controller.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.

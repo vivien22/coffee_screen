@@ -13,8 +13,8 @@
 #pragma once
 #include <Arduino.h>
 
-#include "../lib/CJMCU111.h"
-#include "../lib/flow_sensor.h"
+#include "../drivers/CJMCU111.h"
+#include "../drivers/flow_sensor.h"
 #include "../settings/settings.h"
 #include "../heating/temperature_sensor.h"
 #include "../heating/heater_controller.h"
