@@ -12,6 +12,10 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
+- The limit stays 30720 B. Tested on the user's Nano (2026-11-17): the bootloader is the 512 B Optiboot at 0x7E00, but the
+  fuses protect the whole 2 KB boot section: a write above 0x7800 fails (verification error at 0x7800) and leaves a
+  broken firmware. Using up to 32256 B would need an ISP programmer on the ICSP header to set BOOTSZ (hfuse 0xDE, like an
+  Uno). Never raise `maximum_size` in platformio.ini without that.
 - Last measured (flags above, with the welcome picture and the standby): 29882 B flash, 463 B RAM with `FLOW_SIMULATOR`
   on (what Config.h has); 30086 B flash, 470 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
