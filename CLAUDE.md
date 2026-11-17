@@ -14,8 +14,8 @@ those (Display, the UI behaviours, icons, the pre-infusion limits) applies to `m
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, compressed icons, probe fault tolerance): 28590 B flash, 457 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 28782 B flash, 464 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured on this branch (flags above): 13916 B flash, 556 B RAM as configured (the real In sensor, Out = 0); the
+  firmware is small, the budget of master does not matter here.
 - `./tools/check_flash.sh` builds and fails over 29800 B of flash or 1600 B of RAM; the CI runs it for both flow
   configurations on every push. About 1 KB is kept free for the feedforward table of the PID tuning: do not raise
   the budget without asking.
@@ -83,7 +83,7 @@ those (Display, the UI behaviours, icons, the pre-infusion limits) applies to `m
 - Flow sensors: In = water entering the boiler (used by the feedforward); Out = water returning through the OPV
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
-- Wiring on 2026-11-17: the In flow sensor is connected, the Out one is not yet (hence `FLOW_SIMULATOR`; on
+- Wiring on 2026-11-17: the In flow sensor is connected, the Out one is not yet (`FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in Config.h: the real In sensor is read, Out = 0; on
   `pid-tuning` the `FLOW_OUT_SENSOR` line of Config.h has to stay commented out for the same reason). On 2026-11-16
   the PT100 was not connected yet.
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No

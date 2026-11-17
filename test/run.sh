@@ -11,6 +11,8 @@ for d in mock real; do
   cp -r src "$B/$d/src"
 done
 cp test/mock/FlowSensor.h "$B/mock/src/drivers/FlowSensor.h"
+# FLOW_SIMULATOR is commented out in Config.h (the real flow sensor): the copy of the test_sim_* flavour switches it on
+sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' "$B/real/src/Config.h"
 status=0
 for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)

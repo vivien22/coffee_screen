@@ -74,7 +74,7 @@
 // Flow simulator: replaces the two flow sensors when they are not connected. While the pump is on,
 // the simulated water enters the boiler at FLOW_SIM_PUMP_ML_PER_S and FLOW_SIM_OPV_RATIO of it
 // comes back through the OPV valve. Comment this line out to use the real sensors (A0 / A1).
-#define FLOW_SIMULATOR
+// #define FLOW_SIMULATOR
 #define FLOW_SIM_PUMP_ML_PER_S       3.0f      // water entering the boiler while the pump is on (ml/s)
 #define FLOW_SIM_OPV_RATIO           0.1f      // part of it returning through the OPV (0 = none, 0.1 = 10 %)
 

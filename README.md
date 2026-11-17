@@ -82,9 +82,9 @@ To keep a log and look at it:
 ## Hardware
 
 Same pins as `master` (`Config.h`): heater relay D5, pump relay D4, valve relay A2, MAX31865 chip select D6,
-flow sensors A0 (In) and A1 (Out). The screen and the encoder are not used. Without the flow sensors, keep
-`#define FLOW_SIMULATOR` in `Config.h`: the pump relay then makes simulated water flow (3 ml/s) and the
-feedforward can be seen working. Comment it out to use the real sensors.
+flow sensors A0 (In) and A1 (Out, ignored: `FLOW_OUT_SENSOR` is commented out, Out = 0). The screen and the encoder are not used. Without the flow sensors, uncomment
+`#define FLOW_SIMULATOR` in `Config.h` (commented out by default, the real In sensor is wired): the pump relay then makes simulated water flow (3 ml/s) and the
+feedforward can be seen working. Leave it commented out to use the real sensors.
 
 The tuning only needs the **In** sensor (feedforward, no-flow safety). While the Out sensor is not connected,
 comment out `#define FLOW_OUT_SENSOR` in `Config.h`: A1 is then ignored and `vol_out` stays 0.
