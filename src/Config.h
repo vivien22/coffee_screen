@@ -86,7 +86,7 @@
 // The PID is activated only if the temperature is at least PID_WORKING_RANGE from the setpoint
 #define PID_WORKING_RANGE    20
 #define PID_KP               40.0
-#define PID_KI               0.1
+#define PID_KI               0.3   // measured on the boiler (tuning/README.md on pid-tuning): no permanent offset
 #define PID_KD               500.0
 
 // The water that enters the boiler (inflow sensor) is cold. Heating that
