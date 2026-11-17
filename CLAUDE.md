@@ -50,9 +50,8 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed
   commits is not the user's approval: do not push, ask for "pousse".
 - Never force-push or rewrite a published branch without an explicit request.
-- Branches: `master` (working), `pid-tuning` (tuning firmware without the UI, serial console, own tests),
-  `preinfusion-time` (old), `phase-table` and `welcome-image` (merged into master; the welcome picture of 5 s at
-  start-up and in the standby, see WELCOME_MS).
+- Branches: `master` (working) and `pid-tuning` (tuning firmware without the UI, serial console, own tests, and the
+  measured tuning results in `tuning/`). The other branches were merged into master and deleted.
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 
 ## Display
