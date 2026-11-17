@@ -12,15 +12,16 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, with the welcome picture): 29722 B flash, 462 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 29912 B flash, 469 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, with the welcome picture): 29702 B flash, 462 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 29892 B flash, 469 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
   `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
-  build is about 190 B larger. With the welcome picture (about 1.1 KB with its start-up code) the firmware is 29912 B of
+  build is about 190 B larger. With the welcome picture (1048 B) the firmware is 29892 B of
   30720 B with the real sensors,
-  and the feedforward table of the PID tuning (+220 B) will still fit (about 590 B left).
+  and the feedforward table of the PID tuning (+220 B) will still fit (about 610 B left). With `WELCOME_MS` 0 the firmware
+  is 40 B larger than master (the faster drawing of the icons and the start-up sequence), with the same RAM.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).

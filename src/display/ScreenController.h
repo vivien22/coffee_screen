@@ -161,12 +161,17 @@ class ScreenController {
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none
     bool temperatureError_ = false;     // sensor fault: "ERR" is shown instead of the live temperature
     bool temperatureErrorShown_ = false; // "ERR" is on the screen now (it is not drawn again while it is)
-    uint32_t welcomeStartedAt_ = 0;     // when the welcome picture was shown (millis)
     uint32_t lastTemperatureAt_ = 0;
 
     bool heaterShown_ = false;
     bool heaterKnown_ = false;
 
     uint8_t dirty_ = DIRTY_NONE;
+
+    // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
+    // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.
+#if WELCOME_MS > 0
+    uint32_t welcomeStartedAt_ = 0;
+#endif
 
 };

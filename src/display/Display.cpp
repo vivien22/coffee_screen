@@ -96,12 +96,14 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
   while (row < height) {
     uint8_t level = bits.get(2);
     uint8_t run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
-    if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2
+#if WELCOME_MS > 0
+    if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2 (only the welcome picture has such areas)
       level = 1 + bits.get(1);
       run = bits.get(6) + 1;
     }
+#endif
 
-    while (run && row < height) {
+    while (run) {
       const uint8_t part = (run < width - column) ? run : (uint8_t)(width - column);   // up to the end of the row
       if (level) {
         tft.setAddrWindow(x + column, y + row, part, 1);

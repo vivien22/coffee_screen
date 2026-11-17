@@ -16,7 +16,9 @@ void ScreenController::begin(const Settings &settings) {
 
   beginDisplay();
   beginWelcome();                // the welcome picture is shown (the backlight goes on)
+#if WELCOME_MS > 0
   welcomeStartedAt_ = millis();
+#endif
 }
 
 // The end of the welcome picture: waits for what is left of WELCOME_MS (the caller has started the sensors
