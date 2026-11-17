@@ -305,6 +305,14 @@ The project follows the Arduino sketch layout (`coffee_screen.ino` and the `src/
 Adafruit GFX and Adafruit GC9A01A (display), PID_v1 (heater). The EEPROM, SPI and avr/wdt libraries come
 with the Arduino core.
 
+The program is close to the 30720 bytes of flash of the Nano. Add this line to the environment of your
+`platformio.ini`: it makes the code about 1 KB smaller (shared function prologues, a little slower) and is
+needed for the display code to fit:
+
+```
+build_flags = -mcall-prologues
+```
+
 Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/debug.h` (115200 baud);
 they are removed from the build otherwise.
 
