@@ -39,6 +39,7 @@ class CoffeeMachine {
                                // the extraction, skips the flush if it is waiting or running
     void handleLongPush();     // switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction)
     void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
+    void wakeUp();             // end of the standby: the heater works again, the real screen comes back
     void adjustActiveParameter(int16_t delta);
 
     FlowSensor flow_;

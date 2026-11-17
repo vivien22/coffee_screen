@@ -65,7 +65,8 @@
 #define TEMPERATURE_OFFSET   5
 
 // Standby: after STANDBY_MINUTES without any action (encoder turn or push, extraction) the heater is switched
-// off. Nothing changes on the screen. Any action wakes the machine up (that first action is ignored). Nothing is saved:
+// off and the welcome picture replaces the screen (nothing changes on the screen if WELCOME_MS is 0). Any action wakes
+// the machine up (that first action is ignored) and the screen comes back. Nothing is saved:
 // after a reboot the machine is awake. 0 = no standby.
 #define STANDBY_MINUTES      30
 
@@ -187,6 +188,10 @@
 // ---------- Screen ----------
 // Draw the three icons at startup. Disabled: the icon data (about 1 KB) is then not in the flash.
 #define DISPLAY_ICONS
+
+// The welcome picture (a cup of coffee) stays on the screen this long at start-up (ms); 0 = none, and its data
+// (about 1.2 KB of flash, its use in the standby included) is then not in the flash. Needs DISPLAY_ICONS.
+#define WELCOME_MS               5000UL
 
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature

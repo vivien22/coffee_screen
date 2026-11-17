@@ -28,6 +28,7 @@ extern SerialT Serial;
 // The state of this stand-in (ArduinoStubs.cpp), driven by the tests
 extern unsigned long stubNow;   // what millis() returns
 extern int stubPins[32];        // the level written to each pin by digitalWrite(), read by digitalRead()
+extern void (*stubDelayHook)(unsigned long);   // called by delay(), if set (a test can look at the screen meanwhile)
 char* itoa(int,char*,int);
 #define pgm_read_byte(p) (*(p))
 #define pgm_read_word(p) (*(p))

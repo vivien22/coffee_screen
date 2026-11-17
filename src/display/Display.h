@@ -43,6 +43,16 @@ void beginDisplay();
 // Switch the backlight on: the screen appears complete.
 void showDisplay();
 
+// The welcome picture of the start-up: beginWelcome() draws it (right after beginDisplay()) and switches the backlight
+// on; it stays until endWelcome() (the caller waits WELCOME_MS between the two, and starts what has to be done in the
+// meantime), which switches the backlight off and clears the picture. Both do nothing if WELCOME_MS is 0.
+void beginWelcome();
+void endWelcome();
+
+// The standby: the welcome picture replaces the whole screen (shown complete, the backlight stays on). endWelcome()
+// takes it away, and the caller then draws the real screen again in full. Does nothing if WELCOME_MS is 0.
+void showStandbyPicture();
+
 #ifdef DISPLAY_ICONS
 // Draw the three icons (thermometer, drop, clock)
 void drawIcons();

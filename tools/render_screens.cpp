@@ -40,6 +40,7 @@ static Settings settings(bool manual = false) {
 // A screen at rest: 92.4 degrees, heater on
 static void ready(ScreenController &sc, bool manual = false) {
   sc.begin(settings(manual));
+  sc.finishWelcome();   // the start-up sequence: the picture, then the icons
   sc.showLiveTemperature(0, 92.4);
   sc.showHeaterState(true);
   now_ += 2000;

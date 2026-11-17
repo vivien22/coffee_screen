@@ -10,7 +10,8 @@ unsigned long stubNow = 0;   // what millis() returns
 int stubPins[32];            // the last level written to each pin; digitalRead() gives it back
 
 unsigned long millis() { return stubNow; }
-void delay(unsigned long) {}
+void (*stubDelayHook)(unsigned long) = nullptr;
+void delay(unsigned long ms) { if (stubDelayHook) stubDelayHook(ms); }
 void pinMode(uint8_t, uint8_t) {}
 void digitalWrite(uint8_t pin, uint8_t level) { stubPins[pin] = level; }
 int digitalRead(uint8_t pin) { return stubPins[pin]; }

@@ -12,13 +12,16 @@ The README describes the behaviour. The user writes in French: reply in French.
   `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
   them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- Last measured (flags above, compressed icons, probe fault tolerance): 28590 B flash, 457 B RAM with `FLOW_SIMULATOR`
-  on (what Config.h has); 28782 B flash, 464 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
+- Last measured (flags above, with the welcome picture and the standby): 29882 B flash, 463 B RAM with `FLOW_SIMULATOR`
+  on (what Config.h has); 30086 B flash, 470 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
   `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
-  build is about 190 B larger.
+  build is about 190 B larger. With the welcome picture (1048 B) and its use in the standby (about 190 B) the firmware is 30086 B of
+  30720 B with the real sensors,
+  and the feedforward table of the PID tuning (+220 B) will still fit (about 410 B left). With `WELCOME_MS` 0 the firmware
+  is 40 B larger than master (the faster drawing of the icons and the start-up sequence), with the same RAM.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
@@ -32,20 +35,26 @@ The README describes the behaviour. The user writes in French: reply in French.
   that are not meant to change the look.
 - The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
   `tools/icons_raw.h`; after changing it run `./tools/compress_icons.sh` (it checks that the decoded icons equal the source).
+  It also holds the welcome picture (96 x 96, shown `WELCOME_MS` = 5 s at start-up): to change it, convert a PNG with
+  `tools/png_to_icon.ps1` (Windows PowerShell, the palette maps each color to a level 0..3, see its header), paste the
+  result in `icons_raw.h` and run the script. `test_welcome` checks that the decoder draws the pictures exactly.
 
 ## Git rules
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed
   commits is not the user's approval: do not push, ask for "pousse".
 - Never force-push or rewrite a published branch without an explicit request.
 - Branches: `master` (working), `pid-tuning` (tuning firmware without the UI, serial console, own tests),
-  `preinfusion-time` (old), `phase-table` (merged into master), `welcome-image` (welcome picture of 5 s at start-up, kept
-  on its own branch by the user until the software is finished: do not merge it unless asked. It costs 924 B: with
-  the real flow sensors the firmware is 29730 B of the 30720 B).
+  `preinfusion-time` (old), `phase-table` and `welcome-image` (merged into master; the welcome picture of 5 s at
+  start-up and in the standby, see WELCOME_MS).
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 
 ## Display
 - Custom bit-packed Adafruit GFX fonts (`src/display/Fonts.h`), already reduced to the glyphs in use.
 - Digits are drawn as opaque glyph blocks with fixed-width cells so a number changes without a blank moment.
+- Start-up sequence: `ScreenController::begin()` shows the welcome picture, the probe and the flow sensors start while it is
+  shown, `finishWelcome()` waits for the rest of `WELCOME_MS`, clears the picture and draws the icons in the dark, then
+  `update()` draws the values and `show()` lights the screen. Measured on the board: 311 ms of black screen between the
+  picture and the real screen, 193 ms of which are the first values (the drawing of the digit blocks is the slow part).
 - Limits that keep the layout valid: volume <= 99, pre-infusion <= 50, wait and flush <= 9 s, manual <= 99 s.
 
 ## Code conventions (asked by the user)
@@ -74,7 +83,8 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Limits: `TEMPERATURE_MAX` is 150 because the user sets the steaming temperature (140-145 °C) by hand, and
   `DURATION_MAX` is 120 s. The user does NOT want other safety limits on `master` (no cap of the setpoint, no
   over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in the README (hardware).
-- Standby after 30 min without action: heater off, nothing changes on the screen, the first action only wakes the
+- Standby after 30 min without action: heater off, the welcome picture replaces the screen (this branch; nothing is
+  drawn over it until the wake-up), the first action only wakes the
   machine, nothing is saved across a reboot.
 
 ## The machine (what the code cannot tell)

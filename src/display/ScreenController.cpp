@@ -15,6 +15,23 @@ void ScreenController::begin(const Settings &settings) {
   dirty_ = DIRTY_ALL_VALUES;
 
   beginDisplay();
+  beginWelcome();                // the welcome picture is shown (the backlight goes on)
+#if WELCOME_MS > 0
+  welcomeStartedAt_ = millis();
+#endif
+}
+
+// The end of the welcome picture: waits for what is left of WELCOME_MS (the caller has started the sensors
+// meanwhile), then the picture is cleared in the dark and the fixed part of the real screen is drawn: the icons and the
+// letter of the mode. The values are drawn by the next update() and the backlight comes on with show().
+void ScreenController::finishWelcome() {
+#if WELCOME_MS > 0
+  const uint32_t shownFor = millis() - welcomeStartedAt_;
+  if (shownFor < WELCOME_MS) {
+    delay(WELCOME_MS - shownFor);
+  }
+#endif
+  endWelcome();
 #ifdef DISPLAY_ICONS
   drawIcons();
   drawDrop(true, settings_.manual);   // with the letter of the mode
@@ -26,9 +43,42 @@ void ScreenController::show() {
   showDisplay();
 }
 
+// The standby: the picture replaces the screen. What changes meanwhile (the temperature...) only marks the fields
+// dirty: leaveStandby() draws them all again.
+void ScreenController::enterStandby() {
+#if WELCOME_MS > 0
+  standbyShown_ = true;
+  showStandbyPicture();
+#endif
+}
+
+// The end of the standby: the picture is cleared in the dark, then the icons, the drop (as it is: the no-water error
+// may be blinking) and every field are drawn again, and the screen is lit: it comes back complete, as at start-up.
+void ScreenController::leaveStandby() {
+#if WELCOME_MS > 0
+  standbyShown_ = false;
+  endWelcome();
+#ifdef DISPLAY_ICONS
+  drawIcons();
+  drawDrop(dropVisible_, settings_.manual);
+#endif
+  dirty_ = DIRTY_ALL_VALUES | DIRTY_HEATER;
+  temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
+  temperatureKey_ = -1;             // the live temperature is drawn again at once
+  render();
+  showDisplay();
+#endif
+}
+
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
+#if WELCOME_MS > 0
+  if (standbyShown_) {
+    return;   // the picture of the standby is on the screen: nothing is drawn over it
+  }
+#endif
+
   // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
   if (tagBlinking_) {
     if (tagBlinkPending_) {

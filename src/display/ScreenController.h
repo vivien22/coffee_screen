@@ -31,11 +31,23 @@ enum ActiveParameter {
 
 class ScreenController {
   public:
-    // Initialize the display (the backlight stays off); the first drawing is done by the first update().
+    // Initialize the display and show the welcome picture (the backlight goes on). The real screen is not drawn yet:
+    // do what has to be done at start-up (it takes place while the picture is shown), then finishWelcome(),
+    // update() and show().
     void begin(const Settings &settings);
+
+    // Waits until the welcome picture has been shown WELCOME_MS since begin(), clears it in the dark, and draws the
+    // icons. Blocks for the rest of that time: call it once, at start-up.
+    void finishWelcome();
 
     // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
     void show();
+
+    // The standby: the welcome picture replaces the screen, and nothing else is drawn (update() does nothing) until
+    // leaveStandby(), which draws the real screen again in full, in the dark, and lights it. Both do nothing
+    // if there is no welcome picture (WELCOME_MS 0): the screen is then left as it is.
+    void enterStandby();
+    void leaveStandby();
 
     // Call on every loop pass: blinking of the FLUSH tag and of the drop, redraw of the dirty fields.
     void update(uint32_t now);
@@ -161,5 +173,12 @@ class ScreenController {
     bool heaterKnown_ = false;
 
     uint8_t dirty_ = DIRTY_NONE;
+
+    // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
+    // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.
+#if WELCOME_MS > 0
+    uint32_t welcomeStartedAt_ = 0;
+    bool standbyShown_ = false;         // the picture of the standby is on the screen: nothing else is drawn
+#endif
 
 };
