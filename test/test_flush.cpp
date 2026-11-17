@@ -65,17 +65,17 @@ int main(){
   // ---- valve opens before the pump when the flush starts: checked by order in code (setValve then setPump)
   // ---- settings
   memset(EEPROM.mem,0xFF,64); SettingsStore st; Settings s=st.load();
-  CHECK(s.flush==DEFAULT_FLUSH_SECONDS && s.preinfusion==10 && s.preinfusionWait==5 && EEPROM.mem[0]==0xA8);
+  CHECK(s.flush==DEFAULT_FLUSH_SECONDS && s.preinfusion==DEFAULT_PREINFUSION_ML && s.preinfusionWait==5 && EEPROM.mem[0]==0xA8);
   SAVE(st,flush,8); SAVE(st,preinfusion,2); s=st.load(); CHECK(s.flush==8 && s.preinfusion==2);
   SAVE(st,flush,0); s=st.load(); CHECK(s.flush==0);
   // unknown magic (old layouts are no longer migrated): defaults
   memset(EEPROM.mem,0xFF,64); EEPROM.mem[0]=0xA6; int16_t tv=91,vv=36; memcpy(EEPROM.mem+1,&tv,2); memcpy(EEPROM.mem+3,&vv,2); EEPROM.mem[5]=7; EEPROM.mem[6]=2;
-  s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.volume==DEFAULT_VOLUME&&s.preinfusion==10&&s.preinfusionWait==5&&s.flush==5&&EEPROM.mem[0]==0xA8);
+  s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.volume==DEFAULT_VOLUME&&s.preinfusion==DEFAULT_PREINFUSION_ML&&s.preinfusionWait==5&&s.flush==5&&EEPROM.mem[0]==0xA8);
   s=st.load(); CHECK(s.temperature==DEFAULT_TEMPERATURE&&s.flush==5);   // stable on the next boot
-  SAVE(st,temperature,95); SAVE(st,volume,150); SAVE(st,preinfusion,7); SAVE(st,preinfusionWait,0); SAVE(st,flush,9);
-  s=st.load(); CHECK(s.temperature==95&&s.volume==150&&s.preinfusion==7&&s.preinfusionWait==0&&s.flush==9);
+  SAVE(st,temperature,95); SAVE(st,volume,75); SAVE(st,preinfusion,7); SAVE(st,preinfusionWait,0); SAVE(st,flush,9);
+  s=st.load(); CHECK(s.temperature==95&&s.volume==75&&s.preinfusion==7&&s.preinfusionWait==0&&s.flush==9);
   // clamp
-  EEPROM.mem[7]=200; s=st.load(); CHECK(s.flush==10);
+  EEPROM.mem[7]=200; s=st.load(); CHECK(s.flush==FLUSH_MAX_SECONDS);
   // ---- screen: parameter order and flush display
   ScreenController sc; Settings in={93,40,5,5,6}; sc.begin(in);
   ActiveParameter seq[]={PARAMETER_PREINFUSION,PARAMETER_PREINFUSION_WAIT,PARAMETER_FLUSH,PARAMETER_TEMPERATURE,PARAMETER_VOLUME};
@@ -85,7 +85,7 @@ int main(){
   calls.clear(); sc.update(0); bool ok=false; for(auto&c:calls) if(c=="dur(6,1,3,1)") ok=true; CHECK(ok);   // 6 s, large, FLUSH tag, tag drawn
   CHECK(sc.adjustActiveParameter(3)); CHECK(sc.settings().flush==9 && sc.settings().preinfusionWait==5);
   calls.clear(); sc.update(1); CHECK(calls.size()==1 && calls[0]=="dur(9,1,3,0)");   // number only
-  CHECK(sc.adjustActiveParameter(50)); CHECK(sc.settings().flush==10); CHECK(!sc.adjustActiveParameter(1));
+  CHECK(!sc.adjustActiveParameter(50)); CHECK(sc.settings().flush==9); CHECK(!sc.adjustActiveParameter(1));
   CHECK(sc.adjustActiveParameter(-50)); CHECK(sc.settings().flush==0);
   // flush during an extraction: tag appears once, then number-only redraws
   { ScreenController s2; Settings i2={93,40,5,5,5}; s2.begin(i2); s2.update(0);

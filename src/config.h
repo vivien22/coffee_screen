@@ -29,16 +29,18 @@
 // ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0
 #define TEMPERATURE_MAX      199
-#define VOLUME_MAX           999
+// The digits of a value have a fixed width (see display.cpp): the volume has 2 digits at most, and the values
+// shown next to a tag (PRE, WAIT, FLUSH, CAL) 1 digit, so that nothing leaves the round screen or overlaps the tag.
+#define VOLUME_MAX           99
 #define DURATION_MAX         999     // also the software limit of an extraction (s)
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").
-#define PREINFUSION_MAX_ML                50
-#define DEFAULT_PREINFUSION_ML            10
-#define PREINFUSION_WAIT_MAX_SECONDS      10
+#define PREINFUSION_MAX_ML                9
+#define DEFAULT_PREINFUSION_ML            9
+#define PREINFUSION_WAIT_MAX_SECONDS      9
 #define DEFAULT_PREINFUSION_WAIT_SECONDS  5
-#define FLUSH_MAX_SECONDS                 10
+#define FLUSH_MAX_SECONDS                 9
 #define DEFAULT_FLUSH_SECONDS             5
 
 // Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a long push

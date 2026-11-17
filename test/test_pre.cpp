@@ -52,20 +52,20 @@ int main(){
   { FlowSensor f; ExtractionController e(4,16,f); e.begin(); t=0; e.start(0,0,5,0); CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1); }
   // ---- settings
   memset(EEPROM.mem,0xFF,64); SettingsStore st; Settings s=st.load();
-  CHECK(s.preinfusion==DEFAULT_PREINFUSION_ML && s.preinfusion==10 && EEPROM.mem[0]==0xA8);
-  SAVE(st,preinfusion,50); s=st.load(); CHECK(s.preinfusion==50);
+  CHECK(s.preinfusion==DEFAULT_PREINFUSION_ML && EEPROM.mem[0]==0xA8);
+  SAVE(st,preinfusion,PREINFUSION_MAX_ML); s=st.load(); CHECK(s.preinfusion==PREINFUSION_MAX_ML);
   EEPROM.mem[5]=200; s=st.load(); CHECK(s.preinfusion==PREINFUSION_MAX_ML);
   EEPROM.mem[6]=77; s=st.load(); CHECK(s.preinfusionWait==PREINFUSION_WAIT_MAX_SECONDS);
   // ---- screen: the pre-infusion volume is edited in the volume field, with the PRE tag
-  { ScreenController sc; Settings in={93,40,10,5,5}; sc.begin(in); sc.update(0);
+  { ScreenController sc; Settings in={93,40,6,5,5}; sc.begin(in); sc.update(0);
     sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_PREINFUSION);
-    calls.clear(); sc.update(1); CHECK(has("vol(10,1,1,1)")); CHECK(!has("dur(10,1,1,1)"));
-    CHECK(sc.adjustActiveParameter(3)); calls.clear(); sc.update(2); CHECK(calls.size()==1 && calls[0]=="vol(13,1,1,0)");   // number only
-    CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusion==50 && !sc.adjustActiveParameter(1));
+    calls.clear(); sc.update(1); CHECK(has("vol(6,1,1,1)")); CHECK(!has("dur(6,1,1,1)"));
+    CHECK(sc.adjustActiveParameter(3)); calls.clear(); sc.update(2); CHECK(calls.size()==1 && calls[0]=="vol(9,1,1,0)");   // number only
+    CHECK(!sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusion==9 && !sc.adjustActiveParameter(1));
     CHECK(sc.settings().preinfusionWait==5 && sc.settings().volume==40);
     sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_PREINFUSION_WAIT);
     calls.clear(); sc.update(701); CHECK(has("dur(5,1,2,1)")); CHECK(has("vol(40,0,0,1)"));   // wait in the duration field; the volume field is back to the target, small
-    CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==10);
+    CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(!sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==9);
   }
   // ---- screen during an extraction
   { ScreenController sc; Settings in={93,40,10,5,5}; sc.begin(in); sc.update(0); sc.showExtractionStarted(); sc.update(1);

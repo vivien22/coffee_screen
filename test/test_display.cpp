@@ -50,8 +50,7 @@ static Call randomCall(int field, int lastTag) {
     else            c.tag = (r == 0) ? PHASE_TAG_PREINFUSION_WAIT : (r == 1 ? PHASE_TAG_FLUSH : PHASE_TAG_NONE);
     // Next to a tag, large digits have 2 digits at most (the pre-infusion volume is at most 50 ml): a third one
     // would overlap the tag
-    if (c.tag != PHASE_TAG_NONE && c.size) c.value %= 100;
-    if (c.tag != PHASE_TAG_NONE && field == 2) c.value %= 11;   // the tag clears "10s" (see icons.h)
+    if (c.tag != PHASE_TAG_NONE) c.value %= 10;   // next to a tag: 1 digit (PREINFUSION_MAX_ML, FLUSH_MAX_SECONDS...)
     // The tag is redrawn when it changes (the controller does it), and sometimes for no reason
     c.redraw = (c.tag != lastTag) || (rand() % 4 == 0);
   }

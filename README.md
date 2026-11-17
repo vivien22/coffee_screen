@@ -281,8 +281,8 @@ Every pin, limit, timing and tuning constant is in `src/config.h`, with comments
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
 | `DEFAULT_TEMPERATURE` | 93 | Water temperature, °C |
 | `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the grouphead of this machine, °C |
-| `DEFAULT_VOLUME` | 40 | Target volume, ml |
-| `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults |
+| `DEFAULT_VOLUME` | 40 | Target volume, ml (`VOLUME_MAX` 99) |
+| `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 9 / 5 / 5 | AUTO defaults (these three are limited to 9: one digit next to their tag) |
 | `DEFAULT_LOSS_ML` | 30 | Water that does not end in the cup |
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.1 / 500 | PID gains, over a 1 s window |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |

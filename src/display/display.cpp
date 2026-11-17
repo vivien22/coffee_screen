@@ -189,6 +189,11 @@ static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y,
 static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
                           int16_t x, int16_t baseline, bool &moved) {
+  // Three digits do not fit in large digits (the cells are wide): a long value is shown in small digits
+  if (strlen(text) > 2) {
+    size = TEXT_SIZE_SMALL;
+  }
+
   const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
 
