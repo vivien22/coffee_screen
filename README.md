@@ -289,8 +289,10 @@ The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56
 > [!IMPORTANT]
 > The board reads the **In** sensor (A0: the water entering the boiler). The **Out** sensor (A1: the return of the OPV
 > valve) is optional: while it is not connected, leave `// #define FLOW_OUT_SENSOR` commented out in `Config.h` (A1 is then
-> ignored: a floating input would count false pulses, and the volume out is 0, so the CAL calibration absorbs what the
-> OPV returns). Uncomment it when the sensor is wired.
+> ignored: a floating input would count false pulses) and the volume out is **estimated** from the volume in:
+> `FLOW_OUT_ESTIMATE_RATIO` (0.385) of the water that enters the boiler is taken as returned by the OPV. That is the
+> figure of the machine: a 50 ml cup goes with 50 ml returned, so with the 30 ml loss 130 ml enter the boiler. The CAL
+> calibration absorbs the rest. Uncomment it when the sensor is wired.
 >
 > `// #define FLOW_SIMULATOR` replaces both sensors by a simulator (3 ml/s while the pump runs, 10 % returning through the
 > OPV): uncomment it to test the machine without any flow sensor. Both lines are commented out by default.
@@ -318,7 +320,8 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
 | `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
-| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1) |
+| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1); until then the Out volume is In * `FLOW_OUT_ESTIMATE_RATIO` |
+| `FLOW_OUT_ESTIMATE_RATIO` | 0.385 | Out / In without the Out sensor (50 ml cup, 50 ml returned, 30 ml loss) |
 | `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
 ---

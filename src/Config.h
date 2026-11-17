@@ -119,9 +119,12 @@
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
 // The Out sensor (A1, return of the OPV valve) is connected: uncomment this line then. While it is not, the pin A1
-// is left alone (a floating input would count false pulses) and the volume out is 0: the volume shown is then the
-// water that enters the boiler (In) minus the loss, and the CAL calibration absorbs what the OPV returns.
+// is left alone (a floating input would count false pulses) and the volume out is ESTIMATED from the volume in:
+// Out = In * FLOW_OUT_ESTIMATE_RATIO. The user's figure: a 50 ml cup goes with 50 ml returned by the OPV, so with the
+// default loss of 30 ml In = 50 + 50 + 30 = 130 ml and the ratio is 50 / 130 = 0.385. The CAL calibration absorbs
+// the rest (it corrects the loss).
 // #define FLOW_OUT_SENSOR
+#define FLOW_OUT_ESTIMATE_RATIO      0.385f    // used only without FLOW_OUT_SENSOR
 
 // Flow simulator: uncomment this line to replace the two flow sensors when they are not connected. While the pump
 // is on, the simulated water enters the boiler at FLOW_SIM_PUMP_ML_PER_S and FLOW_SIM_OPV_RATIO of it comes back

@@ -97,14 +97,20 @@ void USN_FlowSensor::update()
 
     noInterrupts();
     const uint16_t pulsesIn = pulsesIn_;
-    const uint16_t pulsesOut = pulsesOut_;
+    const uint16_t pulsesOut = pulsesOut_;   // 0 while the Out sensor is not wired
     pulsesIn_ = 0;
     pulsesOut_ = 0;
     interrupts();
 
     const float minutes = durationMs / 60000.0f;
     const float volumeIn = pulsesIn / FLOW_K_FACTOR_IN;
+#ifdef FLOW_OUT_SENSOR
     const float volumeOut = pulsesOut / FLOW_K_FACTOR_OUT;
+#else
+    // The Out sensor is not wired: the return of the OPV valve is estimated as a part of the water that enters
+    (void)pulsesOut;
+    const float volumeOut = volumeIn * FLOW_OUT_ESTIMATE_RATIO;
+#endif
     volumeIn_ += volumeIn;
     volumeOut_ += volumeOut;
     lastInRate_ = volumeIn / minutes;
