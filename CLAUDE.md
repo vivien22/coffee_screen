@@ -14,11 +14,12 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
 - Last measured (flags above, with the welcome picture): 29538 B flash, 458 B RAM with `FLOW_SIMULATOR`
   on (what Config.h has); 29730 B flash, 465 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
-- `./tools/check_flash.sh` builds and fails over 29800 B of flash or 1600 B of RAM; the CI runs it for both flow
-  configurations on every push. About 1 KB was kept free for the feedforward table of the PID tuning (+220 B): the
-  welcome picture (924 B) uses it, leaving 70 B under the budget with the real sensors. Raising the budget, a smaller
-  picture or `WELCOME_MS` 0 is the user's choice; do not raise
-  the budget without asking.
+- `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
+  memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
+  more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
+  `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
+  build is about 190 B larger. With the welcome picture (924 B) the firmware is 29730 B of 30720 B with the real sensors,
+  and the feedforward table of the PID tuning (+220 B) will still fit.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
