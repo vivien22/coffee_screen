@@ -64,7 +64,7 @@
 // ---------- Flow sensors ----------
 // Comment this line out while the Out sensor is not connected: A1 is then ignored (no interrupt, Out volume 0).
 // The tuning only needs the In sensor.
-#define FLOW_OUT_SENSOR
+// #define FLOW_OUT_SENSOR
 
 // Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
 #define FLOW_K_FACTOR_IN             12.56f
