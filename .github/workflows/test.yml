@@ -1,5 +1,5 @@
 # Host tests of the logic (no Arduino needed), static analysis, and the build of the firmware for the Nano
-# with its flash budget, on every push and pull request
+# and its size, on every push and pull request
 name: tests
 on: [push, pull_request]
 jobs:
@@ -10,7 +10,7 @@ jobs:
       - run: ./test/run.sh
   firmware:
     # The firmware is built twice: with the flow simulator (config.h as it is) and with the real flow sensors
-    # (the simulator is switched off on this runner only). tools/check_flash.sh fails over the flash / RAM budget.
+    # (the simulator is switched off on this runner only). tools/check_flash.sh shows the flash size and fails over the RAM budget.
     name: firmware (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:

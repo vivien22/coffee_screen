@@ -14,9 +14,11 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Flash is tight: report the size after every change that touches the display, the machine or the settings.
 - Last measured (flags above, compressed icons, probe fault tolerance): 28590 B flash, 457 B RAM with `FLOW_SIMULATOR`
   on (what Config.h has); 28782 B flash, 464 B RAM with the real flow sensors (`FLOW_SIMULATOR` commented out).
-- `./tools/check_flash.sh` builds and fails over 29800 B of flash or 1600 B of RAM; the CI runs it for both flow
-  configurations on every push. About 1 KB is kept free for the feedforward table of the PID tuning: do not raise
-  the budget without asking.
+- `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
+  memory without any message); the CI runs it for both flow configurations on every push. There is no flash budget any
+  more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
+  `FLASH_BUDGET=<bytes>` gives an optional gate. Removing `FLOW_SIMULATOR` does not free flash: the real flow sensors
+  build is about 190 B larger.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
@@ -37,8 +39,8 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Never force-push or rewrite a published branch without an explicit request.
 - Branches: `master` (working), `pid-tuning` (tuning firmware without the UI, serial console, own tests),
   `preinfusion-time` (old), `phase-table` (merged into master), `welcome-image` (welcome picture of 5 s at start-up, kept
-  on its own branch by the user until the software is finished: do not merge it unless asked. It costs 924 B and the
-  real flow sensors build is the larger one (29730 B, 70 B under the CI budget): merging it means raising the budget).
+  on its own branch by the user until the software is finished: do not merge it unless asked. It costs 924 B: with
+  the real flow sensors the firmware is 29730 B of the 30720 B).
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 
 ## Display

@@ -330,8 +330,9 @@ they are removed from the build otherwise.
 > At the last measured build the flash was at **93.1 %** (28 590 bytes, 457 bytes of RAM) with the flow
 > simulator, and at **93.7 %** (28 782 bytes, 464 bytes of RAM) with the real flow sensors. The margin is
 > about 2 KB: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
-> strings. `./tools/check_flash.sh` builds the firmware and fails over the budget of 29 800 bytes of flash
-> (the CI runs it on every push); change `FLASH_BUDGET` there if you need the last kilobyte.
+> strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM
+> (the CI runs it on every push). The flash has no budget: the linker already refuses a program over 30 720 bytes
+> (`FLASH_BUDGET=<bytes>` gives an earlier alarm if you want one).
 
 ---
 
@@ -351,7 +352,7 @@ mock of the flow sensor in `test/mock`. The Arduino API that all the tests share
 
 **Continuous integration** (`.github/workflows/test.yml`), on every push: the tests, a `cppcheck` static
 analysis, and the build of the firmware for the Nano with the flow simulator and with the real flow sensors,
-which fails over the flash and RAM budget (`./tools/check_flash.sh`).
+which shows the flash size and fails over the RAM budget (`./tools/check_flash.sh`).
 
 **Screen pictures.** `./tools/render_screens.sh` draws every screen with the real display code into a frame
 buffer and writes the PNG files of `docs/images` (needs `g++` and Python with Pillow). Run it again after a
@@ -386,7 +387,7 @@ src/
     FlowSimulator.h        replaces the flow sensors when FLOW_SIMULATOR is defined
     FlowSensor.h           FlowSensor = the real sensor or the simulator
 test/                      host tests (run.sh, stubs, mocks)
-tools/                     screen pictures (render_screens), icons (compress_icons), flash budget (check_flash)
+tools/                     screen pictures (render_screens), icons (compress_icons), size and RAM budget (check_flash)
 docs/images/               the screen pictures
 .github/workflows/         continuous integration: tests, cppcheck, firmware build
 ```

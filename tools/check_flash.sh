@@ -1,15 +1,18 @@
 #!/bin/sh
-# Builds the firmware with PlatformIO and fails if the flash or the RAM goes over its budget: ./tools/check_flash.sh
+# Builds the firmware with PlatformIO, shows its size, and fails if the RAM goes over its budget: ./tools/check_flash.sh
 # Used by the CI (.github/workflows/test.yml) and usable by hand (PIO=/path/to/pio to use another pio).
-#   FLASH_BUDGET  bytes of flash allowed (the Nano has 30720): the rest is kept free for what comes next
-#   RAM_BUDGET    bytes of RAM allowed (the Nano has 2048): the rest is the stack
+#   RAM_BUDGET    bytes of RAM allowed (the Nano has 2048): the rest is the stack, whose overflow does not stop the
+#                 build and corrupts the memory without a message
+#   FLASH_BUDGET  optional: fail over this many bytes of flash. No budget by default: the linker already refuses a
+#                 program over the 30720 bytes of the Nano, the size is only shown
 #   LABEL         name of this build in the CI summary
 set -e
 cd "$(dirname "$0")/.."
 
-FLASH_BUDGET=${FLASH_BUDGET:-29800}
 RAM_BUDGET=${RAM_BUDGET:-1600}
+FLASH_BUDGET=${FLASH_BUDGET:-}
 PIO=${PIO:-pio}
+FLASH_LIMIT=30720
 
 if ! output=$("$PIO" run 2>&1); then
   echo "$output"
@@ -25,16 +28,20 @@ if [ -z "$flash" ] || [ -z "$ram" ]; then
   exit 1
 fi
 
-echo "flash: $flash B (budget $FLASH_BUDGET B, limit 30720 B)"
+# the share of the flash, in tenths of percent (96.2 %)
+tenths=$((flash * 1000 / FLASH_LIMIT))
+percent="$((tenths / 10)).$((tenths % 10))"
+
+echo "flash: $flash B of $FLASH_LIMIT B ($percent %)"
 echo "RAM:   $ram B (budget $RAM_BUDGET B, limit 2048 B)"
 
 # Shown in the summary of the CI run
 if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-  echo "- ${LABEL:-firmware}: flash **$flash B** (budget $FLASH_BUDGET B), RAM **$ram B** (budget $RAM_BUDGET B)" >> "$GITHUB_STEP_SUMMARY"
+  echo "- ${LABEL:-firmware}: flash **$flash B** ($percent % of $FLASH_LIMIT B), RAM **$ram B** (budget $RAM_BUDGET B)" >> "$GITHUB_STEP_SUMMARY"
 fi
 
 status=0
-if [ "$flash" -gt "$FLASH_BUDGET" ]; then
+if [ -n "$FLASH_BUDGET" ] && [ "$flash" -gt "$FLASH_BUDGET" ]; then
   echo "FLASH OVER BUDGET by $((flash - FLASH_BUDGET)) B"
   status=1
 fi
