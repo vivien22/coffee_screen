@@ -28,12 +28,12 @@
 
 // ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0
-#define TEMPERATURE_MAX      199
+#define TEMPERATURE_MAX      150     // up to the steaming temperature (140-145 degrees C): set by hand when needed
 // The digits of a value have a fixed width (see display.cpp): the volume has 2 digits at most, and the values
 // shown next to a tag in the duration field (WAIT, FLUSH) 1 digit, so that nothing leaves the round screen or
 // overlaps the tag.
 #define VOLUME_MAX           99
-#define DURATION_MAX         999     // also the software limit of an extraction (s)
+#define DURATION_MAX         120     // the software limit of an extraction (s): it stops with an error after that
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").

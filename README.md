@@ -122,7 +122,7 @@ The mode is shown by the letter in the drop: **A** (AUTO) or **M** (MANUAL). It 
 3. **Pre-infusion**: volume sent at the start to wet the puck (ml, 0 = no pre-infusion)
 4. **Wait**: soak time after the pre-infusion (s, 0 = no wait)
 5. **Flush**: duration of the grouphead rinse after the extraction (s, 0 = no flush)
-6. **Temperature**: water setpoint (°C)
+6. **Temperature**: water setpoint (°C, up to `TEMPERATURE_MAX` = 150: the steaming temperature, 140-145 °C, can be set by hand)
 
 **MANUAL**: the pump runs until you push again, or for a set time. Parameters: **volume** (always 0 at
 rest, it is not a setting here), **MANUAL time** (s, 0 = until the second push; otherwise the time counts
@@ -228,7 +228,7 @@ and `CALIBRATION_MIN_ML`.
 | Safety | What it does |
 |---|---|
 | **No-flow** | If the water entering the boiler (In sensor) does not increase by 2 ml in 5 s while the pump runs, the extraction stops and the drop blinks. A long push clears it |
-| **Maximum duration** | An extraction stops with an error after `DURATION_MAX` seconds |
+| **Maximum duration** | An extraction stops with an error after `DURATION_MAX` seconds (120 by default) |
 | **Pre-infusion timeout** | The pre-infusion ends after 30 s even if its volume is not reached |
 | **Temperature sensor** | MAX31865 fault or implausible value: the heater is off and the screen shows **ERR** |
 | **Standby** | Heater off after 30 minutes without activity |
