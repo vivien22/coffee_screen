@@ -16,9 +16,8 @@
 // The screen driver
 static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
 
-// What a number field shows, to redraw only what changed (see drawNumber)
+// What a number field shows, to erase only what is needed (see drawNumber)
 struct NumberField {
-  char text[6];     // the digits drawn last time (with the decimal point if any)
   int16_t xEnd;     // where the number ended: the unit follows
   int16_t xInkEnd;  // where its last block ended (1 px further for an overhanging character)
   uint8_t size;     // TextSize of the digits
@@ -168,11 +167,13 @@ static uint8_t drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y,
   return blockWidth;
 }
 
-// Draws a number (small or large digits) left-aligned at x, on the given baseline, and redraws only
-// what changed since the last call (the digits that are the same, at the same place, are not touched:
-// no flicker). The whole zone is redrawn only if the field was not showing the same look
-// (first draw, other digit size, other tag) or if force is set.
-//   moved is set when the end of the number is not where it was: the unit that follows must be redrawn.
+// Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
+// replaces what was there (see drawGlyphBlock), so nothing is erased first and nothing flickers, even if the
+// digits are the same as before. The rest of the zone is erased only where it is needed:
+//   - left of the number and right of it, when the field did not show the same look before (first draw, other
+//     digit size, other tag) or when force is set;
+//   - right of the number, when it ends elsewhere than before (shorter number...).
+// moved is set when the end of the number is not where it was: the unit that follows must be drawn again.
 // Returns the x position after the number, where the unit goes.
 static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
@@ -180,40 +181,17 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
   const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
 
-  // The start of the text that is already on the screen is kept: first is the index of the first character
-  // to draw, xFirst its position
-  uint8_t first = 0;
-  int16_t xFirst = x;
-  if (sameLook) {
-    while (text[first] && text[first] == field.text[first]) {
-      xFirst += advanceOf(font, text[first]);
-      first++;
-    }
-
-    // The large '7' overhangs the next cell: the block of the next character would cut it, so it is drawn again
-    if (first > 0 && size == TEXT_SIZE_LARGE && text[first - 1] == '7') {
-      first--;
-      xFirst -= advanceOf(font, '7');
-    }
+  uint8_t length = strlen(text);
+  int16_t xEnd = x;
+  for (uint8_t i = 0; i < length; i++) {
+    xEnd += advanceOf(font, text[i]);
   }
 
-  int16_t xEnd = xFirst;
-  uint8_t length = first;
-  while (text[length]) {
-    xEnd += advanceOf(font, text[length]);
-    length++;
-  }
-
-  moved = !sameLook || xEnd != field.xEnd;
-  if (!moved && length == first) {
-    return xEnd;   // the same number at the same place: nothing to do
-  }
-
-  // The characters that changed, from right to left (see drawGlyphBlock). The end of the last block is the end
-  // of the number, or 1 px further for an overhanging character.
+  // From right to left (see drawGlyphBlock). The end of the last block is the end of the number, or 1 px
+  // further for an overhanging character.
   int16_t xBlock = xEnd;
   int16_t xBlocksEnd = xEnd;
-  for (uint8_t i = length; i > first; i--) {
+  for (uint8_t i = length; i > 0; i--) {
     xBlock -= advanceOf(font, text[i - 1]);
     const int16_t blockEnd = xBlock + drawGlyphBlock(font, text[i - 1], xBlock, zoneY, zoneHeight, baseline);
     if (i == length) {
@@ -221,11 +199,13 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
     }
   }
 
-  // Around the blocks: the left margin of the zone (new look), and the right of the number: up to the end of the
-  // zone if the number moved (the old one was longer, the unit is going to be drawn again), else what was left of
-  // the old last character
-  if (!sameLook && xFirst > zoneX) {
-    tft.fillRect(zoneX, zoneY, xFirst - zoneX, zoneHeight, COLOR_BG);
+  moved = !sameLook || xEnd != field.xEnd;
+
+  // Around the blocks: the left margin of the zone, and the right of the number: up to the end of the zone if the
+  // number moved (the old one was longer, the unit is going to be drawn again), else what was left of the old
+  // last character
+  if (!sameLook && x > zoneX) {
+    tft.fillRect(zoneX, zoneY, x - zoneX, zoneHeight, COLOR_BG);
   }
   const int16_t xEraseEnd = moved ? zoneX + zoneWidth : field.xInkEnd;
   if (xBlocksEnd < xEraseEnd) {
@@ -234,7 +214,6 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
 
   tft.setTextColor(COLOR_TEXT);   // for the unit that follows (the tag drawn last changed the color)
 
-  strcpy(field.text, text);
   field.xEnd = xEnd;
   field.xInkEnd = xBlocksEnd;
   field.size = size;
