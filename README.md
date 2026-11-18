@@ -82,13 +82,13 @@ To keep a log and look at it:
 
 ## Hardware
 
-Same pins as `master` (`Config.h`): heater relay D5, pump relay D4, valve relay A2, MAX31865 chip select D6,
-flow sensors A0 (In) and A1 (Out, ignored: `FLOW_OUT_SENSOR` is commented out, Out = 0). The screen and the encoder are not used. Without the flow sensors, uncomment
+Same pins as `master` (`Config.h`): heater relay D5, pump relay D4, valve relay A0, MAX31865 chip select D6,
+flow sensors A1 (In) and A2 (Out, ignored: `FLOW_OUT_SENSOR` is commented out, Out = 0). The screen and the encoder are not used. Without the flow sensors, uncomment
 `#define FLOW_SIMULATOR` in `Config.h` (commented out by default, the real In sensor is wired): the pump relay then makes simulated water flow (3 ml/s) and the
 feedforward can be seen working. Leave it commented out to use the real sensors.
 
 The tuning only needs the **In** sensor (feedforward, no-flow safety). While the Out sensor is not connected,
-comment out `#define FLOW_OUT_SENSOR` in `Config.h`: A1 is then ignored and `vol_out` stays 0.
+comment out `#define FLOW_OUT_SENSOR` in `Config.h`: A2 is then ignored and `vol_out` stays 0.
 
 Build with PlatformIO, environment `nanoatmega328new` (the Adafruit libraries of `master` are no longer
 needed, only `br3ttb/PID`).

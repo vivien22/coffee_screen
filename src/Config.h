@@ -14,10 +14,10 @@
 // ---------- Pins ----------
 #define PIN_HEATER_RELAY  5
 #define PIN_PUMP_RELAY    4
-#define PIN_VALVE_RELAY   A2
+#define PIN_VALVE_RELAY   A0
 #define PIN_MAX31865_CS   6
-#define PIN_FLOW_IN       A0    // flow sensors: both on A0..A5 (PCINT1), see USN_FlowSensor
-#define PIN_FLOW_OUT      A1
+#define PIN_FLOW_IN       A1    // flow sensors: both on A0..A5 (PCINT1), see USN_FlowSensor
+#define PIN_FLOW_OUT      A2    // same pins as master (valve A0, In A1, Out A2): they also suit the Nano R4
 
 // ---------- Serial console ----------
 #define SERIAL_BAUD            115200
@@ -62,7 +62,7 @@
 #define FEEDFORWARD_HISTORY      80
 
 // ---------- Flow sensors ----------
-// Comment this line out while the Out sensor is not connected: A1 is then ignored (no interrupt, Out volume 0).
+// Comment this line out while the Out sensor is not connected: A2 is then ignored (no interrupt, Out volume 0).
 // The tuning only needs the In sensor.
 // #define FLOW_OUT_SENSOR
 
@@ -73,7 +73,7 @@
 
 // Flow simulator: replaces the two flow sensors when they are not connected. While the pump is on,
 // the simulated water enters the boiler at FLOW_SIM_PUMP_ML_PER_S and FLOW_SIM_OPV_RATIO of it
-// comes back through the OPV valve. Comment this line out to use the real sensors (A0 / A1).
+// comes back through the OPV valve. Comment this line out to use the real sensors (A1 / A2).
 // #define FLOW_SIMULATOR
 #define FLOW_SIM_PUMP_ML_PER_S       3.0f      // water entering the boiler while the pump is on (ml/s)
 #define FLOW_SIM_OPV_RATIO           0.1f      // part of it returning through the OPV (0 = none, 0.1 = 10 %)
