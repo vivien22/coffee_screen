@@ -55,6 +55,9 @@ static void redraw(ScreenController &sc) {
 int main(int argc, char **argv) {
   outDir = argc > 1 ? argv[1] : ".";
 
+  // The welcome picture: shown at start-up and, in the standby, in place of the screen (begin() draws it)
+  { ScreenController sc; sc.begin(settings()); save("welcome"); }
+
   { ScreenController sc; ready(sc); save("auto-ready"); }
 
   { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showPreinfusion(7, 3); redraw(sc); save("auto-preinfusion"); }

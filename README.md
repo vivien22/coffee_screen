@@ -40,8 +40,23 @@ push to brew.
 
 ## 🖥 The screens
 
-At start-up the screen first shows a **welcome picture** (a cup of coffee) for 5 seconds (`WELCOME_MS`), then the
-real screen appears, complete, at once.
+<table>
+<tr>
+<td align="center"><img src="docs/images/welcome.png" width="200"></td>
+<td>
+
+### Welcome picture
+
+A steaming cup of coffee on a dark background. It is shown in two cases:
+
+- **at start-up**, for 5 seconds (`WELCOME_MS`) while the probe and the flow sensors start; then the real screen
+  appears, complete, at once;
+- **in standby**: after 30 minutes without activity (`STANDBY_MINUTES`) the heater is switched off and the picture
+  replaces the screen until the next action on the encoder (see [Standby](#standby)).
+
+</td>
+</tr>
+</table>
 
 The screen shows three values: the **temperature** (°C), the **volume** (ml) and the **duration** (s).
 The **drop** carries the mode letter (**A** = AUTO, **M** = MANUAL). The small dot next to the thermometer
@@ -160,8 +175,8 @@ probe reads the same as the water at the grouphead.
 
 ### Standby
 
-After `STANDBY_MINUTES` (30) without activity the heater is switched off and the **welcome picture** replaces the
-screen (with `WELCOME_MS` 0 there is no picture, and the screen does not change). Any
+After `STANDBY_MINUTES` (30) without activity the heater is switched off and the **welcome picture** (see
+[The screens](#-the-screens)) replaces the screen (with `WELCOME_MS` 0 there is no picture, and the screen does not change). Any
 action on the encoder wakes the machine up, the real screen comes back, and that first action is ignored. Nothing is saved: after a
 reboot the machine is awake.
 
