@@ -29,7 +29,7 @@ push to brew.
 | **Screen** | GC9A01 round display, 240 x 240 |
 | **Input** | CJMCU-111 rotary encoder with push button |
 | **Temperature** | MAX31865 amplifier + PT100 probe, PID with feedforward on the water flow |
-| **Brewing** | pump relay, 3-way valve relay, flow sensors "In" (A0) and "Out" (A1, OPV return) |
+| **Brewing** | pump relay, 3-way valve relay, flow sensors "In" (A1) and "Out" (A2, OPV return) |
 | **Settings** | saved automatically in the EEPROM |
 
 > [!WARNING]
@@ -277,9 +277,9 @@ and `CALIBRATION_MIN_ML`.
 | MAX31865 chip select | D6 |
 | Pump relay | D4 |
 | Heater relay | D5 |
-| 3-way valve relay | A2 |
-| Flow sensor In | A0 |
-| Flow sensor Out | A1 |
+| 3-way valve relay | A0 |
+| Flow sensor In | A1 |
+| Flow sensor Out | A2 |
 
 The TFT and the MAX31865 share the hardware SPI (SCK D13, MOSI D11, MISO D12), each with its own chip select.
 The pins are defined in `src/Config.h`.
@@ -302,8 +302,8 @@ The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56
 (50.0).
 
 > [!IMPORTANT]
-> The board reads the **In** sensor (A0: the water entering the boiler). The **Out** sensor (A1: the return of the OPV
-> valve) is optional: while it is not connected, leave `// #define FLOW_OUT_SENSOR` commented out in `Config.h` (A1 is then
+> The board reads the **In** sensor (A1: the water entering the boiler). The **Out** sensor (A2: the return of the OPV
+> valve) is optional: while it is not connected, leave `// #define FLOW_OUT_SENSOR` commented out in `Config.h` (A2 is then
 > ignored: a floating input would count false pulses) and the volume out is **estimated** from the volume in:
 > `FLOW_OUT_ESTIMATE_RATIO` (0.385) of the water that enters the boiler is taken as returned by the OPV. That is the
 > figure of the machine: a 50 ml cup goes with 50 ml returned, so with the 30 ml loss 130 ml enter the boiler. The CAL
@@ -335,7 +335,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
 | `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
-| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A1); until then the Out volume is In * `FLOW_OUT_ESTIMATE_RATIO` |
+| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A2); until then the Out volume is In * `FLOW_OUT_ESTIMATE_RATIO` |
 | `FLOW_OUT_ESTIMATE_RATIO` | 0.385 | Out / In without the Out sensor (50 ml cup, 50 ml returned, 30 ml loss) |
 | `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 

@@ -14,10 +14,13 @@
 #define PIN_TFT_BL        9     // backlight
 #define PIN_HEATER_RELAY  5
 #define PIN_PUMP_RELAY    4
-#define PIN_VALVE_RELAY   A2
+#define PIN_VALVE_RELAY   A0
 #define PIN_MAX31865_CS   6
-#define PIN_FLOW_IN       A0    // flow sensors: both on A0..A5 (PCINT1), see USN_FlowSensor
-#define PIN_FLOW_OUT      A1
+// Flow sensors: they need an interrupt. Nano R3: any of A0..A5 (PCINT1, see USN_FlowSensor). Nano R4: A1 is external
+// interrupt channel 6 and A2 channel 7 (A0 has none; D2 / D3, the encoder, are channels 0 / 1; keep A4 free: it shares
+// channel 1 with D3). The same wiring works on both boards.
+#define PIN_FLOW_IN       A1
+#define PIN_FLOW_OUT      A2
 
 // ---------- CJMCU-111 rotary encoder ----------
 #define ENCODER_STEP      1     // value change per detent
@@ -121,7 +124,7 @@
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
-// The Out sensor (A1, return of the OPV valve) is connected: uncomment this line then. While it is not, the pin A1
+// The Out sensor (A2, return of the OPV valve) is connected: uncomment this line then. While it is not, the pin A2
 // is left alone (a floating input would count false pulses) and the volume out is ESTIMATED from the volume in:
 // Out = In * FLOW_OUT_ESTIMATE_RATIO. The user's figure: a 50 ml cup goes with 50 ml returned by the OPV, so with the
 // default loss of 30 ml In = 50 + 50 + 30 = 130 ml and the ratio is 50 / 130 = 0.385. The CAL calibration absorbs
@@ -131,7 +134,7 @@
 
 // Flow simulator: uncomment this line to replace the two flow sensors when they are not connected. While the pump
 // is on, the simulated water enters the boiler at FLOW_SIM_PUMP_ML_PER_S and FLOW_SIM_OPV_RATIO of it comes back
-// through the OPV valve. Commented out: the real sensors are read (A0 for In, A1 for Out if FLOW_OUT_SENSOR).
+// through the OPV valve. Commented out: the real sensors are read (A1 for In, A2 for Out if FLOW_OUT_SENSOR).
 // #define FLOW_SIMULATOR
 #define FLOW_SIM_PUMP_ML_PER_S       3.0f      // water entering the boiler while the pump is on (ml/s)
 #define FLOW_SIM_OPV_RATIO           0.1f      // part of it returning through the OPV (0 = none, 0.1 = 10 %)

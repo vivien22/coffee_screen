@@ -103,10 +103,10 @@ The README describes the behaviour. The user writes in French: reply in French.
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
 - Wiring on 2026-11-17 (later that day): everything is connected on the board (probe, encoder, screen, relays, the
   In flow sensor) except the Out flow sensor. So `FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in
-  Config.h: the real In sensor is read and A1 is ignored and the volume out is estimated: Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
+  Config.h: the real In sensor is read and A2 (the Out input) is ignored and the volume out is estimated: Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
   Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too: `DRIVE_PUMP` and `DRIVE_VALVE` are both on. For a test the user
   swapped the two GPIOs and operated the valve by hand for a while (pump A2 / valve D4, `DRIVE_VALVE` off), then went back to
-  the normal wiring (pump D4, valve A2). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the
+  the normal wiring (pump D4, valve A2). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): valve A0, flow In A1, flow Out A2 (see Config.h). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the
   pump only; without `DRIVE_PUMP` only the boiler is controlled.
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
