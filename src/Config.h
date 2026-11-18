@@ -206,7 +206,8 @@
 // Comment the line out to disable it. Choose WDTO_4S or WDTO_8S: a Nano with the OLD bootloader
 // does not disable the watchdog after a reset and can stay in a reset loop with a short timeout
 // (flash the Optiboot bootloader, or select "ATmega328P (Old Bootloader)" only if you do not use this).
-#define WATCHDOG_TIMEOUT   WDTO_4S
+#define WATCHDOG_TIMEOUT   WDTO_4S   // Nano R3 (AVR constant)
+#define WATCHDOG_MS        4000UL    // Nano R4: the same timeout in ms (its watchdog allows up to about 5.5 s)
 
 // ---------- Screen ----------
 // Draw the three icons at startup. Disabled: the icon data (about 1 KB) is then not in the flash.

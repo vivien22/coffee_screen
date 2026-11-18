@@ -6,25 +6,30 @@
 
 #include "USN_FlowSensor.h"
 
+#if defined(ARDUINO_ARCH_AVR)
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
-// This implementation is specifically for the classic Arduino Nano/Uno.
 #if !defined(__AVR_ATmega328P__)
-#error "USN_FlowSensor requires an ATmega328P (classic Nano/Uno)."
+#error "USN_FlowSensor on AVR requires an ATmega328P (classic Nano/Uno)."
+#endif
 #endif
 
 USN_FlowSensor* USN_FlowSensor::instance_ = nullptr;
 
+#ifdef ARDUINO_ARCH_AVR
 // Bits of PORTC (A0..A5) of the two inputs
 #define FLOW_IN_BIT   (PIN_FLOW_IN - A0)
 #define FLOW_OUT_BIT  (PIN_FLOW_OUT - A0)
+#endif
 
 // Counts the pulses of the two flow sensors in a pin change interrupt, and turns them into volumes and flow rate.
 USN_FlowSensor::USN_FlowSensor() :
     pulsesIn_(0),
     pulsesOut_(0),
+#ifdef ARDUINO_ARCH_AVR
     lastPortC_(0),
+#endif
     lastUpdateAt_(0),
     volumeIn_(0.0f),
     volumeOut_(0.0f),
@@ -33,6 +38,7 @@ USN_FlowSensor::USN_FlowSensor() :
 {
 }
 
+#ifdef ARDUINO_ARCH_AVR
 // Configure the In input (and the Out input if FLOW_OUT_SENSOR) and enable PCINT1 for them.
 void USN_FlowSensor::begin()
 {
@@ -56,7 +62,33 @@ void USN_FlowSensor::begin()
 
     lastUpdateAt_ = millis();
 }
+#else
+// Nano R4: one external interrupt per input, on the falling edge (the inputs have a pull-up). The pin must be set
+// as an input BEFORE attachInterrupt() on this core. The pins need an interrupt channel (see PIN_FLOW_IN in Config.h).
+static void flowInInterrupt()  { if (USN_FlowSensor::instance_ != nullptr) USN_FlowSensor::instance_->countPulseIn(); }
+#ifdef FLOW_OUT_SENSOR
+static void flowOutInterrupt() { if (USN_FlowSensor::instance_ != nullptr) USN_FlowSensor::instance_->countPulseOut(); }
+#endif
 
+void USN_FlowSensor::begin()
+{
+    pinMode(PIN_FLOW_IN, INPUT_PULLUP);
+#ifdef FLOW_OUT_SENSOR
+    pinMode(PIN_FLOW_OUT, INPUT_PULLUP);
+#endif
+
+    instance_ = this;
+
+    attachInterrupt(digitalPinToInterrupt(PIN_FLOW_IN), flowInInterrupt, FALLING);
+#ifdef FLOW_OUT_SENSOR
+    attachInterrupt(digitalPinToInterrupt(PIN_FLOW_OUT), flowOutInterrupt, FALLING);
+#endif
+
+    lastUpdateAt_ = millis();
+}
+#endif
+
+#ifdef ARDUINO_ARCH_AVR
 // PORTC pin-change interrupt (A0..A5).
 ISR(PCINT1_vect)
 {
@@ -82,6 +114,7 @@ void USN_FlowSensor::handlePortCChange(uint8_t currentPort)
 
     lastPortC_ = currentPort;
 }
+#endif
 
 // Call from loop(): every FLOW_UPDATE_MS, the pulses counted since the last time are converted
 // into volumes and flow rates (the actual elapsed time is used for the rates).

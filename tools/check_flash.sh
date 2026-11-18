@@ -6,15 +6,17 @@
 #   FLASH_BUDGET  optional: fail over this many bytes of flash. No budget by default: the linker already refuses a
 #                 program over the 30720 bytes of the Nano, the size is only shown
 #   LABEL         name of this build in the CI summary
+#   PIO_ENV       PlatformIO environment (default: the one of "pio run", the Nano R3); nano_r4 builds the Nano R4,
+#                 then set RAM_BUDGET=24000 and FLASH_LIMIT=262144 (its memories are 32 KB of RAM and 256 KB of flash)
 set -e
 cd "$(dirname "$0")/.."
 
 RAM_BUDGET=${RAM_BUDGET:-1600}
 FLASH_BUDGET=${FLASH_BUDGET:-}
 PIO=${PIO:-pio}
-FLASH_LIMIT=30720
+FLASH_LIMIT=${FLASH_LIMIT:-30720}
 
-if ! output=$("$PIO" run 2>&1); then
+if ! output=$("$PIO" run ${PIO_ENV:+-e "$PIO_ENV"} 2>&1); then
   echo "$output"
   echo "BUILD FAILED"
   exit 1
@@ -33,7 +35,7 @@ tenths=$(((flash * 1000 + FLASH_LIMIT / 2) / FLASH_LIMIT))
 percent="$((tenths / 10)).$((tenths % 10))"
 
 echo "flash: $flash B of $FLASH_LIMIT B ($percent %)"
-echo "RAM:   $ram B (budget $RAM_BUDGET B, limit 2048 B)"
+echo "RAM:   $ram B (budget $RAM_BUDGET B)"
 
 # Shown in the summary of the CI run
 if [ -n "$GITHUB_STEP_SUMMARY" ]; then

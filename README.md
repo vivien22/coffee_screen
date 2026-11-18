@@ -284,7 +284,15 @@ and `CALIBRATION_MIN_ML`.
 The TFT and the MAX31865 share the hardware SPI (SCK D13, MOSI D11, MISO D12), each with its own chip select.
 The pins are defined in `src/Config.h`.
 
-**Parts:** Arduino Nano, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
+**Boards:** the same wiring and the same code work on the **Arduino Nano R3** (ATmega328P, the board this was
+developed on) and on the **Arduino Nano R4** (RA4M1, 5 V I/O like the R3). The only thing the R4 does not have is the
+pin change interrupt: the flow sensors need an external interrupt channel, and A0 has none. That is why the flow
+sensors are on A1 (In) and A2 (Out) and the valve relay on A0: A1 and A2 are interrupt channels 6 and 7 of the R4 (checked
+in the pin table of its core). The encoder (D2, D3) is on channels 0 and 1; keep A4 free (it shares channel 1 with D3).
+A GPIO of the R4 gives 8 mA at most (the R3: 40 mA): check the current of the display backlight (D9) and of the relay
+inputs, and use a transistor if they need more.
+
+**Parts:** Arduino Nano R3 or R4, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
 (pump, heater, valve), two flow sensors (In and Out / OPV return).
 
 ### Pump and valve
@@ -349,6 +357,20 @@ With PlatformIO (board Arduino Nano, ATmega328P, environment `nanoatmega328new`)
 pio run -e nanoatmega328new
 pio run -e nanoatmega328new -t upload
 ```
+
+For the **Nano R4** use the other environment (PlatformIO downloads its platform at the first build):
+
+```
+pio run -e nano_r4
+pio run -e nano_r4 -t upload
+```
+
+It builds from the same sources: `USN_FlowSensor.cpp` counts the pulses with `attachInterrupt` instead of the pin change
+interrupt, and `coffee_screen.ino` starts the watchdog of the R4 (`WDT.begin`, `WATCHDOG_MS` in `Config.h`) instead of the
+AVR one. The R4 has 256 KB of flash and 32 KB of RAM (the firmware uses about 67 KB and 3.7 KB), so the size
+flags below are for the R3 only. `platform/nano_r4/wiring_private.h` is an empty header that the display library needs
+and the R4 core lacks. **The R4 build compiles in the CI but has not been run on a board yet** (display, encoder, flow
+interrupts, watchdog, EEPROM to check).
 
 The project follows the Arduino sketch layout (`coffee_screen.ino` and the `src/` folder). Libraries:
 Adafruit GFX and Adafruit GC9A01A (display), PID_v1 (heater). The EEPROM, SPI and avr/wdt libraries come

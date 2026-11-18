@@ -9,10 +9,10 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./test/run.sh
   firmware:
-    # The firmware is built for the Nano four ways: as configured (the boiler only, the real In flow sensor, the Out one
+    # The firmware is built for the Nano R3 four ways: as configured (the boiler only, the real In flow sensor, the Out one
     # not connected), with the pump and the valve driven, with the Out sensor too, and with the flow simulator (the
-    # config lines are uncommented on this runner only). tools/check_flash.sh shows the flash size and fails over the
-    # RAM budget.
+    # config lines are uncommented on this runner only), and once for the Nano R4 (PIO_ENV nano_r4, with the memories of
+    # that board). tools/check_flash.sh shows the flash size and fails over the RAM budget.
     name: firmware (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
@@ -29,6 +29,11 @@ jobs:
             edit: "sed -i 's|^// #define FLOW_OUT_SENSOR|#define FLOW_OUT_SENSOR|' src/Config.h"
           - name: flow simulator
             edit: "sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h"
+          - name: Nano R4 (as configured)
+            edit: "true"
+            env: nano_r4
+            ram: "24000"
+            flash: "262144"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,15 +48,20 @@ jobs:
       - run: ./tools/check_flash.sh
         env:
           LABEL: ${{ matrix.name }}
+          # the Nano R3 environment unless the entry of the matrix names another one
+          PIO_ENV: ${{ matrix.env }}
+          RAM_BUDGET: ${{ matrix.ram || '1600' }}
+          FLASH_LIMIT: ${{ matrix.flash || '30720' }}
   cppcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y cppcheck
       # Real bugs only (errors, warnings, portability, performance); style findings are not blocking.
-      # The options are checked with and without: the simulator, the Out sensor, no valve, no pump.
+      # The options are checked with and without: the simulator, the Out sensor, no valve, no pump, and for the two boards
+      # (ARDUINO_ARCH_AVR is the Nano R3, undefined is the Nano R4).
       - run: |
-          for d in "-DFLOW_SIMULATOR" "-DFLOW_OUT_SENSOR" "-UDRIVE_VALVE" "-UDRIVE_PUMP" "-UFLOW_SIMULATOR"; do
+          for d in "-DARDUINO_ARCH_AVR -DFLOW_SIMULATOR" "-DARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-DARDUINO_ARCH_AVR -UDRIVE_VALVE" "-DARDUINO_ARCH_AVR -UDRIVE_PUMP" "-DARDUINO_ARCH_AVR -UFLOW_SIMULATOR" "-UARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-UARDUINO_ARCH_AVR"; do
             cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
               --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -D__AVR_ATmega328P__ -I src $d src
           done
