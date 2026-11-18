@@ -32,7 +32,8 @@ jobs:
           key: platformio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
       - run: pip install platformio
       - if: matrix.simulator == true
-        run: sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h
+        # Quoted: an unquoted " #" would start a YAML comment and cut the command
+        run: "sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h"
       - run: ./tools/check_flash.sh
         env:
           LABEL: ${{ matrix.name }}
