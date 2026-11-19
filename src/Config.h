@@ -27,7 +27,7 @@
 // ---------- CJMCU-111 rotary encoder ----------
 #define ENCODER_STEP      1     // value change per detent
 #define LONG_PUSH_MS      800   // a push held this long (ms) is a long push (reported before the release):
-                                // it switches between AUTO and MANUAL (or clears the no-water error)
+                                // it enters and leaves the steaming mode
 #define DOUBLE_PUSH_MS    350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                 // a short push is reported once this delay has passed
 
@@ -49,6 +49,11 @@
 #define DURATION_MAX         120     // the software limit of an extraction (s): it stops with an error after that
 #define DEFAULT_TEMPERATURE  93      // used when the EEPROM has never been written
 #define DEFAULT_VOLUME       40
+// Steaming mode (long push of the encoder): the heater only regulates the steaming temperature (SteamingTemp in the EEPROM,
+// the temperature of the brewing is BrewingTemp), no extraction, the screen shows the temperature alone. The temperature
+// is set with the encoder (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one is shown again).
+#define DEFAULT_STEAMING_TEMPERATURE  135    // used when the EEPROM has never been written
+#define STEAM_SETPOINT_SHOW_MS        2000UL
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").
 #define PREINFUSION_MAX_ML                50
 #define DEFAULT_PREINFUSION_ML            10
@@ -58,7 +63,7 @@
 #define DEFAULT_FLUSH_SECONDS             5
 
 // Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a short push
-// switches it (the long push is disabled for the moment). AUTO when the EEPROM has never been written.
+// switches it (the long push is the steaming mode). AUTO when the EEPROM has never been written.
 // MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode.
 //
 // The settings are saved in EEPROM by the machine, never by the user, and only at these moments (and

@@ -18,6 +18,7 @@ static const int ADDR_MANUAL           = ADDR_FLUSH + 1;   // 1 = MANUAL, anythi
 static const int ADDR_MANUAL_SECONDS   = ADDR_MANUAL + 1;  // a value out of range (blank 0xFF) = 0: no new magic needed
 static const int ADDR_LOSS             = ADDR_MANUAL_SECONDS + 1;   // a blank EEPROM (NaN) or an out of range value = the default
 static const int ADDR_STOP_DELAY       = ADDR_LOSS + (int)sizeof(float);   // same: blank = the default (no new magic needed)
+static const int ADDR_STEAMING_TEMP    = ADDR_STOP_DELAY + (int)sizeof(float);   // int16: blank (-1) or out of range = the default (no new magic needed)
 
 // Reads the settings. A blank or unknown EEPROM gives the defaults (and writes them); a stored value out of its
 // limits is brought back to the nearest limit.
@@ -36,6 +37,10 @@ Settings SettingsStore::load() const {
     settings.manual = (EEPROM.read(ADDR_MANUAL) == 1);
     const uint8_t manualSeconds = EEPROM.read(ADDR_MANUAL_SECONDS);
     settings.manualSeconds = (manualSeconds <= MANUAL_MAX_SECONDS) ? manualSeconds : DEFAULT_MANUAL_SECONDS;
+    EEPROM.get(ADDR_STEAMING_TEMP, settings.steamingTemperature);
+    if (settings.steamingTemperature < VALUE_MIN || settings.steamingTemperature > TEMPERATURE_MAX) {
+      settings.steamingTemperature = DEFAULT_STEAMING_TEMPERATURE;
+    }
     EEPROM.get(ADDR_LOSS, settings.loss);
     if (!(settings.loss >= 0.0f && settings.loss <= LOSS_MAX_ML)) {   // false for NaN too
       settings.loss = DEFAULT_LOSS_ML;
@@ -43,6 +48,7 @@ Settings SettingsStore::load() const {
   } else {
     // Blank or unknown EEPROM: defaults, written at once
     settings.temperature = DEFAULT_TEMPERATURE;
+    settings.steamingTemperature = DEFAULT_STEAMING_TEMPERATURE;
     settings.volume = DEFAULT_VOLUME;
     settings.preinfusion = DEFAULT_PREINFUSION_ML;
     settings.preinfusionWait = DEFAULT_PREINFUSION_WAIT_SECONDS;
@@ -67,6 +73,7 @@ void SettingsStore::save(const Settings &settings) const {
   EEPROM.update(ADDR_MANUAL, settings.manual ? 1 : 0);
   EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)settings.manualSeconds);
   EEPROM.put(ADDR_LOSS, settings.loss);
+  EEPROM.put(ADDR_STEAMING_TEMP, settings.steamingTemperature);
 }
 
 float SettingsStore::loadStopDelay() const {

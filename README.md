@@ -124,7 +124,7 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 | **Turn** | Changes the selected value (not while an extraction runs, except the temperature) |
 | **Short push** | Switches between **AUTO** and **MANUAL** (ignored during an extraction), or clears the "no water" error (the only way to clear it). The start / stop button starts and stops the extraction |
 | **Double push** (two short pushes in 350 ms) | Validates the edited parameter and selects the next one |
-| **Long push** (800 ms) | **Disabled for the moment** (its code is kept: its actions are on the short push) |
+| **Long push** (800 ms) | Enters and leaves the **steaming mode** (nothing going on) |
 
 A short push is reported 350 ms after the release, because the machine waits to see whether a second push
 follows.
@@ -162,6 +162,24 @@ A second push button, between **A0 and GND** (no resistor: the internal pull-up 
 - The push counts when the level has stayed 30 ms (`START_BUTTON_DEBOUNCE_MS`), once, however long it is held; a button held at
   power-up does nothing. The encoder works as before.
 
+### Steaming mode
+
+A **long push** of the encoder (800 ms), with nothing going on, enters the steaming mode; another long push leaves it (a long push
+during an extraction does nothing). The machine then only regulates the boiler (PID and heater) at the **steaming temperature**
+(**SteamingTemp**, 135 °C by default, `DEFAULT_STEAMING_TEMPERATURE`); the temperature of the brewing (**BrewingTemp**) is the one of the
+other modes, and both are kept in the EEPROM.
+
+- **No extraction**: the extraction is not updated (no volume is read), the pump and the valve stay off, the start / stop button does
+  nothing, and the short and double pushes neither.
+- **The screen** shows the temperature alone, in large digits in the middle (no icon, no volume, no duration, no heater dot); `ERR` if
+  the probe fails.
+- **The encoder** sets SteamingTemp: the setpoint is shown for 2 s after each turn (`STEAM_SETPOINT_SHOW_MS`), then the measured
+  temperature comes back. It is saved at each change and applied to the heater at once.
+- **Leaving it**: the brewing setpoint is applied again, the real screen is drawn again in full with the volume selected. The mode is
+  not saved: after a reboot the machine is in brewing mode. The standby works as in the other modes.
+
+![steaming](docs/images/steaming.png)
+
 ### After an extraction
 
 The final volume and duration stay on the screen for 10 s (from the end of the extraction in MANUAL mode or without flush,
@@ -176,7 +194,8 @@ byte by byte, only for the bytes that differ, to spare its life):
 
 - at a double push (the edited parameter is validated),
 - at the start of an extraction,
-- at a change of mode.
+- at a change of mode,
+- at each turn of the encoder in the steaming mode (SteamingTemp).
 
 The EEPROM layout is in `src/settings/Settings.cpp`.
 
@@ -420,7 +439,8 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | Constant | Default | Meaning |
 |---|---|---|
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
-| `DEFAULT_TEMPERATURE` / `TEMPERATURE_MAX` | 93 / 150 | Water temperature, °C (150: the steaming temperature can be set by hand) |
+| `DEFAULT_TEMPERATURE` / `TEMPERATURE_MAX` | 93 / 150 | Water temperature, °C (BrewingTemp), and the maximum of both temperatures |
+| `DEFAULT_STEAMING_TEMPERATURE` / `STEAM_SETPOINT_SHOW_MS` | 135 / 2000 | Steaming mode: SteamingTemp, °C, and how long the setpoint is shown after a turn (ms) |
 | `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the grouphead of this machine, °C |
 | `DEFAULT_VOLUME` | 40 | Target volume, ml (`VOLUME_MAX` 99) |
 | `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults (`WAIT` and `FLUSH` are limited to 9: one digit next to their tag) |

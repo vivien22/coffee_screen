@@ -68,27 +68,10 @@ void CoffeeMachine::update() {
 
   const uint32_t now = millis();
 
-  // ----- 2. Extraction -----
-  extraction_.update(now, screen_.settings().volume);
-
-  // The delay of the stop before the target was learned: kept for the next extractions
-  if (extraction_.stopDelayLearned()) {
-    store_.saveStopDelay(extraction_.stopDelaySeconds());
+  // ----- 2. Extraction (not in the steaming mode: no extraction, no volume is read) -----
+  if (!steaming_) {
+    updateExtraction(now);
   }
-  // The water that came after the stop is counted: the final volume of an extraction without flush is shown again (with a
-  // flush the screen already follows it)
-  if (extraction_.takeSettled() && extraction_.state() == EXTRACTION_FINISHED && resultShown_) {
-    screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
-  }
-
-  // An extraction that ended normally can be used to calibrate the loss (CAL parameter): offered once
-  if (extraction_.calibratable() && !extraction_.settlePending() && !calibrationOffered_) {
-    calibrationOffered_ = true;
-    screen_.offerCalibration(extraction_.volumeMl());
-  }
-
-  // The drop icon blinks until the no-water error is cleared
-  screen_.showNoWater(extraction_.hasNoWaterError());
 
   // ----- 3. Temperature, standby and heater -----
   temperature_.update(now);
@@ -111,6 +94,45 @@ void CoffeeMachine::update() {
                  extraction_.inflowMlPerSec());
 
   // ----- 4. What the screen shows -----
+  if (!steaming_) {
+    showExtraction(now);
+  }
+
+  if (temperature_.isValid()) {
+    screen_.showLiveTemperature(now, temperature_.celsius() - TEMPERATURE_OFFSET);
+  } else {
+    screen_.showTemperatureError();   // the heater is off (see HeaterController)
+  }
+  screen_.showHeaterState(heater_.isOn());
+  screen_.update(now);
+}
+
+// Section 2 of update(): the extraction (phases, volume, safeties) and what follows from it.
+void CoffeeMachine::updateExtraction(uint32_t now) {
+  extraction_.update(now, screen_.settings().volume);
+
+  // The delay of the stop before the target was learned: kept for the next extractions
+  if (extraction_.stopDelayLearned()) {
+    store_.saveStopDelay(extraction_.stopDelaySeconds());
+  }
+  // The water that came after the stop is counted: the final volume of an extraction without flush is shown again (with a
+  // flush the screen already follows it)
+  if (extraction_.takeSettled() && extraction_.state() == EXTRACTION_FINISHED && resultShown_) {
+    screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
+  }
+
+  // An extraction that ended normally can be used to calibrate the loss (CAL parameter): offered once
+  if (extraction_.calibratable() && !extraction_.settlePending() && !calibrationOffered_) {
+    calibrationOffered_ = true;
+    screen_.offerCalibration(extraction_.volumeMl());
+  }
+
+  // The drop icon blinks until the no-water error is cleared
+  screen_.showNoWater(extraction_.hasNoWaterError());
+}
+
+// Section 4 of update(): the state of the extraction on the screen; the final values of an extraction are shown once it stopped.
+void CoffeeMachine::showExtraction(uint32_t now) {
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();
   const bool justStopped = wasExtracting_ && !extracting;
@@ -169,14 +191,6 @@ void CoffeeMachine::update() {
   }
   // The last seconds of the display of the result: the values blink, they are about to be replaced
   screen_.blinkResult(now, resultShown_ && (int32_t)(resultShownUntil_ - now) <= (int32_t)RESULT_BLINK_WINDOW_MS);
-
-  if (temperature_.isValid()) {
-    screen_.showLiveTemperature(now, temperature_.celsius() - TEMPERATURE_OFFSET);
-  } else {
-    screen_.showTemperatureError();   // the heater is off (see HeaterController)
-  }
-  screen_.showHeaterState(heater_.isOn());
-  screen_.update(now);
 }
 
 // ------------------------------------------------------------
@@ -208,14 +222,33 @@ void CoffeeMachine::pollEncoder() {
   handlePush(pushEvent);
 }
 
-// What each push of the encoder does. The long push is disabled for the moment (handleLongPush() is kept for a future use):
-// the short push does what it did.
+// What each push of the encoder does. The long push enters and leaves the steaming mode, where the short and the double push
+// do nothing (the temperature is the only thing to set).
 void CoffeeMachine::handlePush(PushEvent pushEvent) {
   switch (pushEvent) {
-    case PUSH_SHORT:  handleShortPush();  break;
-    case PUSH_DOUBLE: handleDoublePush(); break;
-    default: break;   // PUSH_LONG: nothing
+    case PUSH_LONG:   toggleSteaming();   break;
+    case PUSH_SHORT:  if (!steaming_) handleShortPush();  break;
+    case PUSH_DOUBLE: if (!steaming_) handleDoublePush(); break;
+    default: break;
   }
+}
+
+// The steaming mode (long push, to enter it and to leave it), only when nothing is going on: the heater regulates the steaming
+// temperature, there is no extraction (it is not updated: no volume is read, the start button does nothing), and the screen shows
+// the temperature alone. What was being set is validated first (and the mode of the machine stays as it is).
+void CoffeeMachine::toggleSteaming() {
+  if (extraction_.isActive()) {
+    return;
+  }
+  saveSettings();
+  steaming_ = !steaming_;
+  if (steaming_) {
+    screen_.enterSteaming();
+  } else {
+    screen_.leaveSteaming();
+    resultShown_ = false;
+  }
+  saveSettings();   // the setpoint of the mode that starts
 }
 
 // The end of the standby: the heater works again and the real screen comes back (see ScreenController::leaveStandby()).
@@ -233,7 +266,9 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   if (screen_.activeParameter() != PARAMETER_TEMPERATURE && extraction_.isActive()) {
     return;
   }
-  screen_.adjustActiveParameter(delta);
+  if (screen_.adjustActiveParameter(delta) && steaming_) {
+    saveSettings();   // SteamingTemp is saved at each change, and applied to the heater at once
+  }
 }
 
 // What the start / stop button does while an extraction runs:
@@ -312,7 +347,7 @@ void CoffeeMachine::pollStartButton() {
       lastActivityAt_ = now;
       if (standby_) {
         wakeUp();
-      } else {
+      } else if (!steaming_) {   // the steaming mode has no extraction
         handleStartButton();
       }
     }
@@ -389,7 +424,7 @@ void CoffeeMachine::handleDoublePush() {
 void CoffeeMachine::saveSettings() {
   const Settings &settings = screen_.settings();
   store_.save(settings);
-  heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
+  heater_.setSetpoint((steaming_ ? settings.steamingTemperature : settings.temperature) + TEMPERATURE_OFFSET);
 }
 
 // Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.

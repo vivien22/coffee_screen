@@ -61,6 +61,13 @@ class ScreenController {
     // The volume (the main parameter) is selected again, from whichever parameter was being set (the values stay as they are).
     void selectVolume() { if (active_ != PARAMETER_VOLUME) activate(PARAMETER_VOLUME); }
 
+    // Steaming mode: the screen shows the temperature alone, in large digits (the rest of the screen is cleared); the encoder sets
+    // the steaming temperature (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one again). leaveSteaming()
+    // draws the real screen again in full, with the volume selected.
+    void enterSteaming();
+    void leaveSteaming();
+    bool steaming() const { return steaming_; }
+
     // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode).
     // The volume is selected again.
     void toggleMode();
@@ -131,6 +138,7 @@ class ScreenController {
     };
 
     void render();
+    void redrawScreen();                        // the real screen (or the steaming one) in full
     void activate(ActiveParameter next);        // select a parameter and show it
     bool availableInMode(ActiveParameter p) const;
     bool calibrationAvailable_ = false;
@@ -166,6 +174,9 @@ class ScreenController {
     bool dropVisible_ = true;
     uint32_t dropToggleAt_ = 0;
 
+    bool steaming_ = false;               // steaming mode: only the temperature is shown
+    bool steamSetpointShown_ = false;     // steaming: the setpoint is shown (just set), not the measured temperature
+    uint32_t steamSetpointUntil_ = 0;
     double liveTemperature_ = 0.0;
     int16_t temperatureKey_ = -1;       // last displayed live temperature (tenths), -1 = none
     bool temperatureError_ = false;     // sensor fault: "ERR" is shown instead of the live temperature

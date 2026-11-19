@@ -42,6 +42,9 @@ class CoffeeMachine {
     void handleExtractionPush();   // what the start / stop button does while an extraction runs: end it / start the flush / stop the flush
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
+    void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
+    void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
+    void showExtraction(uint32_t now);
     void handleLongPush();     // switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction). The long push is disabled: the short push calls this
     void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
     void wakeUp();             // end of the standby: the heater works again, the real screen comes back
@@ -57,6 +60,7 @@ class CoffeeMachine {
 
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
+    bool steaming_ = false;           // steaming mode (see toggleSteaming)
     bool standby_ = false;            // the heater is off after STANDBY_MINUTES without activity
     uint32_t lastActivityAt_ = 0;
     bool calibrationOffered_ = false; // CAL was offered for the last extraction

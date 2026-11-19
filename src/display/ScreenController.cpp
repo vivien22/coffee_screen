@@ -58,16 +58,43 @@ void ScreenController::leaveStandby() {
 #if WELCOME_MS > 0
   standbyShown_ = false;
   endWelcome();
-#ifdef DISPLAY_ICONS
-  drawIcons();
-  drawDrop(dropVisible_, settings_.manual);
+  redrawScreen();
+  showDisplay();
 #endif
-  dirty_ = DIRTY_ALL_VALUES | DIRTY_HEATER;
+}
+
+// The screen in full: the icons, the drop (as it is: the no-water error may be blinking) and every field, or the steaming
+// temperature alone.
+void ScreenController::redrawScreen() {
+#ifdef DISPLAY_ICONS
+  if (!steaming_) {
+    drawIcons();
+    drawDrop(dropVisible_, settings_.manual);
+  }
+#endif
+  dirty_ = steaming_ ? DIRTY_TEMPERATURE : (DIRTY_ALL_VALUES | DIRTY_HEATER);
   temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
   temperatureKey_ = -1;             // the live temperature is drawn again at once
   render();
-  showDisplay();
-#endif
+}
+
+// Steaming mode: the screen is cleared, the temperature alone is drawn. The encoder sets the steaming temperature.
+void ScreenController::enterSteaming() {
+  steaming_ = true;
+  steamSetpointShown_ = false;
+  active_ = PARAMETER_TEMPERATURE;
+  temperatureShown_ = liveTemperature_;
+  clearScreen();
+  redrawScreen();
+}
+
+// Back to the brewing: the volume is selected, the real screen is drawn again in full.
+void ScreenController::leaveSteaming() {
+  steaming_ = false;
+  activate(PARAMETER_VOLUME);
+  showReady();
+  clearScreen();
+  redrawScreen();
 }
 
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
@@ -78,6 +105,17 @@ void ScreenController::update(uint32_t now) {
     return;   // the picture of the standby is on the screen: nothing is drawn over it
   }
 #endif
+
+  if (steaming_) {   // the temperature alone: no tag, no drop
+    if (steamSetpointShown_ && (int32_t)(now - steamSetpointUntil_) >= 0) {
+      steamSetpointShown_ = false;      // the setpoint was shown long enough: the measured temperature (or ERR) comes back
+      temperatureKey_ = -1;
+      temperatureShown_ = liveTemperature_;
+      dirty_ |= DIRTY_TEMPERATURE;
+    }
+    render();
+    return;
+  }
 
   // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
   if (tagBlinking_) {
@@ -249,7 +287,8 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       value = &calibrationValue_;         maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME_NUMBER;
       break;
     default:
-      value = &settings_.temperature;     maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
+      value = steaming_ ? &settings_.steamingTemperature : &settings_.temperature;
+      maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
       break;
   }
 
@@ -264,6 +303,10 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
     volumeShown_ = newValue;
   } else if (active_ == PARAMETER_TEMPERATURE) {
     temperatureShown_ = newValue;
+    if (steaming_) {
+      steamSetpointShown_ = true;
+      steamSetpointUntil_ = millis() + STEAM_SETPOINT_SHOW_MS;
+    }
   }
   dirty_ |= dirtyField;
   return true;
@@ -289,8 +332,9 @@ void ScreenController::showLiveTemperature(uint32_t now, double celsius) {
     temperatureKey_ = -1;               // the temperature is displayed again at once
   }
 
-  // While the temperature setpoint is edited, the setpoint is shown instead
-  if (active_ == PARAMETER_TEMPERATURE) {
+  // While the temperature setpoint is edited, the setpoint is shown instead (steaming: for STEAM_SETPOINT_SHOW_MS after the
+  // last turn)
+  if (steaming_ ? steamSetpointShown_ : active_ == PARAMETER_TEMPERATURE) {
     return;
   }
 
@@ -421,6 +465,14 @@ void ScreenController::render() {
 
   const uint8_t dirty = dirty_;
   dirty_ = DIRTY_NONE;
+
+  if (steaming_) {   // the temperature alone
+    if (dirty & DIRTY_TEMPERATURE) {
+      const bool error = temperatureError_ && !steamSetpointShown_;
+      drawSteamTemperature(temperatureShown_, error);
+    }
+    return;
+  }
 
   if ((dirty & DIRTY_TEMPERATURE) && temperatureError_ && active_ != PARAMETER_TEMPERATURE) {
     // "ERR" erases its zone before it is drawn: it is drawn again only if something else was drawn there since,

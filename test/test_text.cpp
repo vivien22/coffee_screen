@@ -49,6 +49,19 @@ int main() {
   drawHeaterIndicator(true); drawHeaterIndicator(true); CHECK(count(COLOR_TEXT) == 37);          // drawn twice: the same
   drawHeaterIndicator(false); drawHeaterIndicator(false); CHECK(count(COLOR_BG) == 240 * 240);
 
+  // Steaming mode: the temperature alone, large digits, in the zone in the middle of the screen
+  clearScreen(); drawSteamTemperature(135.0, false);
+  const int steam135 = count(COLOR_TEXT);
+  CHECK(steam135 > 1500 && count(COLOR_TEXT, STEAM_ZONE_X, STEAM_ZONE_Y, STEAM_ZONE_X + STEAM_ZONE_WIDTH, STEAM_ZONE_Y + STEAM_ZONE_HEIGHT) == steam135);
+  drawSteamTemperature(135.4, false); CHECK(count(COLOR_TEXT) == steam135);          // the same number again: the same picture
+  drawSteamTemperature(96.0, false);                                                    // fewer digits: nothing is left of the old ones
+  const int steam96 = count(COLOR_TEXT);
+  clearScreen(); drawSteamTemperature(96.0, false); CHECK(count(COLOR_TEXT) == steam96 && steam96 < steam135);
+  drawSteamTemperature(135.0, false); CHECK(count(COLOR_TEXT) == steam135);
+  drawSteamTemperature(0.0, true); CHECK(count(COLOR_TEXT) > 1000 && count(COLOR_TEXT, 0, 0, 240, STEAM_ZONE_Y) == 0);   // ERR alone
+  drawSteamTemperature(135.0, false); CHECK(count(COLOR_TEXT) == steam135);          // and the number again, ERR is gone
+  clearScreen(); CHECK(count(COLOR_BG) == 240 * 240);
+
 #ifdef DISPLAY_ICONS
   // the letter in the drop: M has 31 pixels more than A
   beginDisplay(); drawDrop(true, false); const int withA = count(COLOR_TAG);

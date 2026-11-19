@@ -162,8 +162,7 @@ void endWelcome() {
 void showStandbyPicture() {
 #if WELCOME_MS > 0
   digitalWrite(PIN_TFT_BL, LOW);
-  tft.fillScreen(COLOR_BG);
-  temperatureField.valid = volumeField.valid = durationField.valid = false;
+  clearScreen();
   beginWelcome();
 #endif
 }
@@ -323,9 +322,10 @@ static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t c
 // Returns the x position after the number, where the unit goes.
 static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
-                          int16_t x, int16_t baseline, bool &moved) {
-  // Three digits do not fit in large digits (the cells are wide): a long value is shown in small digits
-  if (strlen(text) > 2) {
+                          int16_t x, int16_t baseline, bool &moved, bool threeLarge = false) {
+  // Three digits do not fit in large digits next to the other fields (the cells are wide): a long value is shown in small
+  // digits (the steaming temperature has the whole screen)
+  if (strlen(text) > 2 && !threeLarge) {
     size = TEXT_SIZE_SMALL;
   }
 
@@ -386,6 +386,37 @@ void drawTemperature(double value, TextSize size) {
     putText(FONT_UNIT, xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, COLOR_TEXT, 1, F("4"));
     putText(FONT_UNIT, xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE, COLOR_TEXT, 1,
             F("0"));   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
+  }
+}
+
+// The whole screen cleared (steaming mode, standby): the number fields are not valid any more.
+void clearScreen() {
+  tft.fillScreen(COLOR_BG);
+  temperatureField.valid = volumeField.valid = durationField.valid = false;
+}
+
+// Steaming mode: the temperature alone, in large digits (integer), centered; the unit follows it. A change of the number of
+// digits moves the number: it is then drawn as a new look (the margins are erased).
+void drawSteamTemperature(double value, bool error) {
+  static uint8_t length = 0;   // number of digits drawn
+  if (error) {
+    tft.fillRect(STEAM_ZONE_X, STEAM_ZONE_Y, STEAM_ZONE_WIDTH, STEAM_ZONE_HEIGHT, COLOR_BG);
+    temperatureField.valid = false;
+    length = 0;
+    putText(FONT_TAG, STEAM_ERROR_X, STEAM_ERROR_BASELINE, COLOR_TEXT, 3, F("211"));
+    return;
+  }
+  char text[6];
+  itoa(value < 0 ? 0 : (int)(value + 0.5), text, 10);
+  const uint8_t digits = strlen(text);
+  bool moved;
+  const int16_t xEnd = drawNumber(temperatureField, text, TEXT_SIZE_LARGE, PHASE_TAG_NONE, digits != length,
+                                  STEAM_ZONE_X, STEAM_ZONE_Y, STEAM_ZONE_WIDTH, STEAM_ZONE_HEIGHT,
+                                  STEAM_X + (3 - digits) * STEAM_DIGIT_SHIFT, STEAM_BASELINE, moved, true);
+  length = digits;
+  if (moved) {
+    putText(FONT_UNIT, xEnd + TEMPERATURE_DEGREE_DX, STEAM_DEGREE_Y, COLOR_TEXT, 1, F("4"));
+    putText(FONT_UNIT, xEnd + TEMPERATURE_UNIT_DX, STEAM_UNIT_BASELINE, COLOR_TEXT, 1, F("0"));
   }
 }
 

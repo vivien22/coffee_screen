@@ -19,6 +19,7 @@ void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welc
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
+void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
@@ -101,9 +102,6 @@ static void noWater(){
   CHECK(tError>0 && !PUMPON);
   CHECK(tHide==tError);                                                              // hidden when the error is detected
   CHECK(tShow-tHide==DROP_BLINK_MS && tHide2-tShow==DROP_BLINK_MS);                  // toggled every 600 ms
-  // the long push of the encoder is disabled: it does not clear the error
-  m.handlePush(PUSH_LONG); t+=100; m.update();
-  CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER);
   // the start / stop button and the double push are ignored
   m.handleStartButton(); m.handleDoublePush(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER && !PUMPON);
@@ -136,7 +134,6 @@ static void manualMode(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   CHECK(!m.screen_.settings().manual);
-  m.handlePush(PUSH_LONG); CHECK(!m.screen_.settings().manual);   // the long push is disabled
   m.handlePush(PUSH_SHORT); CHECK(m.screen_.settings().manual);   // the short push switches the mode: AUTO -> MANUAL
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
@@ -438,6 +435,48 @@ static void startButton(){
     releaseButton(b); }
   printf("start button: ok\n");
 }
+// The steaming mode (long push of the encoder): the heater alone at SteamingTemp, no extraction, the temperature alone on the screen
+static std::string lastSteam(){ std::string r; for(auto&c:calls) if(c.rfind("steam(",0)==0) r=c; return r; }
+static void steaming(){
+  memset(EEPROM.mem,0xFF,64);
+  CHECK(SettingsStore().load().steamingTemperature==DEFAULT_STEAMING_TEMPERATURE && DEFAULT_STEAMING_TEMPERATURE==135);
+  pins[PIN_START_BUTTON]=1;
+  CoffeeMachine m; t=1000; m.begin(); for(int i=0;i<10;i++){ t+=20; m.update(); }
+  CHECK(!m.steaming_ && m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET);
+  // a long push enters it: the screen is cleared, the heater regulates SteamingTemp, BrewingTemp stays
+  calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
+  CHECK(m.steaming_ && m.screen_.steaming() && has("clearscreen(0,0,0,0)") && !lastSteam().empty());
+  CHECK(m.heater_.setpoint_==135+TEMPERATURE_OFFSET && m.screen_.settings().temperature==DEFAULT_TEMPERATURE);
+  // no extraction: the start button does nothing (held or not), the pushes of the encoder neither, the pump and the valve stay off
+  pushButton(m); CHECK(!m.extraction_.isActive() && !PUMPON && pins[PIN_VALVE_RELAY]==0); releaseButton(m);
+  m.handlePush(PUSH_SHORT); m.handlePush(PUSH_DOUBLE); t+=100; m.update();
+  CHECK(!m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_TEMPERATURE && !m.extraction_.isActive());
+  // the flow is not read: water that "flows" starts nothing, and no volume is drawn
+  calls.clear(); for(int i=0;i<20;i++){ t+=100; m.flow_.in=m.flow_.in+0.5f; m.update(); }
+  CHECK(!m.extraction_.isActive() && !has("vol(0,1,0,1)") && !PUMPON);
+  for(auto&c:calls) CHECK(c.rfind("vol(",0)!=0 && c.rfind("dur(",0)!=0 && c.rfind("drop(",0)!=0 && c.rfind("temp(",0)!=0);
+  // the encoder sets SteamingTemp: shown at once, saved, applied to the heater; BrewingTemp is not touched
+  calls.clear(); m.adjustActiveParameter(5); t+=100; m.update();
+  CHECK(lastSteam()=="steam(140,0,0,0)");
+  CHECK(SettingsStore().load().steamingTemperature==140 && SettingsStore().load().temperature==DEFAULT_TEMPERATURE);
+  CHECK(m.heater_.setpoint_==140+TEMPERATURE_OFFSET);
+  // after STEAM_SETPOINT_SHOW_MS the measured temperature is shown again
+  calls.clear(); for(int i=0;i<(int)(STEAM_SETPOINT_SHOW_MS/100)+15;i++){ t+=100; m.update(); }
+  CHECK(!lastSteam().empty() && lastSteam()!="steam(140,0,0,0)");
+  // a long push leaves it: the brewing again (BrewingTemp), the real screen in full, the volume selected
+  calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
+  CHECK(!m.steaming_ && !m.screen_.steaming() && has("clearscreen(0,0,0,0)") && m.screen_.activeParameter()==PARAMETER_VOLUME);
+  { bool temp=false; for(auto&c:calls) temp|=c.rfind("temp(",0)==0||c.rfind("temperr(",0)==0;
+    CHECK(has("icons(0,0,0,0)") && has("vol(40,1,0,1)") && has("dur(0,0,0,1)") && temp); }
+  CHECK(m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET);
+  // an extraction works again, and a long push during it does nothing
+  pushButton(m); CHECK(m.extraction_.isActive() && PUMPON); releaseButton(m);
+  m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(!m.steaming_ && m.extraction_.isActive());
+  pushButton(m); releaseButton(m);
+  // SteamingTemp is remembered at the next start
+  { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140+TEMPERATURE_OFFSET); }
+  printf("steaming: ok\n");
+}
 // The delay of the stop before the target is learned, saved and given back at the next start
 static void stopDelay(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
@@ -455,4 +494,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

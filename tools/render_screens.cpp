@@ -86,5 +86,10 @@ int main(int argc, char **argv) {
   { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(3, 6); redraw(sc);
     sc.showNoWater(true); redraw(sc); save("error-no-water"); }   // the drop is hidden (first half of the blinking)
 
+  // Steaming mode: the temperature alone, large digits (live temperature, then the setpoint just set)
+  { ScreenController sc; ready(sc); sc.enterSteaming(); sc.showLiveTemperature(now_, 131.0); redraw(sc); save("steaming"); }
+  { ScreenController sc; ready(sc); sc.enterSteaming(); sc.showLiveTemperature(now_, 96.4); redraw(sc); save("steaming-heating"); }
+  { ScreenController sc; ready(sc); sc.enterSteaming(); sc.showTemperatureError(); redraw(sc); save("steaming-error"); }
+
   return 0;
 }
