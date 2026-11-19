@@ -29,9 +29,6 @@ jobs:
             edit: "sed -i 's|^#define FLOW_OUT_SENSOR$|// #define FLOW_OUT_SENSOR|' src/Config.h"
           - name: flow simulator
             edit: "sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' src/Config.h"
-          - name: flow monitor (diagnostic build)
-            edit: "true"
-            env: flow_monitor
           - name: Nano R4 (as configured)
             edit: "true"
             env: nano_r4
@@ -64,7 +61,7 @@ jobs:
       # The options are checked with and without: the simulator, the Out sensor, no valve, no pump, and for the two boards
       # (ARDUINO_ARCH_AVR is the Nano R3, undefined is the Nano R4).
       - run: |
-          for d in "-DARDUINO_ARCH_AVR -DFLOW_SIMULATOR" "-DARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-DARDUINO_ARCH_AVR -UFLOW_OUT_SENSOR" "-DARDUINO_ARCH_AVR -DFLOW_MONITOR" "-DARDUINO_ARCH_AVR -UDRIVE_VALVE" "-DARDUINO_ARCH_AVR -UDRIVE_PUMP" "-DARDUINO_ARCH_AVR -UFLOW_SIMULATOR" "-UARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-UARDUINO_ARCH_AVR"; do
+          for d in "-DARDUINO_ARCH_AVR -DFLOW_SIMULATOR" "-DARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-DARDUINO_ARCH_AVR -UFLOW_OUT_SENSOR" "-DARDUINO_ARCH_AVR -UDRIVE_VALVE" "-DARDUINO_ARCH_AVR -UDRIVE_PUMP" "-DARDUINO_ARCH_AVR -UFLOW_SIMULATOR" "-UARDUINO_ARCH_AVR -DFLOW_OUT_SENSOR" "-UARDUINO_ARCH_AVR"; do
             cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
               --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -D__AVR_ATmega328P__ -I src $d src
           done

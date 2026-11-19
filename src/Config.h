@@ -133,12 +133,6 @@
 // hand): the valve output stays LOW and the extraction runs as usual with the pump only.
 #define DRIVE_VALVE
 
-// FLOW_MONITOR: a diagnostic build, NOT defined here: the flow_monitor environment of platformio.ini defines it (pio run -e
-// flow_monitor -t upload). The boiler is off (the heater output stays low, no PID), the screen shows the water counted by the
-// In sensor in the volume field and the water counted by the Out sensor in the temperature field (in millilitres, since the
-// start of the extraction; the temperature field keeps its unit), and everything else works as usual: extractions, pump,
-// valve, safeties. To look at the two flow sensors (calibration, wiring) with the machine off.
-
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 

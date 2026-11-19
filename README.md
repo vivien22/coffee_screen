@@ -484,18 +484,6 @@ If you build with another project file, copy these `build_flags` and the script.
 Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/Debug.h` (115200 baud);
 they are removed from the build otherwise.
 
-**Flow monitor (diagnostic build).** To look at the two flow sensors with the boiler off (checking a wiring, a calibration):
-
-```
-pio run -e flow_monitor -t upload
-```
-
-It is the machine with two differences (`FLOW_MONITOR`, defined by that environment only; the normal build is unchanged): the
-**heater output stays low and the PID does not run** (no heating at all, the probe is still read), and the screen shows the
-water counted by the **In** sensor in the **volume** field and the water counted by the **Out** sensor in the **temperature**
-field, in millilitres since the start of the extraction (they stay after its end; the temperature field keeps its unit, read it as
-ml; the duration field still shows the time). Extractions, pump, valve and safeties work as usual: start one with a push.
-
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
 > At the last measured build the flash was at **91.8 %** (28 198 bytes, 490 bytes of RAM) as configured: the pump and the

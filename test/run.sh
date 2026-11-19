@@ -36,9 +36,8 @@ for t in test/test_*.cpp; do
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
-    test_machine|test_boiler_only|test_valve_by_hand|test_flow_monitor) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
+    test_machine|test_boiler_only|test_valve_by_hand) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
   esac
-  case "$n" in test_flow_monitor) EXTRA="-DFLOW_MONITOR";; esac   # the diagnostic build
   g++ -std=c++11 -w $EXTRA -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
   # the status of the test itself (not the one of "tail"): a failing test fails the script

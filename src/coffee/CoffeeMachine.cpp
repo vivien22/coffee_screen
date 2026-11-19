@@ -104,26 +104,12 @@ void CoffeeMachine::update() {
   }
 #endif
 
-#ifdef FLOW_MONITOR
-  const bool heating = false;   // diagnostic build: no heating and no PID at all, the heater output stays off
-#else
   const bool heating = !standby_ && temperature_.isValid();   // standby: the heater is off (same as a probe error)
-#endif
   heater_.update(now,
                  heating,
                  temperature_.celsius(),
                  extraction_.inflowMlPerSec());
 
-#ifdef FLOW_MONITOR
-  // ----- 4. What the screen shows: the flow sensors (diagnostic build, see FLOW_MONITOR in Config.h) -----
-  // The volume field shows the water counted by In since the start of the extraction (it stays after the end), the temperature
-  // field the water counted by Out (its unit is the one of the temperature: read it as millilitres), the duration field the time
-  // of the extraction. Nothing else is shown: no phase tag, no probe temperature.
-  screen_.showExtractionProgress((uint16_t)(flow_.getVolumeIn() + 0.5f), extraction_.durationSeconds());
-  screen_.showLiveTemperature(now, flow_.getVolumeOut());
-  screen_.showHeaterState(false);
-  screen_.update(now);
-#else
   // ----- 4. What the screen shows -----
   // Show the state of the machine; the final values of an extraction are shown once it stopped.
   const bool extracting = extraction_.isActive();
@@ -191,7 +177,6 @@ void CoffeeMachine::update() {
   }
   screen_.showHeaterState(heater_.isOn());
   screen_.update(now);
-#endif
 }
 
 // ------------------------------------------------------------
