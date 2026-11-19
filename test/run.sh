@@ -22,7 +22,7 @@ for t in test/test_*.cpp; do
   case "$n" in
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_temperature) C="$B/$d/src/heating/TemperatureSensor.cpp";;
-    test_tuning|test_sim_tuning) C="$B/$d/src/machine/TuningMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp";;
+    test_tuning|test_sim_tuning) C="$B/$d/src/coffee/TuningMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp";;
   esac
   g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }

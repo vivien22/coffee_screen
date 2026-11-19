@@ -2,7 +2,7 @@
 #include <cstring>
 #include <cstdio>
 #include "src/Config.h"
-#include "src/machine/TuningMachine.h"
+#include "src/coffee/TuningMachine.h"
 #include <SPI.h>
 #include "TestSupport.h"
 

@@ -51,7 +51,7 @@ those (Display, the UI behaviours, icons, the pre-infusion limits) applies to `m
   steps) and easy for a human to read before it is short. The word is "grouphead".
 - Naming: a source file in `src/` has the name of its class in CamelCase (`CoffeeMachine.cpp`), data members end with
   `_` (`pumpPin_`), tests, tools and scripts are snake_case. `coffee_screen.ino` keeps its name (the Arduino IDE wants
-  the name of the folder). The folders are `machine`, `heating`, `settings`, `display`, `drivers`.
+  the name of the folder). The folders are `coffee`, `heating`, `settings`, `display`, `drivers`.
 - Still a prototype: no EEPROM versioning or migration. When the layout changes, change `SETTINGS_MAGIC`: the
   settings take their defaults once.
 - One change per commit when several are asked. A risky refactor is tried on a branch, its flash size measured, and

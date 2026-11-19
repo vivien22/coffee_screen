@@ -18,7 +18,7 @@
 
 #include <avr/wdt.h>
 #include "src/Config.h"
-#include "src/machine/TuningMachine.h"
+#include "src/coffee/TuningMachine.h"
 
 TuningMachine machine;
 
