@@ -36,8 +36,8 @@ The README describes the behaviour. The user writes in French: reply in French.
   the flow pulse interrupt (PCINT1 on the R3, `attachInterrupt` on the R4) and the watchdog (`WATCHDOG_MS`). Do not write
   board specific code (`avr/`, `PORTx`, `_BV`, `WDT`) elsewhere. A new board = a new Platform*.cpp. The core of each board
   already abstracts GPIO, SPI, EEPROM: do not wrap those.
-- The R4 has no pin change interrupt and A0 has no external interrupt: the shared pins are valve A0, flow In A1, flow Out A2
-  (A1 = channel 6, A2 = channel 7; D2 / D3 = channels 0 / 1; keep A4 free). A GPIO gives 8 mA at most there.
+- The R4 has no pin change interrupt and A0 has no external interrupt: the shared pins are pump D4, valve A2, flow In A1, flow Out A3
+  (A1 = channel 6, A3 = channel 2; D2 / D3 = channels 0 / 1; keep A4 and A5 free; A0 unused). A GPIO gives 8 mA at most there.
 - The CI builds both (`PIO_ENV`, `RAM_BUDGET`, `FLASH_LIMIT` of `tools/check_flash.sh`). Measured: R4 about 67 KB of
   256 KB, 3.7 KB of 32 KB of RAM. **Not run on a real R4 board yet.** `src/platform/nano_r4/wiring_private.h` is an empty stand-in
   that Adafruit_GC9A01A needs.
@@ -117,10 +117,10 @@ The README describes the behaviour. The user writes in French: reply in French.
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
 - Wiring on 2026-11-17 (later that day): everything is connected on the board (probe, encoder, screen, relays, the
   In flow sensor) except the Out flow sensor. So `FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in
-  Config.h: the real In sensor is read and A2 (the Out input) is ignored and the volume out is estimated: Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
+  Config.h: the real In sensor is read and A3 (the Out input) is ignored and the volume out is estimated: Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
   Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too: `DRIVE_PUMP` and `DRIVE_VALVE` are both on. For a test the user
   swapped the two GPIOs and operated the valve by hand for a while (pump A2 / valve D4, `DRIVE_VALVE` off), then went back to
-  the normal wiring (pump D4, valve A2). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): valve A0, flow In A1, flow Out A2 (see Config.h). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the
+  the normal wiring (pump D4, valve A2). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A2, flow In A1, flow Out A3 (see Config.h; the user went through a few combinations that day, this is the last one). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the
   pump only; without `DRIVE_PUMP` only the boiler is controlled.
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
