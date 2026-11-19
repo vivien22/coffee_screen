@@ -512,13 +512,6 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   }
 }
 
-// Volume and duration erased (blinking of the result of an extraction).
-void clearValues() {
-  tft.fillRect(VOLUME_ZONE_X, VOLUME_ZONE_Y, VOLUME_ZONE_WIDTH, VOLUME_ZONE_HEIGHT, COLOR_BG);
-  tft.fillRect(DURATION_ZONE_X, DURATION_ZONE_Y, DURATION_ZONE_WIDTH, DURATION_ZONE_HEIGHT, COLOR_BG);
-  volumeField.valid = durationField.valid = false;
-}
-
 // Only the tag (used for the blinking of FLUSH).
 void drawPhaseTag(PhaseTag tag, bool visible) {
   if (visible) {

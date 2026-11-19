@@ -20,7 +20,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome(){} void showStandbyPicture(){} void drawIcons(){}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag,bool){} void drawDrop(bool,bool){} void drawTemperatureError(){}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag,bool){} void drawDrop(bool,bool){} void drawTemperatureError(){}
 void drawSteamIcon(){} void clearScreen(){} void drawSteamTemperature(double,bool){}
 
 // The MAX31865 answers the RTD register: the test sets the temperature the probe "measures" (PT100, Callendar-Van Dusen)

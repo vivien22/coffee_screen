@@ -84,10 +84,6 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 
-// Erase the volume and the duration (their whole fields, tags included); the next drawVolume() / drawDuration()
-// draws them again in full. Used to blink them.
-void clearValues();
-
 // Show or hide the phase tag of the duration field alone (blinking tag): drawn again at its
 // place, or erased.
 void drawPhaseTag(PhaseTag tag, bool visible);

@@ -119,11 +119,6 @@ class ScreenController {
     // Call it on every pass: it only acts when the value changes.
     void showNoWater(bool error);
 
-    // The result of an extraction is about to be replaced by the target values: the volume and the duration blink
-    // (hidden / shown every RESULT_BLINK_MS) while blinking is true, and are shown again when it is false.
-    // Call it on every pass: it only acts when the time has come.
-    void blinkResult(uint32_t now, bool blinking);
-
   private:
     enum DirtyFlags : uint8_t {
       DIRTY_NONE        = 0,
@@ -163,10 +158,6 @@ class ScreenController {
     bool tagVisible_ = true;
     uint32_t tagToggleAt_ = 0;
     double temperatureShown_ = 0.0;
-
-    // Blinking of the volume and the duration (end of the display of a result)
-    bool resultHidden_ = false;
-    uint32_t resultToggleAt_ = 0;
 
     // Blinking of the drop icon (no-water error)
     bool dropBlinking_ = false;

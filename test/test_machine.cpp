@@ -18,7 +18,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void showStandbyPicture(){L("standbypic");} void drawIcons(){L("icons");}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)
@@ -50,13 +50,12 @@ static void scenario(int flush){
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
     // at the end of the flush the values of the extraction are shown again, not the target yet
     CHECK(!has("dur(0,0,0,1)"));   // (the volume ends on the target: it looks like the target, only the duration tells)
-    // they stay 10 s from the end of the flush (and blink during the last 1.6 s), then the target volume (40, large
+    // they stay 10 s from the end of the flush, then the target volume (40, large
     // because the volume is selected) and 0 s come back
     calls.clear(); unsigned long tfe=t;
     while(t<tfe+6800){ t+=100; m.update(); }
-    CHECK(!has("clearVals(0,0,0,0)"));
     while(t<tfe+9900){ t+=100; m.update(); }
-    CHECK(has("clearVals(0,0,0,0)")); CHECK(!has("dur(0,0,0,1)"));
+    CHECK(!has("dur(0,0,0,1)"));                     // still held, no blinking
     while(t<tfe+10200){ t+=100; m.update(); }
     CHECK(has("vol(40,1,0,1)")); CHECK(has("dur(0,0,0,1)"));
     printf("flush=%d: values reset 10 s after the end of the flush\n",flush);
@@ -66,14 +65,11 @@ static void scenario(int flush){
     bool final=false; for(auto&c:calls) if(c.rfind("dur(",0)==0 && c!="dur(0,0,0,1)") final=true; CHECK(final);
     calls.clear(); unsigned long t0=t;
     while(t<t0+8300){ t+=100; m.update(); }
-    CHECK(!has("clearVals(0,0,0,0)"));                              // no blinking before the last 1.6 s
     while(t<t0+9900){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)"));     // still holding at 9.9 s
-    { int hidden=0; for(auto&c:calls) if(c=="clearVals(0,0,0,0)") hidden++; CHECK(hidden>=2 && hidden<=3);   // blinking: hidden then shown every 400 ms
-      bool shownAgain=false; bool afterClear=false; for(auto&c:calls){ if(c=="clearVals(0,0,0,0)") afterClear=true; else if(afterClear && c.rfind("dur(",0)==0) shownAgain=true; } CHECK(shownAgain); }
     while(t<t0+10200){ t+=100; m.update(); }
     CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
-    calls.clear(); { unsigned long t1=t; while(t<t1+3000){ t+=100; m.update(); } } CHECK(!has("clearVals(0,0,0,0)"));   // and no more blinking
+    calls.clear(); { unsigned long t1=t; while(t<t1+3000){ t+=100; m.update(); } }
     // a new extraction during the hold cancels the reset
     m.handleStartButton(); t+=100; m.update(); calls.clear();
     for(int i=0;i<30;i++){ t+=100; m.flow_.vol=1; m.update(); }
@@ -149,10 +145,8 @@ static void manualMode(){
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   calls.clear(); unsigned long t0=t;
   while(t<t0+8300){ t+=100; m.update(); }
-  CHECK(!has("clearVals(0,0,0,0)"));                     // MANUAL too: no blinking before the last 1.6 s
   while(t<t0+9900){ t+=100; m.update(); }
   CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
-  CHECK(has("clearVals(0,0,0,0)"));                      // and blink during the last 1.6 s
   while(t<t0+10300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here

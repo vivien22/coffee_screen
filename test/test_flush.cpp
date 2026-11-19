@@ -15,7 +15,7 @@ void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
-void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
+void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
 void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
 #define PUMP pins[4]
