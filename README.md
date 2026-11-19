@@ -365,10 +365,10 @@ pio run -e nano_r4
 pio run -e nano_r4 -t upload
 ```
 
-It builds from the same sources: `USN_FlowSensor.cpp` counts the pulses with `attachInterrupt` instead of the pin change
-interrupt, and `coffee_screen.ino` starts the watchdog of the R4 (`WDT.begin`, `WATCHDOG_MS` in `Config.h`) instead of the
-AVR one. The R4 has 256 KB of flash and 32 KB of RAM (the firmware uses about 67 KB and 3.7 KB), so the size
-flags below are for the R3 only. `platform/nano_r4/wiring_private.h` is an empty header that the display library needs
+It builds from the same sources. What differs between the boards is in `src/platform/` (`Platform.h`, implemented by
+`PlatformAvr.cpp` and `PlatformRenesas.cpp`, one of them empty on each board): the interrupt that counts the pulses of the
+flow sensors (pin change interrupt on the R3, `attachInterrupt` on the R4) and the watchdog (`WATCHDOG_MS` in `Config.h` for the R4). The R4 has 256 KB of flash and 32 KB of RAM (the firmware uses about 67 KB and 3.7 KB), so the size
+flags below are for the R3 only. `src/platform/nano_r4/wiring_private.h` is an empty header that the display library needs
 and the R4 core lacks. **The R4 build compiles in the CI but has not been run on a board yet** (display, encoder, flow
 interrupts, watchdog, EEPROM to check).
 

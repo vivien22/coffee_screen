@@ -31,12 +31,15 @@ The README describes the behaviour. The user writes in French: reply in French.
 ## Nano R4 (second board, same code)
 - `pio run -e nano_r4` (platform renesas-ra, board nano_r4). The two environments share `[env]` in `platformio.ini`; the
   AVR-only `build_flags` belong to the R3 environment. `pio run` alone builds the R3 (`default_envs`).
-- What differs is behind `ARDUINO_ARCH_AVR`: `USN_FlowSensor.cpp` (PCINT1 on the R3, `attachInterrupt` on the R4), the
-  watchdog in `coffee_screen.ino` (`WATCHDOG_MS`). Do not add AVR-only code (`avr/`, `PORTx`, `_BV`) outside such a guard.
+- What differs between the boards lives in `src/platform/` ONLY: `Platform.h` (plain functions, no virtual calls: no flash cost on
+  the R3) implemented by `PlatformAvr.cpp` and `PlatformRenesas.cpp` (each empty on the other board, `ARDUINO_ARCH_AVR`):
+  the flow pulse interrupt (PCINT1 on the R3, `attachInterrupt` on the R4) and the watchdog (`WATCHDOG_MS`). Do not write
+  board specific code (`avr/`, `PORTx`, `_BV`, `WDT`) elsewhere. A new board = a new Platform*.cpp. The core of each board
+  already abstracts GPIO, SPI, EEPROM: do not wrap those.
 - The R4 has no pin change interrupt and A0 has no external interrupt: the shared pins are valve A0, flow In A1, flow Out A2
   (A1 = channel 6, A2 = channel 7; D2 / D3 = channels 0 / 1; keep A4 free). A GPIO gives 8 mA at most there.
 - The CI builds both (`PIO_ENV`, `RAM_BUDGET`, `FLASH_LIMIT` of `tools/check_flash.sh`). Measured: R4 about 67 KB of
-  256 KB, 3.7 KB of 32 KB of RAM. **Not run on a real R4 board yet.** `platform/nano_r4/wiring_private.h` is an empty stand-in
+  256 KB, 3.7 KB of 32 KB of RAM. **Not run on a real R4 board yet.** `src/platform/nano_r4/wiring_private.h` is an empty stand-in
   that Adafruit_GC9A01A needs.
 
 ## Tests (host, no Arduino)
