@@ -174,9 +174,12 @@ void drawIcons() {
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
-// The thermometer alone, left of the temperature (steaming mode).
+// What dresses the steaming screen (drawn once, never touched by the temperature): the thermometer left of the temperature, the
+// volutes of steam above it and the text "STEAM" under it.
 void drawSteamIcon() {
   drawIcon(STEAM_ICON_X, STEAM_ICON_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
+  drawIcon(STEAM_WISPS_X, STEAM_WISPS_Y, ICON_STEAM, ICON_STEAM_WIDTH, ICON_STEAM_HEIGHT);
+  putText(FONT_TAG, STEAM_TAG_X, STEAM_TAG_BASELINE, COLOR_TAG, 1, F(":624<"));   // FontTag codes: S T E A M
 }
 
 // The drop icon with the letter of the mode: A (AUTO) or M (MANUAL). Not visible = the icon is erased (blinking).

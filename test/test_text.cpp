@@ -61,6 +61,9 @@ int main() {
   drawSteamTemperature(0.0, true); CHECK(count(COLOR_TEXT) > 1000 && count(COLOR_TEXT, 0, 0, 240, STEAM_ZONE_Y) == 0);   // ERR alone
   drawSteamTemperature(135.0, false); CHECK(count(COLOR_TEXT) == steam135);          // and the number again, ERR is gone
   clearScreen(); CHECK(count(COLOR_BG) == 240 * 240);
+  // the text "STEAM" of the decoration (the real library draws the same letters: 5 letters, 66 px wide, centered under the number)
+  clearScreen(); drawSteamIcon();
+  printf("steam text px %d\n", count(COLOR_TAG, STEAM_TAG_X - 2, STEAM_TAG_BASELINE - 16, STEAM_TAG_X + 70, STEAM_TAG_BASELINE + 2));
 
 #ifdef DISPLAY_ICONS
   // the letter in the drop: M has 31 pixels more than A

@@ -10,6 +10,7 @@
 #define ICON_THERMOMETER RAW_THERMOMETER
 #define ICON_DROP RAW_DROP
 #define ICON_CLOCK RAW_CLOCK
+#define ICON_STEAM RAW_STEAM
 #define ICON_WELCOME RAW_WELCOME
 #include "../tools/icons_raw.h"
 #include "TestSupport.h"
@@ -68,6 +69,11 @@ int main() {
   CHECK(differences(frameBuffer, RAW_THERMOMETER, ICON_THERMOMETER_X, ICON_THERMOMETER_Y, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT) == 0);
   CHECK(differences(frameBuffer, RAW_DROP, ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT) == 0);
   CHECK(differences(frameBuffer, RAW_CLOCK, ICON_CLOCK_X, ICON_CLOCK_Y, ICON_CLOCK_WIDTH, ICON_CLOCK_HEIGHT) == 0);
+
+  // the decoration of the steaming screen: the thermometer on the left of the temperature and the volutes above it, exactly the source
+  clearScreen(); drawSteamIcon();
+  CHECK(differences(frameBuffer, RAW_THERMOMETER, STEAM_ICON_X, STEAM_ICON_Y, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT) == 0);
+  CHECK(differences(frameBuffer, RAW_STEAM, STEAM_WISPS_X, STEAM_WISPS_Y, ICON_STEAM_WIDTH, ICON_STEAM_HEIGHT) == 0);
 
   // the standby: the picture replaces the whole screen (the icons are gone with the rest), lit; then it is taken away
   showStandbyPicture();
