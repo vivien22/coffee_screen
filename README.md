@@ -122,7 +122,7 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 | Action on the encoder | Effect |
 |---|---|
 | **Turn** | Changes the selected value (not while an extraction runs, except the temperature) |
-| **Short push** | Starts the extraction; during the extraction ends it |
+| **Short push** | During an extraction ends it (then starts / stops the flush, stops MANUAL); it does **not** start an extraction: the start / stop button does |
 | **Double push** (two short pushes in 350 ms) | Validates the edited parameter and selects the next one |
 | **Long push** (800 ms) | Switches between **AUTO** and **MANUAL**, or clears the "no water" error |
 

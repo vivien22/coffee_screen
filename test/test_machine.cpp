@@ -26,7 +26,7 @@ static void step(CoffeeMachine&m,unsigned long dt){ t+=dt; m.update(); }
 static void scenario(int flush){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,flush);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
-  m.handleShortPush();                          // start the extraction (volume selected)
+  m.handleStartButton();                          // start the extraction (volume selected)
   CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
   { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();   // ignored during the extraction
     CHECK(m.extraction_.state()==EXTRACTION_RUNNING && m.screen_.activeParameter()==p && PUMPON); }
@@ -42,7 +42,7 @@ static void scenario(int flush){
       CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[PIN_PUMP_RELAY]==0 && pins[PIN_VALVE_RELAY]==0); }
     for(int i=0;i<8 && m.screen_.activeParameter()!=PARAMETER_VOLUME;i++) m.screen_.selectNextParameter();   // back to volume
     CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
-    m.handleShortPush(); { unsigned long ts=t; for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-ts)/1000.0f*10; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; } }
+    m.handleStartButton(); { unsigned long ts=t; for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-ts)/1000.0f*10; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; } }
     m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     calls.clear(); unsigned long tf=t;
     for(int i=0;i<100;i++){ t+=100; m.update(); if(!m.extraction_.isActive()) break; }
@@ -74,13 +74,13 @@ static void scenario(int flush){
     CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
     calls.clear(); { unsigned long t1=t; while(t<t1+3000){ t+=100; m.update(); } } CHECK(!has("clearVals(0,0,0,0)"));   // and no more blinking
     // a new extraction during the hold cancels the reset
-    m.handleShortPush(); t+=100; m.update(); calls.clear();
+    m.handleStartButton(); t+=100; m.update(); calls.clear();
     for(int i=0;i<30;i++){ t+=100; m.flow_.vol=1; m.update(); }
     CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
     m.handleShortPush();   // stop it
     t0=t; calls.clear(); while(t<t0+4000){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)"));
-    m.handleShortPush(); t+=100; m.update();     // start again: cancels the pending hold
+    m.handleStartButton(); t+=100; m.update();     // start again: cancels the pending hold
     printf("flush=%d: hold 10 s ok\n",flush);
   }
 }
@@ -88,7 +88,7 @@ static void scenario(int flush){
 static void noWater(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
-  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
   calls.clear();
   unsigned long tError=0, tHide=0, tShow=0, tHide2=0;
   for(int i=0;i<(int)(NO_FLOW_TIMEOUT_MS/100)+40;i++){                              // no water at all
@@ -102,14 +102,14 @@ static void noWater(){
   CHECK(tHide==tError);                                                              // hidden when the error is detected
   CHECK(tShow-tHide==DROP_BLINK_MS && tHide2-tShow==DROP_BLINK_MS);                  // toggled every 600 ms
   // short and double pushes are ignored
-  m.handleShortPush(); m.handleDoublePush(); t+=100; m.update();
+  m.handleStartButton(); m.handleDoublePush(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER && !PUMPON);
   // a long push clears the error: the drop is shown and stops blinking, nothing is started
   m.handleLongPush(); calls.clear(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_IDLE && !m.extraction_.hasNoWaterError());
   bool hidden=false; calls.clear(); for(int i=0;i<30;i++){ t+=100; m.update(); } CHECK(!has("drop(0,0,0,0)"));
   (void)hidden;
-  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // a new extraction is possible
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // a new extraction is possible
   printf("no-water: ok\n");
 }
 // Temperature sensor fault: "ERR" replaces the temperature, which comes back with the sensor
@@ -136,7 +136,7 @@ static void manualMode(){
   m.handleLongPush();                               // AUTO -> MANUAL
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
-  m.handleShortPush();                                   // start the pump
+  m.handleStartButton();                                   // start the pump
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[PIN_VALVE_RELAY]==1);
   m.handleLongPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
   m.handleDoublePush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
@@ -155,7 +155,7 @@ static void manualMode(){
   while(t<t0+10300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here
-  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
   m.handleShortPush();                                   // stop: the values of this extraction are shown
   t+=100; m.update(); calls.clear();
   m.handleLongPush();                                // MANUAL -> AUTO: the values are reset at once
@@ -163,7 +163,7 @@ static void manualMode(){
   bool letterA=has("drop(0,1,0,0)");
   calls.clear(); t+=100; m.update(); while(t<t0+40000){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)"));   // and not again later
   CHECK(!m.screen_.settings().manual && EEPROM.mem[8]==0 && letterA);
-  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // AUTO extraction again
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_RUNNING);              // AUTO extraction again
   printf("manual mode: ok\n");
 }
 // MANUAL time: the parameters of the mode, the countdown, the stop by itself
@@ -186,7 +186,7 @@ static void manualTime(){
   m.handleLongPush();                                // back to MANUAL: the volume is selected again
   CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
   // the extraction: the time counts down from 7 to 0, then the pump stops by itself
-  calls.clear(); m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  calls.clear(); m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   unsigned long t0=t; bool seen7=false, seen1=false;
   for(int i=0;i<90;i++){ t+=100; m.flow_.in+=0.3f; m.update();
     if(has("dur(7,0,0,0)")||has("dur(7,0,0,1)")) seen7=true;
@@ -207,7 +207,7 @@ static void manualTime(){
   m.handleDoublePush(); m.screen_.adjustActiveParameter(-10); m.handleDoublePush(); m.handleDoublePush();
   // time 0: the old behaviour, the pump runs until the second push, and 0 s is shown
   CHECK(EEPROM.mem[9]==0 && m.screen_.activeParameter()==PARAMETER_VOLUME);
-  m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   for(int i=0;i<300;i++){ t+=100; m.flow_.in+=0.3f; m.update(); } CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
   printf("manual time: ok\n");
 }
@@ -222,10 +222,10 @@ static void autoSave(){
   // volume: edited, not saved, then saved by the start of the extraction
   CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
   m.screen_.adjustActiveParameter(5); CHECK(savedVolume()==DEFAULT_VOLUME && EEPROM.writes==w);
-  m.handleShortPush(); CHECK(savedVolume()==DEFAULT_VOLUME+5 && EEPROM.writes==w+1 && m.extraction_.isActive());
+  m.handleStartButton(); CHECK(savedVolume()==DEFAULT_VOLUME+5 && EEPROM.writes==w+1 && m.extraction_.isActive());
   m.extraction_.stop(EXTRACTION_FINISHED); w=EEPROM.writes;
   // a start without change writes nothing
-  m.handleShortPush(); CHECK(EEPROM.writes==w); m.extraction_.stop(EXTRACTION_FINISHED);
+  m.handleStartButton(); CHECK(EEPROM.writes==w); m.extraction_.stop(EXTRACTION_FINISHED);
   // temperature: edited, applied and saved when the double push leaves it
   m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // volume -> pre -> wait -> flush
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE); w=EEPROM.writes;
@@ -242,7 +242,7 @@ static void autoSave(){
 // Calibration of the loss: CAL appears after a normal AUTO extraction, the cup weight corrects the loss
 static float savedLoss(){ float f; memcpy(&f,EEPROM.mem+10,4); return f; }
 static void runAuto(CoffeeMachine&m){   // 3 ml/s, nothing back through the OPV, until the end of the extraction
-  m.handleShortPush(); unsigned long t0=t;
+  m.handleStartButton(); unsigned long t0=t;
   for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
   t+=100; m.update();
   for(int i=0;i<25;i++){ t+=100; m.update(); }   // the water that comes after the stop is counted (STOP_SETTLE_MS), then CAL is offered
@@ -280,7 +280,7 @@ static void calibration(){
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !m.extraction_.calibratable());
   gotoParam(m,PARAMETER_FLUSH); for(int i=0;i<2;i++) m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION);
   // MANUAL extraction: not offered
-  m.handleLongPush(); m.handleShortPush(); for(int i=0;i<60;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  m.handleLongPush(); m.handleStartButton(); for(int i=0;i<60;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   m.handleShortPush(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.calibrationAvailable_);
   // the clamp and the validity of the EEPROM value
   { ScreenController sc; Settings in={93,40,10,5,5,0,50.0f,false}; sc.begin(in); sc.offerCalibration(40); sc.selectNextParameter();
@@ -323,7 +323,7 @@ static void standby(){
   calls.clear();
   unsigned long t1=t; while(t<t1+STANDBY_MINUTES*60000UL+3000){ t+=1000; m.update(); }
   CHECK(m.standby_ && count("standbypic(0,0,0,0)")==1);
-  calls.clear(); m.handleShortPush(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
+  calls.clear(); m.handleStartButton(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
   CHECK(count("endwelcome(0,0,0,0)")==1 && count("show(0,0,0,0)")==1);   // the real screen came back
   CoffeeMachine m2; m2.begin(); CHECK(!m2.standby_);               // nothing is remembered
   printf("standby: ok\n");
@@ -439,7 +439,7 @@ static void stopDelay(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
   CoffeeMachine m; t=1000; m.begin();
   CHECK(m.extraction_.stopDelaySeconds()==STOP_DELAY_DEFAULT_S);        // nothing learned yet: the default
-  m.handleShortPush(); unsigned long t0=t; bool pumped=false; float tail=0;
+  m.handleStartButton(); unsigned long t0=t; bool pumped=false; float tail=0;
   for(int i=0;i<1500;i++){                                               // 5 ml/s of In; 3 ml still come after the pump stops
     t+=10;
     if(m.extraction_.isActive()){ m.flow_.in=(t-t0)*0.005f; m.flow_.rate=300; pumped=true; tail=3.0f; }

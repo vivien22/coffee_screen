@@ -46,7 +46,7 @@ int main(){
   CHECK(PUMP==0 && VALVE==0);
 
   // AUTO: a push starts the extraction, the pump goes on, the valve stays off
-  m.handleShortPush(); t+=100; m.update();
+  m.handleStartButton(); t+=100; m.update();
   CHECK(m.extraction_.isActive());
   CHECK(PUMP==1 && VALVE==0);
   for(int i=0;i<5;i++){ t+=100; m.update(); CHECK(VALVE==0); }
@@ -54,7 +54,7 @@ int main(){
   CHECK(PUMP==0 && VALVE==0);
 
   // MANUAL: same
-  m.handleLongPush(); m.handleShortPush(); t+=100; m.update();
+  m.handleLongPush(); m.handleStartButton(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMP==1 && VALVE==0);
   m.extraction_.stop(EXTRACTION_FINISHED); t+=100; m.update();
   CHECK(PUMP==0 && VALVE==0);

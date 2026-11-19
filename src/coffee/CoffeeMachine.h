@@ -37,7 +37,7 @@ class CoffeeMachine {
     void pollStartButton();    // the start / stop button (START_BUTTON): debounced, acts on the push
     void handleStartButton();  // extraction running: the push of the encoder; nothing running: keep the settings, volume, start
     void startExtraction(uint32_t pressTime);   // keep the settings and start the extraction (AUTO or MANUAL)
-    void handleShortPush();    // start the extraction / end it / start the flush / stop the flush
+    void handleShortPush();    // end the extraction / start the flush / stop the flush (the encoder does not start an extraction)
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
     void handleLongPush();     // switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction)

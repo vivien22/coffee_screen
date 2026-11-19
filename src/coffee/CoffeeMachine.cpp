@@ -278,18 +278,13 @@ void CoffeeMachine::handleShortPush() {
       extraction_.stop(EXTRACTION_FINISHED);
       break;
 
-    default:   // IDLE, FINISHED, ERROR
-#ifdef DRIVE_PUMP   // without the pump no extraction can start: the push does nothing
-      if (screen_.activeParameter() == PARAMETER_VOLUME) {
-        startExtraction(encoder_.eventPressTime());
-      }
-#endif
+    default:   // IDLE, FINISHED, ERROR: the encoder does not start an extraction (the start / stop button does)
       break;
   }
 }
 
 // Starts the extraction with the settings as they are (AUTO or MANUAL), after saving them: what was just set is validated by
-// the start (written only if it changed). Used by the push of the encoder (volume selected) and by the start / stop button.
+// the start (written only if it changed). Used by the start / stop button.
 void CoffeeMachine::startExtraction(uint32_t pressTime) {
 #ifdef DRIVE_PUMP   // without the pump no extraction can start
   const Settings &settings = screen_.settings();

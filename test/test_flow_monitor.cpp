@@ -71,7 +71,7 @@ int main(){
 
   // ---- the rest is the machine: a push starts an extraction, the pump and the valve go on, the heater stays off
   CHECK(PUMP==0 && VALVE==0);
-  m.handleShortPush(); run(m,5);
+  m.handleStartButton(); run(m,5);
   CHECK(m.extraction_.isActive() && PUMP==1 && VALVE==1);
   CHECK(HEATER==0);
   m.flow_.in=20.0f; m.flow_.out=7.7f; calls.clear(); run(m,20);
