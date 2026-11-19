@@ -125,6 +125,7 @@
 // Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
 // Out was calibrated against In on 2026-11-19 with the two sensors in series (10 sequences of 100 ml, sequence 6 left out:
 // 74.18 pulses per ml, see docs/DOCUMENTATION.md, "Calibration of the flow sensors").
+// In: 25 runs (pulses against the volume measured at the output), docs/calibration/in_flow_sensor.csv.
 #define FLOW_K_FACTOR_IN             12.56f
 #define FLOW_K_FACTOR_OUT            74.18f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation

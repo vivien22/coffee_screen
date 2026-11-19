@@ -301,10 +301,38 @@ the update.**
 
 ## 📏 Calibration of the flow sensors
 
+### The In sensor against a measured volume
+
+The In sensor is the reference of the machine (`FLOW_K_FACTOR_IN` = **12.56 pulses per ml**), and the Out sensor was calibrated
+against it (next section). Its factor comes from this series: **25 runs**, each giving the number of pulses the sensor counted (the
+interrupt service routine increments a counter at every pulse) and the volume of water that came out, measured at the output of the
+machine. The raw data are in [`calibration/in_flow_sensor.csv`](calibration/in_flow_sensor.csv):
+
+| Column | Meaning |
+|---|---|
+| `run` | number of the run (1 to 25) |
+| `pulses_in` | pulses counted by the In sensor during the run (the interrupts) |
+| `measured_ml` | volume measured at the output, in millilitres |
+| `k_in_of_the_run` | `pulses_in` ÷ `measured_ml`: the factor this run alone would give |
+
+**Result.** The factor is the total number of pulses over the total volume, so that a long run weighs more than a short one:
+
+```
+K_IN = 55 681 pulses / 4 435.3 ml = 12.554 pulses per ml      -> 12.56 in Config.h
+```
+
+- A run is **2 185 to 2 272 pulses** for **173.5 to 183.1 ml** (about 177 ml on average).
+- The factor of each run goes from **12.30 to 12.94** (median 12.54): a standard deviation of **0.17**, that is **1.4 %** from one
+  run to the next (the scatter of the measurement of the volume and of the sensor). The total over 25 runs
+  smooths it: the error on the factor itself is about 1.4 % ÷ √25 = **0.3 %**.
+- The volume the machine shows is `pulses / K_IN`; a factor 1 % too high would show 1 % too little water (0.4 ml on a 40 ml cup).
+- To do it again (a new sensor, another pump or tubing): run the pump, note the pulses (`USN_FlowSensor` counts them) and the
+  volume measured at the output, compute `pulses / ml` over the total of several runs, and put it in `FLOW_K_FACTOR_IN`.
+
 ### The Out sensor against the In sensor (2026-11-19)
 
 **Method.** The Out sensor was wired **in series** with the In one, so that both count the same water. The In sensor is taken as
-calibrated (`FLOW_K_FACTOR_IN` 12.56 pulses/ml). A dedicated sketch (the branch `out-calibration`, not the machine firmware)
+calibrated (`FLOW_K_FACTOR_IN` 12.56 pulses/ml, see above). A dedicated sketch (the branch `out-calibration`, not the machine firmware)
 ran **10 sequences of 100 ml** after a push: valve open, pump on until In had counted 100 ml, pump off, the pulses of both sensors
 counted for 2 more seconds (the water still moving), 3 s of pause. The heater and the PID were off, the board was powered by a
 power supply (not a PC), and every sequence was saved in the EEPROM and read afterwards over the serial line.
