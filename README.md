@@ -122,7 +122,7 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 | Action on the encoder | Effect |
 |---|---|
 | **Turn** | Changes the selected value (not while an extraction runs, except the temperature) |
-| **Short push** | During an extraction ends it (then starts / stops the flush, stops MANUAL); it does **not** start an extraction: the start / stop button does |
+| **Short push** | Does nothing for the moment: the start / stop button starts and stops the extraction |
 | **Double push** (two short pushes in 350 ms) | Validates the edited parameter and selects the next one |
 | **Long push** (800 ms) | Switches between **AUTO** and **MANUAL**, or clears the "no water" error |
 
@@ -155,7 +155,7 @@ A second push button, between **A0 and GND** (no resistor: the internal pull-up 
 - **Nothing is running**: whatever was being set is **kept** (saved, and the temperature is applied), the **volume** is selected
   again and an extraction starts, whichever parameter the screen was on. If it was CAL, the weight being entered is validated first
   (the loss is corrected, as the double push does). It starts in AUTO or MANUAL as the mode says.
-- **During an extraction**: it does what the push of the encoder does: it ends it (AUTO: the flush waits; MANUAL: the pump stops); then
+- **During an extraction**: it ends it (AUTO: the flush waits; MANUAL: the pump stops); then
   it starts the flush, and the next push stops the flush.
 - **After a no-water error** it does nothing (the long push of the encoder clears the error); **in standby** the first push only wakes the
   machine, like any action.

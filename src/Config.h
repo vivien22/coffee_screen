@@ -34,7 +34,7 @@
 // ---------- Start / stop button ----------
 // START_BUTTON: a push button between PIN_START_BUTTON and GND (the internal pull-up is used: no resistor) that only starts and
 // stops the extraction. Nothing running: whatever was being set is kept (saved), the volume is selected again and an extraction
-// starts. During an extraction: the push of the encoder (it ends it; then it starts and stops the flush, or stops MANUAL).
+// starts. During an extraction: it ends it (then it starts and stops the flush, or stops MANUAL).
 // Ignored after a no-water error; in standby the first push only wakes the machine. Comment it out if there is no button.
 #define START_BUTTON
 #define START_BUTTON_DEBOUNCE_MS  30UL   // the level has to stay this long (ms) to count

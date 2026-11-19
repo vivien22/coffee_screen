@@ -221,7 +221,7 @@ void CoffeeMachine::pollEncoder() {
 
   // The encoder library emits at most one push classification per update call.
   switch (pushEvent) {
-    case PUSH_SHORT:  handleShortPush();  break;
+    case PUSH_SHORT:  break;   // for the moment the short push of the encoder does nothing (the start / stop button handles the extraction)
     case PUSH_DOUBLE: handleDoublePush(); break;
     case PUSH_LONG:   handleLongPush();   break;
     default: break;
