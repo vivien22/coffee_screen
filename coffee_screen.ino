@@ -25,7 +25,7 @@
 
 #include "src/Config.h"
 #include "src/platform/Platform.h"
-#include "src/machine/CoffeeMachine.h"
+#include "src/coffee/CoffeeMachine.h"
 #include "src/Debug.h"
 
 CoffeeMachine machine;

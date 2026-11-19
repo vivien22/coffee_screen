@@ -1,7 +1,7 @@
 // MANUAL mode of the extraction controller: pump and valve until stop(), volume In - Out
 #include "EEPROM.h"
 #include "src/Config.h"
-#include "src/machine/ExtractionController.h"
+#include "src/coffee/ExtractionController.h"
 #include <cstdio>
 #include "TestSupport.h"
 #define PUMP pins[4]

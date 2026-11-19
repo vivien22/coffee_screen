@@ -27,14 +27,14 @@ for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)
   case "$n" in test_sim_*) d=real;; test_boiler_only) d=boiler;; test_valve_by_hand) d=pump;; *) d=mock;; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
-  C="$B/$d/src/machine/ExtractionController.cpp"
+  C="$B/$d/src/coffee/ExtractionController.cpp"
   case "$n" in
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp";;
     test_temperature) C="$B/$d/src/heating/TemperatureSensor.cpp";;
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome) C="$B/$d/src/display/Display.cpp";;
-    test_machine|test_boiler_only|test_valve_by_hand) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/machine/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
+    test_machine|test_boiler_only|test_valve_by_hand) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
   esac
   g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }

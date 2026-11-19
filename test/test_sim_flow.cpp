@@ -1,6 +1,6 @@
 #include <cstring>
 #include "src/Config.h"
-#include "src/machine/ExtractionController.h"
+#include "src/coffee/ExtractionController.h"
 #include <cstdio>
 #include "TestSupport.h"
 int main(){
