@@ -25,6 +25,10 @@ class Adafruit_GFX {
     void writeColor(uint16_t color, uint32_t len) {
       for (; len; len--, wi_++) writePixel(wx_ + wi_ % ww_, wy_ + wi_ / ww_, color);
     }
+    // The same, from an array of colors (Adafruit_SPITFT::writePixels)
+    void writePixels(uint16_t *colors, uint32_t len, bool = true, bool = false) {
+      for (; len; len--, wi_++) writePixel(wx_ + wi_ % ww_, wy_ + wi_ / ww_, *colors++);
+    }
     void setFont(const GFXfont *f) { font_ = f; }
     void setTextColor(uint16_t c) { color_ = c; }
     void setTextSize(uint8_t s) { size_ = s; }

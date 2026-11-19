@@ -25,6 +25,7 @@ sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' "$B/real/src/Confi
 status=0
 for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)
+  case "$n" in test_hires_*) continue;; esac   # built with DISPLAY_HIRES, below
   case "$n" in test_sim_*) d=real;; test_boiler_only) d=boiler;; test_valve_by_hand) d=pump;; *) d=mock;; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
   C="$B/$d/src/machine/ExtractionController.cpp"
@@ -38,6 +39,15 @@ for t in test/test_*.cpp; do
   esac
   g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
-  printf "%s: " "$n"; "$B/$n" | tail -3 || status=1
+  out=$("$B/$n"); rc=$?
+  printf "%s: %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
+  [ $rc -eq 0 ] || status=1
+done
+# The high resolution look of the Nano R4 (DISPLAY_HIRES): the property test of the display again, and the test of the pictures
+for n in test_display test_hires_welcome; do
+  g++ -std=c++11 -w -DDISPLAY_HIRES -I"$B/mock" -Itest/stubs "test/$n.cpp" test/stubs/ArduinoStubs.cpp       "$B/mock/src/display/Display.cpp" -o "$B/${n}_hires" 2>"$B/${n}_hires.log" || { echo "$n (DISPLAY_HIRES): BUILD FAILED"; head -5 "$B/${n}_hires.log"; status=1; continue; }
+  out=$("$B/${n}_hires"); rc=$?
+  printf "%s (DISPLAY_HIRES): %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
+  [ $rc -eq 0 ] || status=1
 done
 exit $status

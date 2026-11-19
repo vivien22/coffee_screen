@@ -62,6 +62,29 @@ The screen shows three values: the **temperature** (°C), the **volume** (ml) an
 The **drop** carries the mode letter (**A** = AUTO, **M** = MANUAL). The small dot next to the thermometer
 is lit while the heater is on. The parameter being edited is shown with **large digits**.
 
+### High resolution look (Nano R4)
+
+<table>
+<tr>
+<td align="center"><img src="docs/images/auto-ready.png" width="200"><br><b>Nano R3</b><br>1-bit digits, 2-bit icons</td>
+<td align="center"><img src="docs/images/hires/auto-ready.png" width="200"><br><b>Nano R4</b><br>anti-aliased digits and icons</td>
+<td align="center"><img src="docs/images/hires/welcome.png" width="200"><br><b>Nano R4</b><br>full colour welcome picture</td>
+</tr>
+</table>
+
+The screen is the same 240 x 240 round display, so the layout (`Layout.h`) is the same on both boards. The Nano R4 has
+the flash for a finer drawing, which the `nano_r4` environment switches on (`DISPLAY_HIRES`, about 80 KB of flash):
+
+- **Digits, units and tags**: Poppins Bold with 8-bit anti-aliasing (256 levels of coverage on the edges, instead of
+  black or white pixels), at the size and the weight of the 1-bit ones, so nothing moves.
+- **Icons** (thermometer, drop, clock): 8-bit coverage instead of 4 levels. They are rebuilt from the 4-level source (the
+  original drawing is not in the repository), with smoother curves.
+- **Welcome picture**: 160 x 160 pixels in colour (the Twemoji cup, `tools/welcome_source.svg`, drawn at 8 times the
+  size and reduced), instead of 96 x 96 pixels in 4 levels. It takes the tones of the screen.
+- The images of this look are in `docs/images/hires/` (`HIRES=1 ./tools/render_screens.sh`). The assets are generated
+  by `python tools/make_hires_assets.py --font Poppins-Bold.ttf` (Pillow and numpy) into `src/display/HiResData.h`.
+  Replace `tools/welcome_source.svg` (or give `--welcome picture.png`) to change the welcome picture.
+
 ### AUTO: an extraction
 
 <table>
@@ -470,3 +493,8 @@ scripts are in snake_case.
 - The encoder driver is based on the [CJMCU-111 rotary button demo](https://github.com/ChrisPHL/CJMCU-111-rotary-button-demo)
   by Christian Pohl (push start time, push duration and short / double / long push events were added).
 - Ideas from similar open source projects: Gaggiuino, CleverCoffee, espgaggia.
+- The fonts of the screens are [Poppins](https://github.com/itfoundry/Poppins) Bold, by the Poppins Project Authors,
+  under the [SIL Open Font License 1.1](https://openfontlicense.org/); only the glyphs of the characters shown are kept,
+  rendered as bitmaps.
+- The welcome picture (the cup of hot beverage) is the [Twemoji](https://github.com/jdecked/twemoji) graphic, copyright
+  Twitter, Inc and other contributors, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/).

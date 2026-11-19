@@ -4,14 +4,34 @@
 
 #include <string.h>
 #include "Display.h"
+#ifndef DISPLAY_HIRES
 #include "Fonts.h"
-#include "Layout.h"
+#endif
+#include "Layout.h"   // with DISPLAY_HIRES: HiResData.h (anti-aliased fonts, icons and welcome picture)
 
 // ---------- Fonts (digits in two sizes, units) ----------
+#ifdef DISPLAY_HIRES
+typedef const HiFont *FontRef;
+#define FONT_SMALL (&HiFontSmall)   // digits, small size
+#define FONT_LARGE (&HiFontLarge)   // digits, large size
+#define FONT_UNIT  (&HiFontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', same as Fonts.h)
+#define FONT_TAG   (&HiFontTag)     // phase tag: PRE, WAIT (15 px capitals)
+#define FONT_ERROR (&HiFontError)   // "ERR": the capitals of the tag at twice the size
+#else
+typedef const GFXfont *FontRef;
 #define FONT_SMALL (&FontSmall)   // digits, small size
 #define FONT_LARGE (&FontLarge)   // digits, large size
 #define FONT_UNIT  (&FontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', see Fonts.h)
 #define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
+#define FONT_ERROR (&FontTag)     // "ERR": the tag font, drawn at size 2
+#endif
+
+// The text of putText(): a string of flash on the boards (F("...")), a plain pointer in the tests on the PC
+#ifdef ARDUINO_STUB
+typedef const char *Text;
+#else
+typedef const __FlashStringHelper *Text;
+#endif
 
 // The screen driver
 static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
@@ -42,10 +62,138 @@ void showDisplay() {
   digitalWrite(PIN_TFT_BL, HIGH);
 }
 
+#ifdef DISPLAY_HIRES
+// ------------------------------------------------------------
+// High resolution drawing (the Nano R4): the fonts and the icons are 8-bit coverage (anti-aliased edges, HiResData.h),
+// blended with the background color for each pixel; the welcome picture is a full colour RGB565 picture. Everything is
+// built in a buffer in RAM and sent in one burst (the R4 has 32 KB of RAM).
+
+// COLOR_BG toward fg, by the coverage 0..255 (0 = the background, 255 = fg exactly), in RGB565
+static inline uint16_t blendOver(uint16_t fg, uint8_t coverage) {
+  static const uint8_t SHIFT[3] = {11, 5, 0};
+  static const uint8_t MASK[3] = {31, 63, 31};
+  int32_t color = 0;
+  for (uint8_t channel = 0; channel < 3; channel++) {
+    const int32_t from = (COLOR_BG >> SHIFT[channel]) & MASK[channel];
+    const int32_t numerator = ((((int32_t)fg >> SHIFT[channel]) & MASK[channel]) - from) * coverage;
+    const int32_t value = from + (numerator >= 0 ? (numerator + 127) / 255 : -((-numerator + 127) / 255));
+    color |= value << SHIFT[channel];
+  }
+  return (uint16_t)color;
+}
+
+// The biggest thing drawn in one burst: a block of a digit (39 x 52), an icon (39 x 46), "ERR" (about 85 x 35)
+#define HIRES_BUFFER_PIXELS 4096
+static uint16_t pixelBuffer[HIRES_BUFFER_PIXELS];
+static uint8_t coverageBuffer[HIRES_BUFFER_PIXELS];
+
+static inline const HiGlyph *glyphOf(FontRef font, char c) {
+  return &font->glyphs[c - font->first];
+}
+
+// Width of the cell of a character: how far the cursor moves after it (the digits have the cell of the widest one:
+// DIGIT_CELL_SMALL / DIGIT_CELL_LARGE in Layout.h, so that a number only moves when it gets one digit longer or shorter).
+static uint8_t advanceOf(FontRef font, char c) {
+  if (c == ':') {
+    return glyphOf(font, c)->advance;
+  }
+  return (font == FONT_SMALL) ? DIGIT_CELL_SMALL : DIGIT_CELL_LARGE;
+}
+
+// Draws one digit as a block of the zone height, in one burst (the old digit is replaced at once, as on the R3): the
+// glyph is centered in its cell, its coverage blended with the background.
+static void drawGlyphBlock(FontRef font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline) {
+  const HiGlyph *glyph = glyphOf(font, c);
+  const int16_t blockWidth = advanceOf(font, c);
+  if ((int32_t)blockWidth * height > HIRES_BUFFER_PIXELS) {
+    return;
+  }
+  const int16_t left = glyph->xOffset + (blockWidth - glyph->advance) / 2;   // of the bitmap, in the block
+  const int16_t top = baseline + glyph->yOffset - y;                          // of the bitmap, in the block
+  const uint8_t *alpha = font->alpha + glyph->offset;
+
+  for (int16_t row = 0; row < height; row++) {
+    for (int16_t column = 0; column < blockWidth; column++) {
+      const int16_t gx = column - left, gy = row - top;
+      uint8_t coverage = 0;
+      if (gx >= 0 && gx < glyph->width && gy >= 0 && gy < glyph->height) {
+        coverage = alpha[gy * glyph->width + gx];
+      }
+      pixelBuffer[row * blockWidth + column] = blendOver(COLOR_TEXT, coverage);
+    }
+  }
+
+  tft.startWrite();
+  tft.setAddrWindow(x, y, blockWidth, height);
+  tft.writePixels(pixelBuffer, (uint32_t)blockWidth * height);
+  tft.endWrite();
+}
+
+// A text (codes of the font, see Fonts.h) with its cursor at x on the baseline, in one burst: the glyphs are added in a
+// coverage buffer (the largest coverage where two bitmaps meet), then blended with the background. The size is the one of the
+// font: 'scale' is only for the R3 (text size 2).
+static void putText(FontRef font, int16_t x, int16_t baseline, uint16_t color, uint8_t scale, Text text) {
+  (void)scale;
+  const char *chars = (const char *)text;
+
+  int16_t cursor = x, left = 32767, right = -32768, top = 32767, bottom = -32768;
+  for (const char *c = chars; pgm_read_byte(c); c++) {
+    if (*c < font->first || *c > font->last) continue;
+    const HiGlyph *g = glyphOf(font, *c);
+    if (cursor + g->xOffset < left) left = cursor + g->xOffset;
+    if (cursor + g->xOffset + g->width > right) right = cursor + g->xOffset + g->width;
+    if (baseline + g->yOffset < top) top = baseline + g->yOffset;
+    if (baseline + g->yOffset + g->height > bottom) bottom = baseline + g->yOffset + g->height;
+    cursor += g->advance;
+  }
+  const int16_t width = right - left, height = bottom - top;
+  if (width <= 0 || height <= 0 || (int32_t)width * height > HIRES_BUFFER_PIXELS) {
+    return;
+  }
+
+  memset(coverageBuffer, 0, (size_t)width * height);
+  cursor = x;
+  for (const char *c = chars; pgm_read_byte(c); c++) {
+    if (*c < font->first || *c > font->last) continue;
+    const HiGlyph *g = glyphOf(font, *c);
+    const uint8_t *alpha = font->alpha + g->offset;
+    for (uint8_t row = 0; row < g->height; row++) {
+      uint8_t *line = &coverageBuffer[(baseline + g->yOffset + row - top) * width + (cursor + g->xOffset - left)];
+      for (uint8_t column = 0; column < g->width; column++) {
+        if (alpha[row * g->width + column] > line[column]) {
+          line[column] = alpha[row * g->width + column];
+        }
+      }
+    }
+    cursor += g->advance;
+  }
+  for (int32_t i = 0; i < (int32_t)width * height; i++) {
+    pixelBuffer[i] = blendOver(color, coverageBuffer[i]);
+  }
+
+  tft.startWrite();
+  tft.setAddrWindow(left, top, width, height);
+  tft.writePixels(pixelBuffer, (uint32_t)width * height);
+  tft.endWrite();
+}
+
+#else
+// A text with a GFX font (1 bit): the cursor at x on the baseline, 'scale' times the size of the font.
+static void putText(FontRef font, int16_t x, int16_t baseline, uint16_t color, uint8_t scale, Text text) {
+  tft.setFont(font);
+  tft.setTextColor(color);
+  tft.setTextSize(scale);
+  tft.setCursor(x, baseline);
+  tft.print(text);
+  tft.setTextSize(1);   // the other texts are drawn at size 1
+}
+#endif  // DISPLAY_HIRES
+
 #ifdef DISPLAY_ICONS
 // ------------------------------------------------------------
 // Icons
 
+#ifndef DISPLAY_HIRES
 // COLOR_ICON blended with COLOR_BG, opacity 0 (background) to 15 (full color), computed by the
 // compiler: nothing is calculated on the board. The colors are RGB565 (5 bits red, 6 green, 5 blue);
 // each channel is background + (icon - background) * opacity / 15.
@@ -120,11 +268,37 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
   tft.endWrite();
 }
 
+#else
+// An icon of 8-bit coverage of COLOR_ICON over the background, in one burst.
+static void drawIcon(int16_t x, int16_t y, const uint8_t *alpha, uint8_t width, uint8_t height) {
+  for (uint16_t i = 0; i < (uint16_t)width * height; i++) {
+    pixelBuffer[i] = blendOver(COLOR_ICON, alpha[i]);
+  }
+  tft.startWrite();
+  tft.setAddrWindow(x, y, width, height);
+  tft.writePixels(pixelBuffer, (uint32_t)width * height);
+  tft.endWrite();
+}
+
+// The welcome picture: RGB565, straight from the flash (nothing to compute)
+static void drawPicture(int16_t x, int16_t y, const uint16_t *pixels, uint16_t width, uint16_t height) {
+  tft.startWrite();
+  tft.setAddrWindow(x, y, width, height);
+  tft.writePixels((uint16_t *)pixels, (uint32_t)width * height);
+  tft.endWrite();
+}
+
+#endif  // DISPLAY_HIRES
+
 // The welcome picture, at start-up: drawn while the backlight is off, so that it appears complete, then the
 // backlight goes on. It stays until endWelcome().
 void beginWelcome() {
 #if WELCOME_MS > 0
+#ifdef DISPLAY_HIRES
+  drawPicture(WELCOME_X, WELCOME_Y, HI_WELCOME, HI_WELCOME_WIDTH, HI_WELCOME_HEIGHT);
+#else
   drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
+#endif
   digitalWrite(PIN_TFT_BL, HIGH);
 #endif
 }
@@ -164,10 +338,8 @@ void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
     drawIcon(ICON_DROP_X, ICON_DROP_Y, ICON_DROP, ICON_DROP_WIDTH, ICON_DROP_HEIGHT);
-    tft.setFont(FONT_TAG);
-    tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-    tft.setCursor(ICON_DROP_X + MODE_LETTER_DX, ICON_DROP_Y + MODE_LETTER_DY);
-    tft.print(manual ? F("<") : F("4"));   // FontTag codes: '4' = A, '<' = M
+    putText(FONT_TAG, ICON_DROP_X + MODE_LETTER_DX, ICON_DROP_Y + MODE_LETTER_DY, COLOR_TAG, 1,
+            manual ? F("<") : F("4"));   // FontTag codes: '4' = A, '<' = M
   }
 }
 #else
@@ -180,6 +352,7 @@ void showStandbyPicture() {}
 // ------------------------------------------------------------
 // Values
 
+#ifndef DISPLAY_HIRES
 static const uint8_t *glyphBitmap(const GFXfont *font) {
 #ifdef __AVR__
   return (const uint8_t *)pgm_read_word(&font->bitmap);
@@ -257,6 +430,8 @@ static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, in
   tft.endWrite();
 }
 
+#endif  // DISPLAY_HIRES
+
 // Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
 // replaces what was there (see drawGlyphBlock), so nothing is erased first and nothing flickers, even if the
 // digits are the same as before. The rest of the zone is erased only where it is needed:
@@ -273,7 +448,7 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
     size = TEXT_SIZE_SMALL;
   }
 
-  const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
+  const FontRef font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
 
   // One block per digit, from left to right
@@ -329,11 +504,9 @@ void drawTemperature(double value, TextSize size) {
 
   if (moved) {
     // Degree sign (glyph '4' of FontUnit, centered on the cursor), then the unit
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
-    tft.print('4');
-    tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-    tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
+    putText(FONT_UNIT, xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, COLOR_TEXT, 1, F("4"));
+    putText(FONT_UNIT, xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE, COLOR_TEXT, 1,
+            F("0"));   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
   }
 }
 
@@ -341,23 +514,16 @@ void drawTemperature(double value, TextSize size) {
 void drawTemperatureError() {
   tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
   temperatureField.valid = false;   // the temperature has to be drawn again in full
-  tft.setFont(FONT_TAG);
-  tft.setTextColor(COLOR_TEXT);
-  tft.setTextSize(2);
-  tft.setCursor(TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE);
-  tft.print(F("211"));
-  tft.setTextSize(1);   // the other texts are drawn at size 1
+  putText(FONT_ERROR, TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE, COLOR_TEXT, 2, F("211"));
 }
 
 // Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
 // codes '0'..';' (see Fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
 static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
-  tft.setFont(FONT_TAG);
-  tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-  tft.setCursor(x, baseline);
   // FontTag codes: P R E = "012", C A L = "=48", F L U S H = "789:;", W A I T = "3456"
-  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") :
-            (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
+  putText(FONT_TAG, x, baseline, COLOR_TAG, 1,
+          tag == PHASE_TAG_PREINFUSION ? F("012") :
+          (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
 }
 
 // Volume in ml, with its tag (PRE, CAL...) when there is one. The tag is redrawn only if redrawTag.
@@ -387,9 +553,7 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
                    VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
     }
 
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
-    tft.print(F("21"));
+    putText(FONT_UNIT, xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE, COLOR_TEXT, 1, F("21"));
   }
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
@@ -426,9 +590,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
                    DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
     }
 
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
-    tft.print('3');
+    putText(FONT_UNIT, xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE, COLOR_TEXT, 1, F("3"));
   }
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
@@ -457,8 +619,5 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
 // The small dot next to the temperature that shows the heater is on.
 void drawHeaterIndicator(bool visible) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
-  tft.setFont(FONT_UNIT);
-  tft.setTextColor(visible ? COLOR_TEXT : COLOR_BG);
-  tft.setCursor(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y);
-  tft.print('5');
+  putText(FONT_UNIT, TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, visible ? COLOR_TEXT : COLOR_BG, 1, F("5"));
 }

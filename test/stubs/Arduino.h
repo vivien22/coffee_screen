@@ -6,6 +6,7 @@
 #include <stdio.h>
 typedef uint8_t byte;
 #define PROGMEM
+#define ARDUINO_STUB 1   // the tests on the PC (Display.cpp: F() is a plain pointer here)
 #define HIGH 1
 #define LOW 0
 #define INPUT_PULLUP 2
