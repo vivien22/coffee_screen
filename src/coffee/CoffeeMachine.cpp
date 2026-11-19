@@ -205,11 +205,16 @@ void CoffeeMachine::pollEncoder() {
   }
 
   // The encoder library emits at most one push classification per update call.
+  handlePush(pushEvent);
+}
+
+// What each push of the encoder does. The long push is disabled for the moment (handleLongPush() is kept for a future use):
+// the short push does what it did.
+void CoffeeMachine::handlePush(PushEvent pushEvent) {
   switch (pushEvent) {
     case PUSH_SHORT:  handleShortPush();  break;
     case PUSH_DOUBLE: handleDoublePush(); break;
-    case PUSH_LONG:   handleLongPush();   break;
-    default: break;
+    default: break;   // PUSH_LONG: nothing
   }
 }
 
@@ -234,11 +239,9 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
 // What the start / stop button does while an extraction runs:
 //   running   -> ends it (AUTO: next is the flush, MANUAL: the pump stops)
 //   flush     -> starts / stops the flush
-// The short push of the encoder: its only action is to clear the no-water error (the only way to clear it).
+// The short push of the encoder: it does what the long push did (the long push is disabled for the moment, its code is kept).
 void CoffeeMachine::handleShortPush() {
-  if (extraction_.hasNoWaterError()) {
-    extraction_.clearError();
-  }
+  handleLongPush();
 }
 
 // What the start / stop button does while an extraction runs.
@@ -391,8 +394,9 @@ void CoffeeMachine::saveSettings() {
 
 // Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.
 void CoffeeMachine::handleLongPush() {
-  // The no-water error is cleared by the short push only: the long push does nothing while it lasts
+  // A long push clears the no-water error
   if (extraction_.hasNoWaterError()) {
+    extraction_.clearError();
     return;
   }
 

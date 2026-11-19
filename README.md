@@ -122,9 +122,9 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 | Action on the encoder | Effect |
 |---|---|
 | **Turn** | Changes the selected value (not while an extraction runs, except the temperature) |
-| **Short push** | Clears the "no water" error (the only way to clear it); nothing else: the start / stop button starts and stops the extraction |
+| **Short push** | Switches between **AUTO** and **MANUAL** (ignored during an extraction), or clears the "no water" error (the only way to clear it). The start / stop button starts and stops the extraction |
 | **Double push** (two short pushes in 350 ms) | Validates the edited parameter and selects the next one |
-| **Long push** (800 ms) | Switches between **AUTO** and **MANUAL** (does nothing while the "no water" error lasts) |
+| **Long push** (800 ms) | **Disabled for the moment** (its code is kept: its actions are on the short push) |
 
 A short push is reported 350 ms after the release, because the machine waits to see whether a second push
 follows.

@@ -47,15 +47,15 @@ int main(){
   bool heaterOn=false;
   for(int i=0;i<40;i++){ t+=100; m.update(); heaterOn=heaterOn||HEATER==1; }
   CHECK(heaterOn);                                           // the boiler is controlled
-  // pushes: the volume is selected, a short push would start an AUTO extraction
+  // pushes: the volume is selected, the start button would start an AUTO extraction
   calls.clear();
-  m.handleShortPush(); t+=100; m.update();
+  m.handleStartButton(); t+=100; m.update();
   CHECK(!m.extraction_.isActive() && m.extraction_.state()==EXTRACTION_IDLE);
   CHECK(PUMP==0 && VALVE==0);
   bool volumeReset=false; for(auto&c:calls) if(c.rfind("vol(0,",0)==0) volumeReset=true;
   CHECK(!volumeReset);                                       // the screen was not reset as for a start
   // and in MANUAL mode too
-  m.handleLongPush(); m.handleShortPush(); t+=100; m.update();
+  m.handleLongPush(); m.handleStartButton(); t+=100; m.update();
   CHECK(!m.extraction_.isActive() && PUMP==0 && VALVE==0);
   // the relays have their own protection: even a start that does not go through the push handler leaves them off
   m.extraction_.start(t,10,5,5);

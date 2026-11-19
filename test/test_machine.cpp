@@ -101,10 +101,13 @@ static void noWater(){
   CHECK(tError>0 && !PUMPON);
   CHECK(tHide==tError);                                                              // hidden when the error is detected
   CHECK(tShow-tHide==DROP_BLINK_MS && tHide2-tShow==DROP_BLINK_MS);                  // toggled every 600 ms
-  // the start / stop button and the double push are ignored; the long push does not clear it either
-  m.handleStartButton(); m.handleDoublePush(); m.handleLongPush(); t+=100; m.update();
+  // the long push of the encoder is disabled: it does not clear the error
+  m.handlePush(PUSH_LONG); t+=100; m.update();
+  CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER);
+  // the start / stop button and the double push are ignored
+  m.handleStartButton(); m.handleDoublePush(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER && !PUMPON);
-  // the short push of the encoder is the only way to clear the error: the drop is shown and stops blinking, nothing is started
+  // the short push of the encoder clears the error (the long push is disabled): the drop is shown and stops blinking, nothing is started
   m.handleShortPush(); calls.clear(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_IDLE && !m.extraction_.hasNoWaterError());
   bool hidden=false; calls.clear(); for(int i=0;i<30;i++){ t+=100; m.update(); } CHECK(!has("drop(0,0,0,0)"));
@@ -133,7 +136,8 @@ static void manualMode(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,flush,0);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   CHECK(!m.screen_.settings().manual);
-  m.handleLongPush();                               // AUTO -> MANUAL
+  m.handlePush(PUSH_LONG); CHECK(!m.screen_.settings().manual);   // the long push is disabled
+  m.handlePush(PUSH_SHORT); CHECK(m.screen_.settings().manual);   // the short push switches the mode: AUTO -> MANUAL
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
   m.handleStartButton();                                   // start the pump
@@ -421,7 +425,7 @@ static void startButton(){
     for(int i=0;i<80;i++){ t+=100; w.update(); }
     CHECK(w.extraction_.hasNoWaterError() && !PUMPON);
     pushButton(w); CHECK(w.extraction_.hasNoWaterError() && !PUMPON && !w.extraction_.isActive());
-    releaseButton(w); w.handleLongPush(); CHECK(w.extraction_.hasNoWaterError()); w.handleShortPush(); CHECK(!w.extraction_.hasNoWaterError());
+    releaseButton(w); w.handleShortPush(); CHECK(!w.extraction_.hasNoWaterError());
     pushButton(w); CHECK(w.extraction_.isActive());                   // cleared: it starts again
     releaseButton(w); }
 

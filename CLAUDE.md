@@ -102,11 +102,11 @@ The README describes the behaviour. The user writes in French: reply in French.
   0 s come back. Same in AUTO and MANUAL; a change of mode resets it.
 - MANUAL: the volume at rest is 0 (it is not a target); a MANUAL time above 0 counts down and stays shown.
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
-- Errors: no water makes the drop blink every 600 ms until a short push of the encoder (the only way to clear it); a probe fault (3 readings in a row,
+- Errors: no water makes the drop blink every 600 ms until a short push of the encoder (the only way to clear it, the long push is disabled); a probe fault (3 readings in a row,
   `SENSOR_FAULT_TOLERANCE`) shows a white, larger "ERR" in place of the temperature (heater off).
 - The start / stop button (A0 to GND, `START_BUTTON`): nothing running = keep (save) what was being set, select the volume again, start an
   extraction (CAL: validated first); running = the short push of the encoder (end, start / stop the flush, stop MANUAL); no-water error
-  = nothing; standby = wake only. Asked by the user 2026-11-19. The short push of the encoder only clears the no-water error, and nothing else clears it (asked by the user 2026-11-19); only the button starts / ends / flushes / stops. Double and long pushes unchanged (the long push does nothing while the error lasts).
+  = nothing; standby = wake only. Asked by the user 2026-11-19. The long push of the encoder is disabled (asked by the user 2026-11-19; `handleLongPush()` is kept for a future use, `handlePush()` ignores PUSH_LONG): its actions (AUTO <-> MANUAL, clear the no-water error) are on the short push (`handleShortPush()` calls `handleLongPush()`); only the button starts / ends / flushes / stops. Double push unchanged.
 - The pump stops BEFORE the target volume: the volume is checked on every pass with the pulses not yet converted, and
   `volume + stopDelay x flow >= target` stops it (the water of the stop, 2-3 ml at 5 ml/s, fills the rest). `stopDelay` (seconds)
   is learned after every extraction that ends in the main phase (STOP_SETTLE_MS later: water that came / flow at the stop,

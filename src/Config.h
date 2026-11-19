@@ -57,15 +57,15 @@
 #define FLUSH_MAX_SECONDS                 9
 #define DEFAULT_FLUSH_SECONDS             5
 
-// Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a long push
-// switches it. AUTO when the EEPROM has never been written.
+// Mode: AUTO (volume, pre-infusion, flush) or MANUAL (the pump runs between two pushes); a short push
+// switches it (the long push is disabled for the moment). AUTO when the EEPROM has never been written.
 // MANUAL time (seconds, 0 = until the second push): setting of the MANUAL mode.
 //
 // The settings are saved in EEPROM by the machine, never by the user, and only at these moments (and
 // only the bytes that changed are written, so the EEPROM wears only when a value really changes):
 //   - a double push (the next parameter is selected: the one that was edited is validated),
 //   - the start of an extraction (the volume that was edited is validated),
-//   - a change of mode (long push).
+//   - a change of mode (short push).
 // A temperature setpoint is applied to the heater at the same moments.
 #define MANUAL_MAX_SECONDS                99
 #define DEFAULT_MANUAL_SECONDS            0
