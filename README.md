@@ -79,8 +79,8 @@ the flash for a finer drawing, which the `nano_r4` environment switches on (`DIS
   black or white pixels), at the size and the weight of the 1-bit ones, so nothing moves.
 - **Icons** (thermometer, drop, clock): 8-bit coverage instead of 4 levels. They are rebuilt from the 4-level source (the
   original drawing is not in the repository), with smoother curves.
-- **Welcome picture**: 160 x 160 pixels in colour (the Twemoji cup, `tools/welcome_source.svg`, drawn at 8 times the
-  size and reduced), instead of 96 x 96 pixels in 4 levels. It takes the tones of the screen.
+- **Welcome picture**: the same 96 x 96 pixels as on the Nano R3, but in colour (the Twemoji cup, `tools/welcome_source.svg`,
+  drawn at 8 times the size and reduced) instead of 4 levels. It takes the tones of the screen.
 - The images of this look are in `docs/images/hires/` (`HIRES=1 ./tools/render_screens.sh`). The assets are generated
   by `python tools/make_hires_assets.py --font Poppins-Bold.ttf` (Pillow and numpy) into `src/display/HiResData.h`.
   Replace `tools/welcome_source.svg` (or give `--welcome picture.png`) to change the welcome picture.

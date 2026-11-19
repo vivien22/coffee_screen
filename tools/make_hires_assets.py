@@ -16,7 +16,7 @@ What it does
   Icons   the thermometer, the drop and the clock are in tools/icons_raw.h as 4 levels only (the first PNG is not kept in the
           repository). Their outline is rebuilt at 8 times the size (smooth upscaling of the 4 levels, then the contour is
           sharpened around each level) and reduced again: 256 levels of coverage instead of 4, smoother curves, same shapes.
-  Welcome the same reconstruction at 160 x 160 pixels, in full colour (RGB565) on the background colour. Give --welcome with a
+  Welcome the cup of tools/welcome_source.svg at 96 x 96 pixels (the size of the Nano R3 picture), in full colour (RGB565) on the background colour. Give --welcome with a
           real picture (PNG, any size, transparent or dark background) to make it from the picture instead: that is the
           way to get real details.
 """
@@ -32,7 +32,8 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 SS = 8                                   # supersampling of the glyphs and of the icons
-WELCOME_SIZE = 160
+WELCOME_SIZE = 96                        # the size of the welcome picture of the Nano R3: the layout is the same
+GLYPH_SHARPNESS = 1.6                    # 1 = plain box filter; more = steeper edges of the glyphs (less blurred)
 
 
 # ---------------------------------------------------------------------------------------------------------------- inputs
@@ -125,6 +126,16 @@ def fit_face(path, data, glyphs, chars):
                for k in np.arange(0, 2.51, 0.25))
 
 
+def snap_height(path, size, stroke, flat_char):
+    """The size (and the stroke, in the same proportion) at which a glyph with a flat top and a flat bottom ('1', 'E') has a
+    whole number of pixels of height: its horizontal edges then fall on the pixel rows and are not blurred."""
+    ratio = stroke / size
+    for _ in range(4):
+        height = Face(path, size, ratio * size).size_of(flat_char)[1]
+        size = size * round(height) / height
+    return size, ratio * size
+
+
 def render_glyph(face, ch, old, scale=1.0):
     """The A8 bitmap of one glyph, with the advance and the place of the old one. Returns (w, h, adv, xo, yo, bytes)."""
     off, w, h, adv, xo, yo = old
@@ -135,7 +146,7 @@ def render_glyph(face, ch, old, scale=1.0):
     bottom = (box[3] - base) / SS              # and below it
     # horizontal: the ink is centered where the old one was
     center = xo + w / 2.0
-    left = center - ink_w / 2.0
+    left = float(round(center - ink_w / 2.0))   # the left edge of the ink on a pixel boundary (crisp vertical stems)
     xo_new = int(math.floor(left)) - 1
     frac = left - math.floor(left) + 1.0       # position of the ink in the bitmap, in pixels
     rows_above = int(math.ceil(top)) + 1
@@ -146,7 +157,9 @@ def render_glyph(face, ch, old, scale=1.0):
     dx = int(round(frac * SS)) - box[0]
     dy = rows_above * SS - base
     canvas.paste(big.crop(box), (box[0] + dx, box[1] + dy))
-    return trimmed(canvas.resize((wb, hb), Image.BOX), adv, xo_new, -rows_above)
+    small = np.asarray(canvas.resize((wb, hb), Image.BOX), dtype=np.float32) / 255.0
+    small = np.clip((small - 0.5) * GLYPH_SHARPNESS + 0.5, 0.0, 1.0)      # steeper edges: less blur
+    return trimmed(Image.fromarray(np.rint(small * 255).astype(np.uint8)), adv, xo_new, -rows_above)
 
 
 def trimmed(img, adv, xo, yo):
@@ -180,6 +193,7 @@ def make_fonts(path, old):
     for name in ("FontSmall", "FontLarge"):
         data, glyphs = old[name]
         size, stroke = fit_face(path, data, glyphs[:10], digits)[1:]
+        size, stroke = snap_height(path, size, stroke, "1")
         print("%s: Poppins Bold at %.1f px, stroke %.2f px" % (name, size, stroke), file=sys.stderr)
         face = Face(path, size, stroke)
         if name == "FontSmall":
@@ -195,6 +209,7 @@ def make_fonts(path, old):
     letters = "PREWAITFLUSHMC"
     data, glyphs = old["FontTag"]
     size, stroke = fit_face(path, data, glyphs, letters)[1:]
+    size, stroke = snap_height(path, size, stroke, "E")
     print("FontTag: Poppins Bold at %.1f px, stroke %.2f px" % (size, stroke), file=sys.stderr)
     face = Face(path, size, stroke)
     out["FontTag"] = [render_glyph(face, ch, glyphs[i]) for i, ch in enumerate(letters)]
