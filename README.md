@@ -318,6 +318,13 @@ inputs, and use a transistor if they need more.
 **Parts:** Arduino Nano R3 or R4, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
 (pump, heater, valve), two flow sensors (In and Out / OPV return).
 
+> [!IMPORTANT]
+> **Power supply.** Do not power the board and the relay board from the USB port of a PC once everything is connected: the
+> screen (and its backlight) and three relays together ask more than a USB port gives. Seen on the bench: the firmware
+> drove the pump output correctly, but the pump relay did not pull in while the valve one did, until a more powerful
+> 5 V supply was used. Use a real 5 V supply (or the supply of the machine) for the relay board and the Nano; a PC
+> on USB is fine to upload the firmware and to watch the serial traces only with the relays disconnected.
+
 ### Pump and valve
 
 > [!IMPORTANT]
