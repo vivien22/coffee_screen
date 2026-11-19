@@ -20,7 +20,10 @@ typedef uint8_t byte;
 #define A3 17
 #define A4 18
 #define A5 19
-#define F(x) (x)
+// F("...") gives a string of the "flash" of the stub: its characters are scrambled (xor 0x80) and only pgm_read_byte() brings them back,
+// as on the board where a plain read of a flash string gives the RAM at that address. A code that reads such a string with *p fails here.
+const char *stubFlashString(const char *literal);
+#define F(x) stubFlashString(x)
 #define constrain(a,lo,hi) ((a)<(lo)?(lo):((a)>(hi)?(hi):(a)))
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
@@ -34,7 +37,8 @@ extern unsigned long stubNow;   // what millis() returns
 extern int stubPins[32];        // the level written to each pin by digitalWrite(), read by digitalRead()
 extern void (*stubDelayHook)(unsigned long);   // called by delay(), if set (a test can look at the screen meanwhile)
 char* itoa(int,char*,int);
-#define pgm_read_byte(p) (*(p))
+uint8_t stubPgmReadByte(const void *address);
+#define pgm_read_byte(p) stubPgmReadByte(p)
 #define pgm_read_word(p) (*(p))
 #define attachInterrupt(a,b,c) 
 #define digitalPinToInterrupt(x) x
