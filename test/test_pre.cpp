@@ -5,7 +5,7 @@
 #include "src/Config.h"
 #include "src/settings/Settings.h"
 #include "settings_test.h"
-#include "src/machine/ExtractionController.h"
+#include "src/coffee/ExtractionController.h"
 #include "src/display/ScreenController.h"
 #include <cstdio>
 #include "TestSupport.h"

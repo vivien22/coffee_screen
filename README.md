@@ -453,7 +453,7 @@ platformio.ini             the PlatformIO project: board, libraries, build flags
 src/
   Config.h                 pins, limits, timings, tuning constants
   Debug.h                  serial traces
-  machine/
+  coffee/
     CoffeeMachine          the application: owns every module, handles the encoder actions
     ExtractionController   extraction state machine, pump / valve relays, safeties, cup volume
   heating/

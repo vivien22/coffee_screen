@@ -5,7 +5,7 @@
 #include <string>
 #include <cstring>
 #define private public
-#include "src/machine/CoffeeMachine.h"
+#include "src/coffee/CoffeeMachine.h"
 #undef private
 #include "src/Config.h"
 #include <cstdio>
