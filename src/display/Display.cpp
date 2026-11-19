@@ -276,7 +276,7 @@ static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, in
 // text engine and its default font (a 5 x 7 font of 1280 bytes that the library links whenever it can print) are not in the
 // firmware any more, which is about 3 KB of flash. The codes of the characters are those of Fonts.h.
 static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t color, uint8_t scale, Text text) {
-  for (const char *c = (const char *)text; pgm_read_byte(c); c++) {
+  for (const char *c = reinterpret_cast<const char *>(text); pgm_read_byte(c); c++) {
     const GFXglyph *glyph = glyphOf(font, *c);
     const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
     const uint8_t width = pgm_read_byte(&glyph->width);
