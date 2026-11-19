@@ -175,6 +175,7 @@ other modes, and both are kept in the EEPROM.
   the probe fails.
 - **The encoder** sets SteamingTemp: the setpoint is shown for 2 s after each turn (`STEAM_SETPOINT_SHOW_MS`), then the measured
   temperature comes back. It is saved at each change and applied to the heater at once.
+- **No offset**: the probe temperature is regulated at SteamingTemp and shown as it is (`TEMPERATURE_OFFSET` is not applied in this mode).
 - **Leaving it**: the brewing setpoint is applied again, the real screen is drawn again in full with the volume selected. The mode is
   not saved: after a reboot the machine is in brewing mode. The standby works as in the other modes.
 
