@@ -15,7 +15,7 @@ void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome
 void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 #define PUMP pins[4]
 #define VALVE pins[16]
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }

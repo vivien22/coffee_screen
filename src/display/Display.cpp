@@ -174,6 +174,11 @@ void drawIcons() {
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
+// The thermometer alone, centered above the temperature (steaming mode).
+void drawSteamIcon() {
+  drawIcon(STEAM_ICON_X, STEAM_ICON_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
+}
+
 // The drop icon with the letter of the mode: A (AUTO) or M (MANUAL). Not visible = the icon is erased (blinking).
 void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
@@ -185,6 +190,7 @@ void drawDrop(bool visible, bool manual) {
 }
 #else
 void drawDrop(bool, bool) {}
+void drawSteamIcon() {}
 void beginWelcome() {}
 void endWelcome() {}
 void showStandbyPicture() {}

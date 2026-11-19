@@ -19,7 +19,7 @@ void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welc
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){L("clearVals");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
@@ -445,7 +445,7 @@ static void steaming(){
   CHECK(!m.steaming_ && m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET);
   // a long push enters it: the screen is cleared, the heater regulates SteamingTemp, BrewingTemp stays
   calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
-  CHECK(m.steaming_ && m.screen_.steaming() && has("clearscreen(0,0,0,0)") && !lastSteam().empty());
+  CHECK(m.steaming_ && m.screen_.steaming() && has("clearscreen(0,0,0,0)") && has("steamicon(0,0,0,0)") && !lastSteam().empty());   // the thermometer stays
   CHECK(m.heater_.setpoint_==135 && m.screen_.settings().temperature==DEFAULT_TEMPERATURE);
   // no extraction: the start button does nothing (held or not), the pushes of the encoder neither, the pump and the valve stay off
   pushButton(m); CHECK(!m.extraction_.isActive() && !PUMPON && pins[PIN_VALVE_RELAY]==0); releaseButton(m);

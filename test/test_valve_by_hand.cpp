@@ -18,7 +18,7 @@ void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome
 void drawTemperature(double,TextSize){} void drawVolume(uint16_t,TextSize,PhaseTag,bool){}
 void drawDuration(uint16_t,TextSize,PhaseTag,bool){}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag,bool){} void drawDrop(bool,bool){} void drawTemperatureError(){}
-void clearScreen(){} void drawSteamTemperature(double,bool){}
+void drawSteamIcon(){} void clearScreen(){} void drawSteamTemperature(double,bool){}
 
 // The MAX31865 answers the RTD register (a probe at 93 degrees, PT100, Callendar-Van Dusen)
 static uint16_t rtdRegister=0; static int byteIndex=0;

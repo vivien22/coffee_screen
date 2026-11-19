@@ -62,6 +62,8 @@
 #define STEAM_ZONE_Y                  94    // y 94 -> 146
 #define STEAM_ZONE_WIDTH              180
 #define STEAM_ZONE_HEIGHT             52
+#define STEAM_ICON_X                  107   // the thermometer icon, centered, above the number
+#define STEAM_ICON_Y                  42
 #define STEAM_ERROR_X                 61    // "ERR" (sensor fault), 3 times the size of the tag letters: 117 x 45 px, centered
 #define STEAM_ERROR_BASELINE          142
 

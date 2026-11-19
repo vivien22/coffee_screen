@@ -67,7 +67,9 @@ void ScreenController::leaveStandby() {
 // temperature alone.
 void ScreenController::redrawScreen() {
 #ifdef DISPLAY_ICONS
-  if (!steaming_) {
+  if (steaming_) {
+    drawSteamIcon();   // the thermometer stays
+  } else {
     drawIcons();
     drawDrop(dropVisible_, settings_.manual);
   }

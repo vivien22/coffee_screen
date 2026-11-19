@@ -21,7 +21,7 @@ void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void clearValues(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag,bool){} void drawDrop(bool,bool){} void drawTemperatureError(){}
-void clearScreen(){} void drawSteamTemperature(double,bool){}
+void drawSteamIcon(){} void clearScreen(){} void drawSteamTemperature(double,bool){}
 
 // The MAX31865 answers the RTD register: the test sets the temperature the probe "measures" (PT100, Callendar-Van Dusen)
 static uint16_t rtdRegister=0; static int byteIndex=0;
