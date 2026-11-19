@@ -99,8 +99,7 @@ void CoffeeMachine::update() {
   }
 
   if (temperature_.isValid()) {
-    // the steaming mode has no offset: the probe temperature is regulated and shown as it is
-    screen_.showLiveTemperature(now, temperature_.celsius() - (steaming_ ? 0 : TEMPERATURE_OFFSET));
+    screen_.showLiveTemperature(now, temperature_.celsius() - TEMPERATURE_OFFSET);
   } else {
     screen_.showTemperatureError();   // the heater is off (see HeaterController)
   }
@@ -425,8 +424,7 @@ void CoffeeMachine::handleDoublePush() {
 void CoffeeMachine::saveSettings() {
   const Settings &settings = screen_.settings();
   store_.save(settings);
-  // no TEMPERATURE_OFFSET in the steaming mode
-  heater_.setSetpoint(steaming_ ? settings.steamingTemperature : settings.temperature + TEMPERATURE_OFFSET);
+  heater_.setSetpoint((steaming_ ? settings.steamingTemperature : settings.temperature) + TEMPERATURE_OFFSET);
 }
 
 // Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.

@@ -66,7 +66,7 @@ void drawDrop(bool visible, bool manual);
 // Steaming mode: the screen is cleared (everything gone, the fields are drawn again in full afterwards), then only the
 // temperature is drawn, in large digits in the middle of the screen. error: "ERR" instead (probe fault).
 void clearScreen();
-// The thermometer icon alone, above the temperature (steaming mode). Does nothing if DISPLAY_ICONS is not defined.
+// The thermometer icon alone, left of the temperature (steaming mode). Does nothing if DISPLAY_ICONS is not defined.
 void drawSteamIcon();
 void drawSteamTemperature(double value, bool error);
 

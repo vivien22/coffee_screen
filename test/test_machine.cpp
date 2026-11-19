@@ -446,7 +446,7 @@ static void steaming(){
   // a long push enters it: the screen is cleared, the heater regulates SteamingTemp, BrewingTemp stays
   calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
   CHECK(m.steaming_ && m.screen_.steaming() && has("clearscreen(0,0,0,0)") && has("steamicon(0,0,0,0)") && !lastSteam().empty());   // the thermometer stays
-  CHECK(m.heater_.setpoint_==135 && m.screen_.settings().temperature==DEFAULT_TEMPERATURE);
+  CHECK(m.heater_.setpoint_==135+TEMPERATURE_OFFSET && m.screen_.settings().temperature==DEFAULT_TEMPERATURE);
   // no extraction: the start button does nothing (held or not), the pushes of the encoder neither, the pump and the valve stay off
   pushButton(m); CHECK(!m.extraction_.isActive() && !PUMPON && pins[PIN_VALVE_RELAY]==0); releaseButton(m);
   m.handlePush(PUSH_SHORT); m.handlePush(PUSH_DOUBLE); t+=100; m.update();
@@ -459,7 +459,7 @@ static void steaming(){
   calls.clear(); m.adjustActiveParameter(5); t+=100; m.update();
   CHECK(lastSteam()=="steam(140,0,0,0)");
   CHECK(SettingsStore().load().steamingTemperature==140 && SettingsStore().load().temperature==DEFAULT_TEMPERATURE);
-  CHECK(m.heater_.setpoint_==140);   // no offset in the steaming mode
+  CHECK(m.heater_.setpoint_==140+TEMPERATURE_OFFSET);
   // after STEAM_SETPOINT_SHOW_MS the measured temperature is shown again
   calls.clear(); for(int i=0;i<(int)(STEAM_SETPOINT_SHOW_MS/100)+15;i++){ t+=100; m.update(); }
   CHECK(!lastSteam().empty() && lastSteam()!="steam(140,0,0,0)");
@@ -474,7 +474,7 @@ static void steaming(){
   m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(!m.steaming_ && m.extraction_.isActive());
   pushButton(m); releaseButton(m);
   // SteamingTemp is remembered at the next start
-  { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140); }
+  { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140+TEMPERATURE_OFFSET); }
   printf("steaming: ok\n");
 }
 // The delay of the stop before the target is learned, saved and given back at the next start

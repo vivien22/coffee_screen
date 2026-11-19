@@ -171,11 +171,11 @@ other modes, and both are kept in the EEPROM.
 
 - **No extraction**: the extraction is not updated (no volume is read), the pump and the valve stay off, the start / stop button does
   nothing, and the short and double pushes neither.
-- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon above it (no other icon, no volume, no duration, no heater dot); `ERR` if
+- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon on its left as in the other modes (no other icon, no volume, no duration, no heater dot); `ERR` if
   the probe fails.
 - **The encoder** sets SteamingTemp: the setpoint is shown for 2 s after each turn (`STEAM_SETPOINT_SHOW_MS`), then the measured
   temperature comes back. It is saved at each change and applied to the heater at once.
-- **No offset**: the probe temperature is regulated at SteamingTemp and shown as it is (`TEMPERATURE_OFFSET` is not applied in this mode).
+- **The offset** (`TEMPERATURE_OFFSET`) applies as in the other modes: the probe is regulated at SteamingTemp + offset and the screen shows probe − offset.
 - **Leaving it**: the brewing setpoint is applied again, the real screen is drawn again in full with the volume selected. The mode is
   not saved: after a reboot the machine is in brewing mode. The standby works as in the other modes.
 

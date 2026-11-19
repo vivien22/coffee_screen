@@ -52,19 +52,18 @@
 #define TEMPERATURE_UNIT_DX           11    // offset of the "C" from the end of the number
 
 // ---------- Steaming mode: the temperature alone, large digits, in the middle of the screen ----------
-// "135 °C": 3 large digits (117 px) and the unit (33 px), 150 px wide; the shorter numbers are shifted to stay centered.
-#define STEAM_X                       45    // left edge of a 3 digit number
-#define STEAM_DIGIT_SHIFT             20    // more for each digit less (half a cell)
+// The thermometer icon on the left, then "135 °C": 3 large digits (117 px) and the unit (33 px): 185 px wide with the icon, centered.
+#define STEAM_X                       63    // left edge of the number (left-aligned)
 #define STEAM_BASELINE                143    // baseline of the number (47 px high: centered on the screen)
 #define STEAM_UNIT_BASELINE           140    // baseline of the "C"
 #define STEAM_DEGREE_Y                125    // center of the degree sign
-#define STEAM_ZONE_X                  30    // zone erased before each update: x 30 -> 210
+#define STEAM_ZONE_X                  58    // zone erased before each update: x 58 -> 228 (the icon, up to x 53, is not touched)
 #define STEAM_ZONE_Y                  94    // y 94 -> 146
-#define STEAM_ZONE_WIDTH              180
+#define STEAM_ZONE_WIDTH              170
 #define STEAM_ZONE_HEIGHT             52
-#define STEAM_ICON_X                  107   // the thermometer icon, centered, above the number
-#define STEAM_ICON_Y                  42
-#define STEAM_ERROR_X                 61    // "ERR" (sensor fault), 3 times the size of the tag letters: 117 x 45 px, centered
+#define STEAM_ICON_X                  28    // the thermometer icon, left of the number, centered on the screen
+#define STEAM_ICON_Y                  99
+#define STEAM_ERROR_X                 63    // "ERR" (sensor fault), 3 times the size of the tag letters: 117 x 45 px, centered
 #define STEAM_ERROR_BASELINE          142
 
 // --------------------- Blinking dot for PID output ---------------------

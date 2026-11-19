@@ -174,7 +174,7 @@ void drawIcons() {
   drawIcon(ICON_CLOCK_X,       ICON_CLOCK_Y,       ICON_CLOCK,       ICON_CLOCK_WIDTH,       ICON_CLOCK_HEIGHT);
 }
 
-// The thermometer alone, centered above the temperature (steaming mode).
+// The thermometer alone, left of the temperature (steaming mode).
 void drawSteamIcon() {
   drawIcon(STEAM_ICON_X, STEAM_ICON_Y, ICON_THERMOMETER, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT);
 }
@@ -401,25 +401,20 @@ void clearScreen() {
   temperatureField.valid = volumeField.valid = durationField.valid = false;
 }
 
-// Steaming mode: the temperature alone, in large digits (integer), centered; the unit follows it. A change of the number of
-// digits moves the number: it is then drawn as a new look (the margins are erased).
+// Steaming mode: the temperature in large digits (integer), left-aligned next to the thermometer; the unit follows it.
 void drawSteamTemperature(double value, bool error) {
-  static uint8_t length = 0;   // number of digits drawn
   if (error) {
     tft.fillRect(STEAM_ZONE_X, STEAM_ZONE_Y, STEAM_ZONE_WIDTH, STEAM_ZONE_HEIGHT, COLOR_BG);
     temperatureField.valid = false;
-    length = 0;
     putText(FONT_TAG, STEAM_ERROR_X, STEAM_ERROR_BASELINE, COLOR_TEXT, 3, F("211"));
     return;
   }
   char text[6];
   itoa(value < 0 ? 0 : (int)(value + 0.5), text, 10);
-  const uint8_t digits = strlen(text);
   bool moved;
-  const int16_t xEnd = drawNumber(temperatureField, text, TEXT_SIZE_LARGE, PHASE_TAG_NONE, digits != length,
+  const int16_t xEnd = drawNumber(temperatureField, text, TEXT_SIZE_LARGE, PHASE_TAG_NONE, false,
                                   STEAM_ZONE_X, STEAM_ZONE_Y, STEAM_ZONE_WIDTH, STEAM_ZONE_HEIGHT,
-                                  STEAM_X + (3 - digits) * STEAM_DIGIT_SHIFT, STEAM_BASELINE, moved, true);
-  length = digits;
+                                  STEAM_X, STEAM_BASELINE, moved, true);
   if (moved) {
     putText(FONT_UNIT, xEnd + TEMPERATURE_DEGREE_DX, STEAM_DEGREE_Y, COLOR_TEXT, 1, F("4"));
     putText(FONT_UNIT, xEnd + TEMPERATURE_UNIT_DX, STEAM_UNIT_BASELINE, COLOR_TEXT, 1, F("0"));

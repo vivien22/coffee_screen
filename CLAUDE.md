@@ -52,7 +52,7 @@ The README describes the behaviour. The user writes in French: reply in French.
   `steaming_`: `updateExtraction()` / `showExtraction()` are not called (no volume read), the start button does nothing, short and double
   pushes are ignored, `saveSettings()` applies the steaming setpoint; the screen (`ScreenController::enterSteaming/leaveSteaming`,
   `Display::drawSteamTemperature`) shows the temperature alone in large digits, the setpoint for `STEAM_SETPOINT_SHOW_MS` after a turn.
-  No `TEMPERATURE_OFFSET` in this mode (asked by the user 2026-11-19): setpoint and display are the raw probe. Not saved across a reboot. `handleLongPush()` is the old AUTO/MANUAL + clear-error code, now called by the short push.
+  `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot. `handleLongPush()` is the old AUTO/MANUAL + clear-error code, now called by the short push.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
