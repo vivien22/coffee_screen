@@ -40,14 +40,14 @@ for t in test/test_*.cpp; do
   g++ -std=c++11 -w -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
   out=$("$B/$n"); rc=$?
-  printf "%s: %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
+  printf "%s: %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
   [ $rc -eq 0 ] || status=1
 done
 # The high resolution look of the Nano R4 (DISPLAY_HIRES): the property test of the display again, and the test of the pictures
 for n in test_display test_hires_welcome; do
   g++ -std=c++11 -w -DDISPLAY_HIRES -I"$B/mock" -Itest/stubs "test/$n.cpp" test/stubs/ArduinoStubs.cpp       "$B/mock/src/display/Display.cpp" -o "$B/${n}_hires" 2>"$B/${n}_hires.log" || { echo "$n (DISPLAY_HIRES): BUILD FAILED"; head -5 "$B/${n}_hires.log"; status=1; continue; }
   out=$("$B/${n}_hires"); rc=$?
-  printf "%s (DISPLAY_HIRES): %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
+  printf "%s (DISPLAY_HIRES): %s\n" "$n" "$(printf '%s\n' "$out" | tail -3)"
   [ $rc -eq 0 ] || status=1
 done
 exit $status
