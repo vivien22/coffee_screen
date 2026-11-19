@@ -109,8 +109,10 @@
 
 // ---------- Flow sensors ----------
 // Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
+// Out was calibrated against In on 2026-11-19 with the two sensors in series (10 sequences of 100 ml, sequence 6 left out:
+// 74.18 pulses per ml, see the README, "Calibration of the flow sensors").
 #define FLOW_K_FACTOR_IN             12.56f
-#define FLOW_K_FACTOR_OUT            50.0f
+#define FLOW_K_FACTOR_OUT            74.18f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 
 // ---------- Pump and valve ----------
@@ -125,12 +127,12 @@
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
-// The Out sensor (A2, return of the OPV valve) is connected: uncomment this line then. While it is not, the pin A2
-// is left alone (a floating input would count false pulses) and the volume out is ESTIMATED from the volume in:
-// Out = In * FLOW_OUT_ESTIMATE_RATIO. The user's figure: a 50 ml cup goes with 50 ml returned by the OPV, so with the
-// default loss of 30 ml In = 50 + 50 + 30 = 130 ml and the ratio is 50 / 130 = 0.385. The CAL calibration absorbs
-// the rest (it corrects the loss).
-// #define FLOW_OUT_SENSOR
+// The Out sensor (A2, return of the OPV valve) is connected and calibrated (FLOW_K_FACTOR_OUT): it is read. Comment this line
+// out if it is not connected: the pin A2 is then left alone (a floating input would count false pulses) and the volume out
+// is ESTIMATED from the volume in: Out = In * FLOW_OUT_ESTIMATE_RATIO. The user's figure: a 50 ml cup goes with 50 ml
+// returned by the OPV, so with the default loss of 30 ml In = 50 + 50 + 30 = 130 ml and the ratio is 50 / 130 = 0.385.
+// The CAL calibration absorbs the rest (it corrects the loss).
+#define FLOW_OUT_SENSOR
 #define FLOW_OUT_ESTIMATE_RATIO      0.385f    // used only without FLOW_OUT_SENSOR
 
 // Flow simulator: uncomment this line to replace the two flow sensors when they are not connected. While the pump
@@ -157,6 +159,19 @@
 #define LOSS_MAX_ML                  60.0f
 #define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
 #define CALIBRATION_MIN_ML           10
+
+// Stop before the target. When the pump stops the water goes on for a moment (the pulses not yet counted, the water in
+// the pipes and the pump slowing down): measured on 2026-11-19, 100 ml of In were followed by 2 to 3 ml more. The pump is
+// stopped when the volume counted so far PLUS what is still to come reaches the target; what is still to come is the
+// flow at that moment times a delay, STOP_DELAY_* seconds. The delay is LEARNED: after every extraction that ends in the main
+// phase the water that came after the stop (STOP_SETTLE_MS later) is compared with what was expected, and the delay moves
+// STOP_DELAY_GAIN of the way toward the one that would have been right. It is saved (EEPROM) and used by the next extraction.
+#define STOP_DELAY_DEFAULT_S         0.40f     // first value (2 ml at 5 ml/s), used while nothing was learned
+#define STOP_DELAY_MAX_S             1.5f      // the delay is kept between 0 and this
+#define STOP_DELAY_GAIN              0.30f     // 1 = the last extraction decides alone, 0 = no learning
+#define STOP_SETTLE_MS               2000UL    // how long after the stop the water that still comes is measured
+#define STOP_LEARN_MIN_ML_PER_S      2.0f      // no learning from an extraction stopped under this flow (too noisy)
+#define STOP_ANTICIPATION_MAX_ML     6.0f      // the pump never stops more than this before the target
 #define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 #define RESULT_BLINK_WINDOW_MS       1600UL    // during the last part of that time the volume and the duration blink (2 blinks):

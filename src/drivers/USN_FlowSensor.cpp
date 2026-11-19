@@ -81,6 +81,24 @@ void USN_FlowSensor::update()
     lastOutRate_ = volumeOut / minutes;
 }
 
+// In - Out including the pulses that update() has not converted yet (the pulses counted since it ran).
+float USN_FlowSensor::getNetVolumeLive()
+{
+    noInterrupts();
+    const uint16_t pulsesIn = pulsesIn_;
+    const uint16_t pulsesOut = pulsesOut_;
+    interrupts();
+
+    const float in = pulsesIn / FLOW_K_FACTOR_IN;
+#ifdef FLOW_OUT_SENSOR
+    const float out = pulsesOut / FLOW_K_FACTOR_OUT;
+#else
+    (void)pulsesOut;
+    const float out = in * FLOW_OUT_ESTIMATE_RATIO;
+#endif
+    return (volumeIn_ + in) - (volumeOut_ + out);
+}
+
 // Begin a new extraction and clear previous measurements.
 void USN_FlowSensor::startExtraction()
 {

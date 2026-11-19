@@ -79,7 +79,15 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   netMl_(0.0f),
   finishedNormally_(false),
   flowCheckMl_(0.0f),
-  flowCheckAt_(0)
+  flowCheckAt_(0),
+  stopDelayS_(STOP_DELAY_DEFAULT_S),
+  settlePending_(false),
+  learning_(false),
+  settled_(false),
+  stopDelayChanged_(false),
+  stopNetMl_(0.0f),
+  stopNetRate_(0.0f),
+  settleAt_(0)
 {
 }
 
@@ -115,6 +123,8 @@ bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   }
 
   flow_.startExtraction();
+  settlePending_ = false;   // a new extraction ends the measure of the previous one
+  learning_ = false;
   volumeMl_ = 0;
   netMl_ = 0.0f;
   finishedNormally_ = false;
@@ -159,8 +169,22 @@ void ExtractionController::finish(uint32_t now) {
     return;
   }
 
+  // What the sensors count after the pump stops is measured (see settle()), for the main phase only
+  const bool measureTail = (state_ == EXTRACTION_RUNNING);
+  const float netAtStop = flow_.getNetVolumeLive();
+  const float rateAtStop = netRateMlPerSec();
+
   stop(EXTRACTION_FINISHED);
   finishedNormally_ = true;
+
+  if (measureTail) {
+    settlePending_ = true;
+    settled_ = false;
+    settleAt_ = now;
+    stopNetMl_ = netAtStop;
+    stopNetRate_ = rateAtStop;
+    learning_ = (rateAtStop >= STOP_LEARN_MIN_ML_PER_S);
+  }
 
   // Flush time 0: no flush, the extraction is over
   if (phaseSeconds_[DURATION_FLUSH] > 0) {
@@ -212,6 +236,7 @@ uint32_t ExtractionController::phaseLimitMs() const {
 // phase table), the countdowns for the screen, the volume and the target volume, the maximum duration.
 void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   flow_.update();
+  settle(now);
 
   if (!isActive() || state_ == EXTRACTION_FLUSH_WAIT) {
     return;   // FLUSH_WAIT only waits for startFlush()
@@ -274,14 +299,16 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   // ----- Volume in the cup, and target volume -----
   // The volume is updated in every phase (the pre-infusion water is counted), but only RUNNING ends
   // on the target volume.
+  // The target is checked on every pass, with the volume counted so far (the pulses not yet converted included), and the pump
+  // stops a little BEFORE it: the water that still comes after the stop fills the rest (see anticipationMl()).
+  if (state_ == EXTRACTION_RUNNING && cupVolumeLiveMl() + anticipationMl() >= (float)targetVolumeMl) {
+    finish(now);
+    return;
+  }
+
   if ((uint32_t)(now - lastVolumeAt_) >= VOLUME_PERIOD_MS) {
     lastVolumeAt_ = now;
     volumeMl_ = cupVolumeMl();
-
-    if (state_ == EXTRACTION_RUNNING && volumeMl_ >= targetVolumeMl) {
-      finish(now);
-      return;
-    }
   }
 
   // ----- Maximum extraction duration guard -----
@@ -311,6 +338,58 @@ uint16_t ExtractionController::cupVolumeMl() {
   netMl_ = flow_.getNetVolume();
   const float cup = netMl_ - (manual_ ? 0.0f : lossMl_);
   return (cup > 0.0f) ? (uint16_t)(cup + 0.5f) : 0;
+}
+
+// The same as cupVolumeMl() at this very moment, as a number of millilitres (not rounded, not kept at 0 when negative)
+float ExtractionController::cupVolumeLiveMl() {
+  return flow_.getNetVolumeLive() - (manual_ ? 0.0f : lossMl_);
+}
+
+// Flow of the water that stays in the system (In - Out), ml/s. The sensors give ml/min.
+float ExtractionController::netRateMlPerSec() {
+  return (flow_.getInflowRate() - flow_.getOutflowRate()) / 60.0f;
+}
+
+// The volume that still comes after the pump stops: the flow of that moment times the delay that was learned.
+float ExtractionController::anticipationMl() {
+  const float ml = stopDelayS_ * netRateMlPerSec();
+  return constrain(ml, 0.0f, (float)STOP_ANTICIPATION_MAX_ML);
+}
+
+// Called on every pass. After the pump stopped at the end of the main phase, STOP_SETTLE_MS later the water that came after
+// it is known: the delay moves toward the one that would have been right (the water that came / the flow at the stop), and the
+// volume of the extraction is brought up to date (it was taken when the pump stopped, before this water).
+void ExtractionController::settle(uint32_t now) {
+  if (!settlePending_) {
+    return;
+  }
+  // The pump started again (flush) or a new extraction began: the water that comes is not the one of the stop any more
+  if (state_ != EXTRACTION_FLUSH_WAIT && state_ != EXTRACTION_FINISHED) {
+    settlePending_ = false;
+    learning_ = false;
+    return;
+  }
+  if ((uint32_t)(now - settleAt_) < STOP_SETTLE_MS) {
+    return;
+  }
+
+  settlePending_ = false;
+
+  if (learning_) {
+    learning_ = false;
+    const float came = flow_.getNetVolumeLive() - stopNetMl_;                 // after the stop
+    if (came >= 0.0f) {
+      const float wanted = constrain(came / stopNetRate_, 0.0f, (float)STOP_DELAY_MAX_S);
+      const float next = stopDelayS_ + STOP_DELAY_GAIN * (wanted - stopDelayS_);
+      if (fabsf(next - stopDelayS_) >= 0.005f) {   // not worth a write of the EEPROM below
+        stopDelayS_ = next;
+        stopDelayChanged_ = true;
+      }
+    }
+  }
+
+  volumeMl_ = cupVolumeMl();   // with the water that came after the stop (also brings netMl_ up to date)
+  settled_ = true;
 }
 
 // Enter a phase: the table gives the state of the pump and of the valve. The valve is opened BEFORE the

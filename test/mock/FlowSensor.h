@@ -10,7 +10,10 @@ class FlowSensor {
     void update() {}
     void startExtraction() { in = 0; out = 0; }
     void stopExtraction() { rate = 0; }
+    float outRate = 0;                // outflow rate (ml/min), set by the tests
     float getInflowRate() { return rate; }
+    float getOutflowRate() { return outRate; }
     float getNetVolume() { return in - out; }
+    float getNetVolumeLive() { return in - out; }
     float getVolumeIn() { return in; }
 };

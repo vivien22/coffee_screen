@@ -240,6 +240,73 @@ CAL is offered only after an AUTO extraction that ended normally and gave at lea
 change the value, nothing changes. The constants are `DEFAULT_LOSS_ML`, `LOSS_MAX_ML`, `CALIBRATION_GAIN`
 and `CALIBRATION_MIN_ML`.
 
+### The stop before the target
+
+When the pump stops the water goes on for a moment (the pulses not counted yet, the water in the pipes, the pump slowing
+down): measured on 100 ml, **2 to 3 ml more** came after the target. So the machine does not wait for the target:
+
+- the volume is checked on **every pass** of the loop, with the pulses counted so far (not every 250 ms);
+- the pump stops when `volume now + delay × flow ≥ target`: the **delay** (seconds of flow, 0.4 s at first) is the time the
+  water still takes to stop, and the flow is that of In − Out at that moment (so 2 ml early at 5 ml/s);
+- **the delay is learned.** After each extraction that ends in the main phase, the machine keeps measuring for 2 s
+  (`STOP_SETTLE_MS`) and compares the water that really came after the stop with what it expected; the delay moves 30 % of the
+  way toward the one that would have been right. It is saved in the EEPROM, so the next extractions (and the next days)
+  start from it. Nothing is learned from a weak flow (under 2 ml/s), from the pre-infusion, or when the flush starts inside the
+  2 s;
+- once the 2 s have passed the final volume is brought up to date: the number on the screen is the volume that really
+  came, **with** the water of the stop, and so is the one used by CAL.
+
+In practice the final volume converges on the target (±0.3 ml in the tests) after a few extractions. The loss that CAL
+learns is now the real one (puck and backflush) and no longer hides the water of the stop: **do a CAL (weigh a cup) after
+the update.**
+
+---
+
+## 📏 Calibration of the flow sensors
+
+### The Out sensor against the In sensor (2026-11-19)
+
+**Method.** The Out sensor was wired **in series** with the In one, so that both count the same water. The In sensor is taken as
+calibrated (`FLOW_K_FACTOR_IN` 12.56 pulses/ml). A dedicated sketch (the branch `out-calibration`, not the machine firmware)
+ran **10 sequences of 100 ml** after a push: valve open, pump on until In had counted 100 ml, pump off, the pulses of both sensors
+counted for 2 more seconds (the water still moving), 3 s of pause. The heater and the PID were off, the board was powered by a
+power supply (not a PC), and every sequence was saved in the EEPROM and read afterwards over the serial line.
+
+| Sequence | Pulses In | Pulses Out | In (ml) | K_OUT of the sequence |
+|---:|---:|---:|---:|---:|
+| 1 | 1295 | 7629 | 103.10 | 73.99 |
+| 2 | 1294 | 7599 | 103.03 | 73.76 |
+| 3 | 1288 | 7607 | 102.55 | 74.18 |
+| 4 | 1295 | 7639 | 103.10 | 74.09 |
+| 5 | 1285 | 7655 | 102.31 | 74.82 |
+| 6 | 1291 | 7814 | 102.79 | **76.02** (left out) |
+| 7 | 1287 | 7686 | 102.47 | 75.01 |
+| 8 | 1283 | 7559 | 102.15 | 74.00 |
+| 9 | 1288 | 7554 | 102.55 | 73.66 |
+| 10 | 1291 | 7621 | 102.79 | 74.14 |
+
+**Result.** K_OUT = K_IN × (pulses of Out) ÷ (pulses of In), over the sequences kept (**all but the sixth**, the user's choice: it
+is 2.5 % above the others, an air bubble is the likely cause):
+
+```
+K_OUT = 12.56 × 68 549 / 11 606 = 74.18 pulses per ml          (with the 10 sequences: 74.37, 0.25 % more)
+```
+
+- The nine sequences agree: K from 73.66 to 75.01, standard deviation 0.45 (0.6 %). The Out sensor counts **5.9 pulses for one
+  of the In sensor** (the placeholder of the code, 50, was 33 % too low).
+- **Applied**: `FLOW_K_FACTOR_OUT` = 74.18 in `Config.h`, and the Out sensor is now read (`FLOW_OUT_SENSOR` on): the volume out is
+  measured, no longer estimated.
+- The raw data are kept in [`docs/calibration/`](docs/calibration/) (the table in CSV, and what the board printed).
+- To do it again (a new sensor, a new pump): the sketch of the branch `out-calibration`, with the sensors in series, gives the
+  new coefficient in about 15 minutes.
+
+### The pump keeps going after the stop
+
+In the same series the In sensor counted **1283 to 1295 pulses** for a sequence that was stopped at 100 ml: **102.2 to 103.1 ml**,
+that is **2.7 ml more** on average (standard deviation 0.35 ml) at about 5 ml/s. About 0.6 ml of it is the 250 ms between two
+readings of the sensors in the old code; the rest is the water that goes on after the pump stops. The machine now stops
+before the target and learns the delay itself, see [The stop before the target](#the-stop-before-the-target).
+
 ---
 
 ## 🛡 Safeties
@@ -314,19 +381,19 @@ inputs, and use a transistor if they need more.
 
 ### Flow sensors and the simulator
 
-The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56) and `FLOW_K_FACTOR_OUT`
-(50.0).
+The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56) and `FLOW_K_FACTOR_OUT` (**74.18**, measured
+against In, see [Calibration of the flow sensors](#-calibration-of-the-flow-sensors)).
 
 > [!IMPORTANT]
-> The board reads the **In** sensor (A1: the water entering the boiler). The **Out** sensor (A2: the return of the OPV
-> valve) is optional: while it is not connected, leave `// #define FLOW_OUT_SENSOR` commented out in `Config.h` (A2 is then
-> ignored: a floating input would count false pulses) and the volume out is **estimated** from the volume in:
-> `FLOW_OUT_ESTIMATE_RATIO` (0.385) of the water that enters the boiler is taken as returned by the OPV. That is the
+> The board reads the **In** sensor (A1: the water entering the boiler) and the **Out** sensor (A2: the return of the OPV
+> valve), both connected (`#define FLOW_OUT_SENSOR` in `Config.h`). If the Out sensor is not connected, comment that line
+> out: A2 is then ignored (a floating input would count false pulses) and the volume out is **estimated** from the volume
+> in: `FLOW_OUT_ESTIMATE_RATIO` (0.385) of the water that enters the boiler is taken as returned by the OPV. That is the
 > figure of the machine: a 50 ml cup goes with 50 ml returned, so with the 30 ml loss 130 ml enter the boiler. The CAL
-> calibration absorbs the rest. Uncomment it when the sensor is wired.
+> calibration absorbs the rest.
 >
 > `// #define FLOW_SIMULATOR` replaces both sensors by a simulator (3 ml/s while the pump runs, 10 % returning through the
-> OPV): uncomment it to test the machine without any flow sensor. Both lines are commented out by default.
+> OPV): uncomment it to test the machine without any flow sensor. It is commented out by default.
 
 ---
 
@@ -351,7 +418,10 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
 | `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
-| `FLOW_OUT_SENSOR` | commented out | Uncomment when the Out flow sensor is connected (A2); until then the Out volume is In * `FLOW_OUT_ESTIMATE_RATIO` |
+| `FLOW_OUT_SENSOR` | on | The Out flow sensor is connected (A2) and read; comment out if it is not: the Out volume is then In * `FLOW_OUT_ESTIMATE_RATIO` |
+| `FLOW_K_FACTOR_IN` / `FLOW_K_FACTOR_OUT` | 12.56 / 74.18 | Pulses per ml of the two flow sensors (Out calibrated against In on 2026-11-19) |
+| `STOP_DELAY_DEFAULT_S` / `STOP_DELAY_MAX_S` / `STOP_DELAY_GAIN` | 0.40 / 1.5 / 0.30 | Stop before the target: first delay, its limit, and how fast it is learned (seconds of flow, see "Cup volume") |
+| `STOP_SETTLE_MS` / `STOP_ANTICIPATION_MAX_ML` | 2000 / 6 | How long after the stop the water that still comes is measured, and the most the pump stops before the target |
 | `FLOW_OUT_ESTIMATE_RATIO` | 0.385 | Out / In without the Out sensor (50 ml cup, 50 ml returned, 30 ml loss) |
 | `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
@@ -388,18 +458,20 @@ The PlatformIO project is the folder of the repository (`platformio.ini` is in i
 
 The program is close to the 30720 bytes of flash of the Nano, so `platformio.ini` sets build flags that make the
 code smaller: `-mcall-prologues` (about 1 KB, shared function prologues, a little slower, needed for the display
-code to fit) and `-fno-ipa-cp -mstrict-X -fno-gcse -fshort-enums` (about 1.3 KB more). If you build with another
-project file, copy these `build_flags`.
+code to fit) and `-fno-ipa-cp -mstrict-X -fno-gcse -fshort-enums` (about 1.3 KB more). The extra script
+`tools/link_flags.py` also gives the link step `-ffunction-sections -fdata-sections` (the build is LTO: without them the linker
+keeps the functions nobody calls, about 0.5 KB), and every text of the screen is drawn by the firmware itself
+(`putText()` in `Display.cpp`), which keeps the text engine of Adafruit_GFX and its default font out of the program (about 2.6 KB).
+If you build with another project file, copy these `build_flags` and the script.
 
 Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/Debug.h` (115200 baud);
 they are removed from the build otherwise.
 
 > [!TIP]
 > **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **96.4 %** (29 626 bytes, 470 bytes of RAM) as configured: the boiler only,
-> the real In flow sensor (30 054 bytes with the pump and the valve driven, 97.8 %; the welcome picture costs
-> about 1.2 KB with its use in the standby: `WELCOME_MS` 0 gives them back, 40 more than `master` then). The margin is
-> small: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
+> At the last measured build the flash was at **91.8 %** (28 198 bytes, 490 bytes of RAM) as configured: the pump and the
+> valve driven, the In and Out flow sensors, the stop before the target (the welcome picture costs about 1.2 KB with its use in
+> the standby: `WELCOME_MS` 0 gives them back). About 2.5 KB are left: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
 > strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM
 > (the CI runs it on every push). The flash has no budget: the linker already refuses a program over 30 720 bytes
 > (`FLASH_BUDGET=<bytes>` gives an earlier alarm if you want one).

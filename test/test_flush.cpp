@@ -25,6 +25,7 @@ int main(){
     CHECK(e.state()==EXTRACTION_RUNNING && PUMP==1 && VALVE==1);
     for(t=0;t<30000;t+=50){ f.vol=t/1000.0f*30; e.update(t,40); if(e.state()==EXTRACTION_FLUSH_WAIT) break; }
     CHECK(e.state()==EXTRACTION_FLUSH_WAIT); CHECK(PUMP==0 && VALVE==0); CHECK(e.isActive() && e.isFlush());
+    { unsigned long ts=t; for(t=ts;t<ts+STOP_SETTLE_MS+500;t+=50) e.update(t,40); }   // the water that comes after the stop is counted
     uint16_t vol=e.volumeMl(), dur=e.durationSeconds(); CHECK(vol>=40 && vol<=45);
     CHECK(e.phaseSecondsLeft()==3);                       // shows the flush time
     unsigned long t0=t;

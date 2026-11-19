@@ -33,6 +33,10 @@ public:
     float getVolumeOut() { return volumeOut_; }
     float getNetVolume() { return volumeIn_ - volumeOut_; }   // inflow minus outflow
 
+    // The same at this very moment: the pulses counted since the last update() are added (that one is only up to date every
+    // FLOW_UPDATE_MS). Used to stop the pump at the right volume.
+    float getNetVolumeLive();
+
     // Called by flowPulseIn() / flowPulseOut() from the interrupt; do not call from application code.
     void countPulseIn()  { ++pulsesIn_; }
     void countPulseOut() { ++pulsesOut_; }

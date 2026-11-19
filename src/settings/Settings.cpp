@@ -17,6 +17,7 @@ static const int ADDR_FLUSH            = ADDR_PREINFUSION_WAIT + 1;
 static const int ADDR_MANUAL           = ADDR_FLUSH + 1;   // 1 = MANUAL, anything else (0, blank 0xFF) = AUTO: no new magic needed
 static const int ADDR_MANUAL_SECONDS   = ADDR_MANUAL + 1;  // a value out of range (blank 0xFF) = 0: no new magic needed
 static const int ADDR_LOSS             = ADDR_MANUAL_SECONDS + 1;   // a blank EEPROM (NaN) or an out of range value = the default
+static const int ADDR_STOP_DELAY       = ADDR_LOSS + (int)sizeof(float);   // same: blank = the default (no new magic needed)
 
 // Reads the settings. A blank or unknown EEPROM gives the defaults (and writes them); a stored value out of its
 // limits is brought back to the nearest limit.
@@ -66,4 +67,17 @@ void SettingsStore::save(const Settings &settings) const {
   EEPROM.update(ADDR_MANUAL, settings.manual ? 1 : 0);
   EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)settings.manualSeconds);
   EEPROM.put(ADDR_LOSS, settings.loss);
+}
+
+float SettingsStore::loadStopDelay() const {
+  float seconds;
+  EEPROM.get(ADDR_STOP_DELAY, seconds);
+  if (!(seconds >= 0.0f && seconds <= STOP_DELAY_MAX_S)) {   // false for NaN too
+    seconds = STOP_DELAY_DEFAULT_S;
+  }
+  return seconds;
+}
+
+void SettingsStore::saveStopDelay(float seconds) const {
+  EEPROM.put(ADDR_STOP_DELAY, seconds);   // only the bytes that changed are written
 }

@@ -32,6 +32,7 @@ void CoffeeMachine::begin() {
 
   heater_.setSetpoint(settings.temperature + TEMPERATURE_OFFSET);
   extraction_.setLossMl(settings.loss);
+  extraction_.setStopDelaySeconds(store_.loadStopDelay());
 
   if (temperature_.isValid()) {
     screen_.showLiveTemperature(millis(), temperature_.celsius() - TEMPERATURE_OFFSET);
@@ -65,8 +66,18 @@ void CoffeeMachine::update() {
   // ----- 2. Extraction -----
   extraction_.update(now, screen_.settings().volume);
 
+  // The delay of the stop before the target was learned: kept for the next extractions
+  if (extraction_.stopDelayLearned()) {
+    store_.saveStopDelay(extraction_.stopDelaySeconds());
+  }
+  // The water that came after the stop is counted: the final volume of an extraction without flush is shown again (with a
+  // flush the screen already follows it)
+  if (extraction_.takeSettled() && extraction_.state() == EXTRACTION_FINISHED && resultShown_) {
+    screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
+  }
+
   // An extraction that ended normally can be used to calibrate the loss (CAL parameter): offered once
-  if (extraction_.calibratable() && !calibrationOffered_) {
+  if (extraction_.calibratable() && !extraction_.settlePending() && !calibrationOffered_) {
     calibrationOffered_ = true;
     screen_.offerCalibration(extraction_.volumeMl());
   }

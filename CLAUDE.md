@@ -16,9 +16,13 @@ The README describes the behaviour. The user writes in French: reply in French.
   fuses protect the whole 2 KB boot section: a write above 0x7800 fails (verification error at 0x7800) and leaves a
   broken firmware. Using up to 32256 B would need an ISP programmer on the ICSP header to set BOOTSZ (hfuse 0xDE, like an
   Uno). Never raise `maximum_size` in platformio.ini without that.
-- Last measured (flags above, welcome picture and standby): 30054 B flash, 470 B RAM as configured (the pump and the valve
-  driven, the In flow sensor only); 30040 B with the valve operated by hand (no `DRIVE_VALVE`), 29626 B boiler only (no
-  `DRIVE_PUMP`).
+- **`tools/link_flags.py` (extra script of the R3 environment) gives the LINK step `-ffunction-sections -fdata-sections`.** The
+  build is LTO: the code is generated at link time, and without these flags every unit stays in one piece, so the linker kept
+  the functions nobody calls (-0.5 KB). Together with `putText()` in Display.cpp (every text is drawn by the firmware, the
+  `Screen` class replaces `Print::write` by nothing) the text engine of Adafruit_GFX and its 5 x 7 font (1280 B) are not linked
+  any more (-2.6 KB): do not call `tft.print()` / `setFont` / `setCursor`, use `putText()`.
+- Last measured (2026-11-19, flags above, welcome picture and standby, the pump and the valve driven, In and Out sensors, the
+  stop before the target): **28198 B flash (91.8 %), 490 B RAM**; 28156 B without the Out sensor, 27786 B boiler only.
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
@@ -100,6 +104,11 @@ The README describes the behaviour. The user writes in French: reply in French.
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
 - Errors: no water makes the drop blink every 600 ms until a long push; a probe fault (3 readings in a row,
   `SENSOR_FAULT_TOLERANCE`) shows a white, larger "ERR" in place of the temperature (heater off).
+- The pump stops BEFORE the target volume: the volume is checked on every pass with the pulses not yet converted, and
+  `volume + stopDelay x flow >= target` stops it (the water of the stop, 2-3 ml at 5 ml/s, fills the rest). `stopDelay` (seconds)
+  is learned after every extraction that ends in the main phase (STOP_SETTLE_MS later: water that came / flow at the stop,
+  gain 0.3), saved in the EEPROM after the loss (`SettingsStore::loadStopDelay`), and the final volume of the extraction (and
+  its CAL) is brought up to date after the settle. Asked by the user (precision on the volume): do not remove the learning.
 - Limits: `TEMPERATURE_MAX` is 150 because the user sets the steaming temperature (140-145 °C) by hand, and
   `DURATION_MAX` is 120 s. The user does NOT want other safety limits on `master` (no cap of the setpoint, no
   over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in the README (hardware).
@@ -115,9 +124,9 @@ The README describes the behaviour. The user writes in French: reply in French.
 - Flow sensors: In = water entering the boiler (used by the feedforward); Out = water returning through the OPV
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
-- Wiring on 2026-11-17 (later that day): everything is connected on the board (probe, encoder, screen, relays, the
-  In flow sensor) except the Out flow sensor. So `FLOW_SIMULATOR` and `FLOW_OUT_SENSOR` are both commented out in
-  Config.h: the real In sensor is read and A2 (the Out input) is ignored and the volume out is estimated: Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
+- Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
+  sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in the README and `docs/calibration/`) and is READ now
+  (`FLOW_OUT_SENSOR` on, pin A2). Until then (2026-11-17) it was not wired: `FLOW_OUT_SENSOR` was commented out, A2 ignored and the volume out estimated (kept as an option if the sensor is removed): Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
   Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too: `DRIVE_PUMP` and `DRIVE_VALVE` are both on. For a test the user
   swapped the two GPIOs and operated the valve by hand for a while (pump A2 / valve D4, `DRIVE_VALVE` off), then went back to
   the normal wiring (pump D4, valve A2). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the

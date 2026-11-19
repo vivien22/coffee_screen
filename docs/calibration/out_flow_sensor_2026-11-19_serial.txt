@@ -1,0 +1,22 @@
+Printed by the board over the serial line (115200 baud) after the series of 2026-11-19, read from its EEPROM.
+This is the whole output, as it came; the coefficient on the line "kOut" is the one of the 10 sequences, the one of
+the machine (74.18) leaves sequence 6 out: see the README, "Calibration of the flow sensors".
+
+=== CALIBRATION OF THE OUT FLOW SENSOR ===
+status: 2 = done
+sequences recorded: 10
+kIn (pulses per ml, taken as calibrated): 12.5600
+kOut (pulses per ml, computed): 74.3676
+sequence;pulsesIn;pulsesOut;kOut_of_the_sequence
+1;1295;7629;73.9925
+2;1294;7599;73.7585
+3;1288;7607;74.1801
+4;1295;7639;74.0895
+5;1285;7655;74.8224
+6;1291;7814;76.0216
+7;1287;7686;75.0087
+8;1283;7559;73.9993
+9;1288;7554;73.6632
+10;1291;7621;74.1439
+total;12897;76363
+=== END ===

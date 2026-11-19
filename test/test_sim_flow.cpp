@@ -12,6 +12,6 @@ int main(){
     if(e.state()!=last || t%2000==0){ printf("t=%5lu st=%d pump=%d valve=%d cup=%3d ml dur=%ds in=%.1f net=%.1f\n",t,e.state(),pins[PIN_PUMP_RELAY],pins[PIN_VALVE_RELAY],e.volumeMl(),e.durationSeconds(),f.getVolumeIn(),f.getNetVolume()); last=e.state(); }
     if(e.state()==EXTRACTION_FINISHED) break;
   }
-  CHECK(e.state()==EXTRACTION_FINISHED && e.volumeMl()==36 && e.durationSeconds()>=26 && e.durationSeconds()<=28 && pins[PIN_PUMP_RELAY]==0 && pins[PIN_VALVE_RELAY]==0);
+  CHECK(e.state()==EXTRACTION_FINISHED && e.volumeMl()>=34 && e.volumeMl()<=36 && e.durationSeconds()>=26 && e.durationSeconds()<=28 && pins[PIN_PUMP_RELAY]==0 && pins[PIN_VALVE_RELAY]==0);
   printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0;
 }

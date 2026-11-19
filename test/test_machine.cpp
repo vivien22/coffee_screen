@@ -48,14 +48,14 @@ static void scenario(int flush){
     for(int i=0;i<100;i++){ t+=100; m.update(); if(!m.extraction_.isActive()) break; }
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
     // at the end of the flush the values of the extraction are shown again, not the target yet
-    CHECK(!has("vol(40,1,0,1)")); CHECK(!has("dur(0,0,0,1)"));
+    CHECK(!has("dur(0,0,0,1)"));   // (the volume ends on the target: it looks like the target, only the duration tells)
     // they stay 10 s from the end of the flush (and blink during the last 1.6 s), then the target volume (40, large
     // because the volume is selected) and 0 s come back
     calls.clear(); unsigned long tfe=t;
     while(t<tfe+6800){ t+=100; m.update(); }
     CHECK(!has("clearVals(0,0,0,0)"));
     while(t<tfe+9900){ t+=100; m.update(); }
-    CHECK(has("clearVals(0,0,0,0)")); CHECK(!has("vol(40,1,0,1)") && !has("dur(0,0,0,1)"));
+    CHECK(has("clearVals(0,0,0,0)")); CHECK(!has("dur(0,0,0,1)"));
     while(t<tfe+10200){ t+=100; m.update(); }
     CHECK(has("vol(40,1,0,1)")); CHECK(has("dur(0,0,0,1)"));
     printf("flush=%d: values reset 10 s after the end of the flush\n",flush);
@@ -67,7 +67,7 @@ static void scenario(int flush){
     while(t<t0+8300){ t+=100; m.update(); }
     CHECK(!has("clearVals(0,0,0,0)"));                              // no blinking before the last 1.6 s
     while(t<t0+9900){ t+=100; m.update(); }
-    CHECK(!has("dur(0,0,0,1)")); CHECK(!has("vol(40,1,0,1)"));     // still holding at 9.9 s
+    CHECK(!has("dur(0,0,0,1)"));     // still holding at 9.9 s
     { int hidden=0; for(auto&c:calls) if(c=="clearVals(0,0,0,0)") hidden++; CHECK(hidden>=2 && hidden<=3);   // blinking: hidden then shown every 400 ms
       bool shownAgain=false; bool afterClear=false; for(auto&c:calls){ if(c=="clearVals(0,0,0,0)") afterClear=true; else if(afterClear && c.rfind("dur(",0)==0) shownAgain=true; } CHECK(shownAgain); }
     while(t<t0+10200){ t+=100; m.update(); }
@@ -245,6 +245,7 @@ static void runAuto(CoffeeMachine&m){   // 3 ml/s, nothing back through the OPV,
   m.handleShortPush(); unsigned long t0=t;
   for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
   t+=100; m.update();
+  for(int i=0;i<25;i++){ t+=100; m.update(); }   // the water that comes after the stop is counted (STOP_SETTLE_MS), then CAL is offered
 }
 static void gotoParam(CoffeeMachine&m,ActiveParameter p){ for(int i=0;i<8 && m.screen_.activeParameter()!=p;i++) m.handleDoublePush(); }
 static void calibration(){
@@ -350,4 +351,21 @@ static void startup(){
   CHECK(welcomeEnd-welcomeAt==WELCOME_MS);                           // shown WELCOME_MS, the 100 ms of the probe included
   printf("start-up: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+// The delay of the stop before the target is learned, saved and given back at the next start
+static void stopDelay(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
+  CoffeeMachine m; t=1000; m.begin();
+  CHECK(m.extraction_.stopDelaySeconds()==STOP_DELAY_DEFAULT_S);        // nothing learned yet: the default
+  m.handleShortPush(); unsigned long t0=t; bool pumped=false; float tail=0;
+  for(int i=0;i<1500;i++){                                               // 5 ml/s of In; 3 ml still come after the pump stops
+    t+=10;
+    if(m.extraction_.isActive()){ m.flow_.in=(t-t0)*0.005f; m.flow_.rate=300; pumped=true; tail=3.0f; }
+    else if(pumped){ m.flow_.rate=0; float d=tail<0.03f?tail:0.03f; m.flow_.in+=d; tail-=d; }
+    m.update();
+  }
+  const float learned=m.extraction_.stopDelaySeconds();
+  CHECK(learned>STOP_DELAY_DEFAULT_S && learned<STOP_DELAY_DEFAULT_S+0.3f);   // 3 ml at 5 ml/s = 0.6 s: it moved toward it
+  { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
+  printf("stop delay: ok\n");
+}
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

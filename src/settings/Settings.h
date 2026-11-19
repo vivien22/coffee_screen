@@ -26,4 +26,9 @@ class SettingsStore {
     // Writes the settings. Only the bytes that changed are written (EEPROM.update / put), so it can
     // be called as often as wanted without wearing the EEPROM: nothing changed, nothing written.
     void save(const Settings &settings) const;
+
+    // The delay (seconds of flow) by which the pump stops before the target, learned by the machine (STOP_DELAY_* in
+    // Config.h). Not a setting of the user: it has its own place, after the loss. A blank EEPROM gives the default.
+    float loadStopDelay() const;
+    void saveStopDelay(float seconds) const;
 };

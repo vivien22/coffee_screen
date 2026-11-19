@@ -50,6 +50,7 @@ class FlowSimulator {
     float getVolumeIn() { return volumeIn_; }
     float getVolumeOut() { return volumeOut_; }
     float getNetVolume() { return volumeIn_ - volumeOut_; }
+    float getNetVolumeLive() { return getNetVolume(); }   // no pulses here: the same
 
   private:
     uint32_t lastUpdateAt_ = 0;
