@@ -63,9 +63,9 @@
 #define STEAM_ZONE_HEIGHT             52
 #define STEAM_ICON_X                  28    // the thermometer icon, left of the number, centered on the screen
 #define STEAM_ICON_Y                  99
-#define STEAM_WISPS_X                 120   // the steam icon (volutes), centered above the number (center x 138)
+#define STEAM_WISPS_X                 102   // the steam icon (volutes, 36 px wide), centered on the screen
 #define STEAM_WISPS_Y                 50
-#define STEAM_TAG_X                   105   // the text "STEAM" (66 px wide, centered under the number)
+#define STEAM_TAG_X                   87    // the text "STEAM" (66 px wide), centered on the screen
 #define STEAM_TAG_BASELINE            183
 #define STEAM_ERROR_X                 63    // "ERR" (sensor fault), 3 times the size of the tag letters: 117 x 45 px, centered
 #define STEAM_ERROR_BASELINE          142

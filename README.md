@@ -171,7 +171,7 @@ other modes, and both are kept in the EEPROM.
 
 - **No extraction**: the extraction is not updated (no volume is read), the pump and the valve stay off, the start / stop button does
   nothing, and the short and double pushes neither.
-- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon on its left as in the other modes, three volutes of steam above it and the text `STEAM` under it (no other icon, no volume, no duration, no heater dot); `ERR` if
+- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon on its left as in the other modes, three volutes of steam above and the text `STEAM` under, both centered on the screen (no other icon, no volume, no duration, no heater dot); `ERR` if
   the probe fails.
 - **The encoder** sets SteamingTemp: the setpoint is shown for 2 s after each turn (`STEAM_SETPOINT_SHOW_MS`), then the measured
   temperature comes back. It is saved at each change and applied to the heater at once.
