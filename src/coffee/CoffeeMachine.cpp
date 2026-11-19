@@ -42,6 +42,10 @@ void CoffeeMachine::begin() {
 
   screen_.finishWelcome();   // the rest of the time of the picture, then the icons are drawn in the dark
   encoder_.begin();
+#ifdef START_BUTTON
+  pinMode(PIN_START_BUTTON, INPUT_PULLUP);
+  buttonRaw_ = buttonDown_ = (digitalRead(PIN_START_BUTTON) == LOW);   // a button that is held at power-up does nothing
+#endif
   lastActivityAt_ = millis();
   screen_.update(millis());
 
@@ -60,6 +64,7 @@ void CoffeeMachine::update() {
   // Done before reading the clock: an action may start an extraction, whose start time
   // must not be later than "now".
   pollEncoder();
+  pollStartButton();
 
   const uint32_t now = millis();
 
@@ -276,21 +281,84 @@ void CoffeeMachine::handleShortPush() {
     default:   // IDLE, FINISHED, ERROR
 #ifdef DRIVE_PUMP   // without the pump no extraction can start: the push does nothing
       if (screen_.activeParameter() == PARAMETER_VOLUME) {
-        const Settings &settings = screen_.settings();
-        saveSettings();   // the volume that was just set is validated by the start (written only if it changed)
-        calibrationOffered_ = false;   // the previous extraction can no longer be used to calibrate
-        screen_.withdrawCalibration();
-        if (settings.manual) {
-          extraction_.startManual(encoder_.eventPressTime(), settings.manualSeconds);
-        } else {
-          extraction_.start(encoder_.eventPressTime(),
-                            settings.preinfusion, settings.preinfusionWait, settings.flush);
-        }
-        screen_.showExtractionStarted();
+        startExtraction(encoder_.eventPressTime());
       }
 #endif
       break;
   }
+}
+
+// Starts the extraction with the settings as they are (AUTO or MANUAL), after saving them: what was just set is validated by
+// the start (written only if it changed). Used by the push of the encoder (volume selected) and by the start / stop button.
+void CoffeeMachine::startExtraction(uint32_t pressTime) {
+#ifdef DRIVE_PUMP   // without the pump no extraction can start
+  const Settings &settings = screen_.settings();
+  saveSettings();
+  calibrationOffered_ = false;   // the previous extraction can no longer be used to calibrate
+  screen_.withdrawCalibration();
+  if (settings.manual) {
+    extraction_.startManual(pressTime, settings.manualSeconds);
+  } else {
+    extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
+  }
+  screen_.showExtractionStarted();
+#else
+  (void)pressTime;
+#endif
+}
+
+// The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the
+// push (not at the release). Like any action it wakes the machine up, and that first action is not handled.
+void CoffeeMachine::pollStartButton() {
+#ifdef START_BUTTON
+  const uint32_t now = millis();
+  const bool pushed = (digitalRead(PIN_START_BUTTON) == LOW);
+  if (pushed != buttonRaw_) {
+    buttonRaw_ = pushed;
+    buttonChangedAt_ = now;
+  }
+  if (buttonRaw_ != buttonDown_ && (uint32_t)(now - buttonChangedAt_) >= START_BUTTON_DEBOUNCE_MS) {
+    buttonDown_ = buttonRaw_;
+    if (buttonDown_) {
+      lastActivityAt_ = now;
+      if (standby_) {
+        wakeUp();
+      } else {
+        handleStartButton();
+      }
+    }
+  }
+#endif
+}
+
+// The push of the start / stop button:
+//   an extraction is running (or its flush): the push of the encoder (end it, start / stop the flush, stop MANUAL);
+//   after a no-water error: nothing (the long push of the encoder clears it);
+//   nothing is running: whatever was being set is kept, the volume is selected again and an extraction starts.
+void CoffeeMachine::handleStartButton() {
+  switch (extraction_.state()) {
+    case EXTRACTION_ERROR_NO_WATER:
+      return;
+
+    case EXTRACTION_IDLE:
+    case EXTRACTION_FINISHED:
+    case EXTRACTION_ERROR:
+      break;
+
+    default:
+      handleShortPush();
+      return;
+  }
+
+#ifdef DRIVE_PUMP
+  // The weight that was being entered for CAL is validated like the double push does (the loss is corrected); every other
+  // value is already in the settings, startExtraction() saves them.
+  if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
+    extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
+  }
+  screen_.selectVolume();
+  startExtraction(millis());
+#endif
 }
 
 // Double push: validates the parameter being edited and selects the next one (the cycle is in ScreenController.h).

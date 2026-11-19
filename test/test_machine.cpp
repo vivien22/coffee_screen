@@ -351,6 +351,89 @@ static void startup(){
   CHECK(welcomeEnd-welcomeAt==WELCOME_MS);                           // shown WELCOME_MS, the 100 ms of the probe included
   printf("start-up: ok\n");
 }
+// The start / stop button (START_BUTTON): starts and stops the extraction only
+static void pushButton(CoffeeMachine&m){ pins[PIN_START_BUTTON]=0; for(int i=0;i<5;i++){ t+=20; m.update(); } }      // pushed (the pin goes low)
+static void releaseButton(CoffeeMachine&m){ pins[PIN_START_BUTTON]=1; for(int i=0;i<5;i++){ t+=20; m.update(); } }
+static void startButton(){
+  memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,4);
+  pins[PIN_START_BUTTON]=1;                                           // released
+  // a button held at power-up does nothing
+  { pins[PIN_START_BUTTON]=0; CoffeeMachine h; t=1000; h.begin(); for(int i=0;i<20;i++){ t+=20; h.update(); }
+    CHECK(!h.extraction_.isActive()); pins[PIN_START_BUTTON]=1; }
+  CoffeeMachine m; t=5000; m.begin(); for(int i=0;i<10;i++){ t+=20; m.update(); }
+  CHECK(!m.extraction_.isActive());
+  // a glitch shorter than the debounce time is not a push
+  pins[PIN_START_BUTTON]=0; t+=10; m.update(); pins[PIN_START_BUTTON]=1; t+=10; m.update(); for(int i=0;i<5;i++){ t+=20; m.update(); }
+  CHECK(!m.extraction_.isActive());
+  // a push starts the extraction (the volume is selected), and acts once however long it is held
+  pushButton(m);
+  CHECK(m.extraction_.isActive() && m.extraction_.state()==EXTRACTION_RUNNING && PUMPON && pins[PIN_VALVE_RELAY]==1);
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
+  for(int i=0;i<30;i++){ t+=20; m.flow_.in=m.flow_.in+0.05f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_RUNNING);                  // held: still running
+  releaseButton(m);
+  CHECK(m.extraction_.state()==EXTRACTION_RUNNING);                  // the release does nothing
+  // a push during the extraction ends it (the flush waits), then it starts the flush, then it stops it: as the encoder did
+  pushButton(m);  CHECK(m.extraction_.state()==EXTRACTION_FLUSH_WAIT && !PUMPON);
+  releaseButton(m); pushButton(m);  CHECK(m.extraction_.state()==EXTRACTION_FLUSHING && PUMPON);
+  releaseButton(m); pushButton(m);  CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
+  releaseButton(m);
+
+  // a parameter being set is kept (saved), the volume is selected again and the extraction starts
+  gotoParam(m,PARAMETER_TEMPERATURE); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE);
+  m.screen_.adjustActiveParameter(4);                                 // 93 -> 97: not validated
+  CHECK(SettingsStore().load().temperature==DEFAULT_TEMPERATURE);
+  pushButton(m);
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && m.extraction_.isActive());
+  CHECK(SettingsStore().load().temperature==DEFAULT_TEMPERATURE+4);   // saved
+  CHECK(m.heater_.setpoint_==DEFAULT_TEMPERATURE+4+TEMPERATURE_OFFSET);   // and applied to the heater
+  releaseButton(m); pushButton(m); releaseButton(m); pushButton(m); releaseButton(m); pushButton(m); releaseButton(m);   // end, flush, stop flush
+  CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
+  // another parameter (the volume of the pre-infusion) and the same
+  gotoParam(m,PARAMETER_PREINFUSION); m.screen_.adjustActiveParameter(3);
+  pushButton(m); CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && m.extraction_.isActive());
+  CHECK(SettingsStore().load().preinfusion==3);
+  releaseButton(m); pushButton(m); releaseButton(m); pushButton(m); releaseButton(m); pushButton(m); releaseButton(m);
+
+  // MANUAL: a push starts the pump, the next one stops it
+  m.handleLongPush(); CHECK(m.screen_.settings().manual);
+  pushButton(m); CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
+  releaseButton(m); pushButton(m); CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON);
+  releaseButton(m); m.handleLongPush(); CHECK(!m.screen_.settings().manual);
+
+  // the weight that was being entered for CAL is validated (the loss is corrected), then the extraction starts
+  { memset(EEPROM.mem,0xFF,64); SettingsStore s2; s2.load(); SAVE(s2,preinfusion,0); SAVE(s2,preinfusionWait,0); SAVE(s2,flush,0);
+    CoffeeMachine c; t=1000; c.begin(); pins[PIN_START_BUTTON]=1;
+    runAuto(c); float net=c.extraction_.netVolumeMl(); CHECK(c.screen_.calibrationAvailable_);
+    gotoParam(c,PARAMETER_CALIBRATION); c.screen_.adjustActiveParameter(-(c.screen_.calibrationValue_-30));   // the cup holds 30 g
+    pushButton(c);
+    const float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
+    CHECK(c.screen_.settings().loss>expect-0.01f && c.screen_.settings().loss<expect+0.01f);
+    CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);
+    CHECK(c.screen_.activeParameter()==PARAMETER_VOLUME && c.extraction_.isActive() && !c.screen_.calibrationAvailable_);
+    releaseButton(c); }
+
+  // a no-water error: the button does nothing (the long push of the encoder clears it)
+  { memset(EEPROM.mem,0xFF,64); SettingsStore s3; s3.load();
+    CoffeeMachine w; t=1000; w.begin(); pins[PIN_START_BUTTON]=1; for(int i=0;i<5;i++){ t+=20; w.update(); }
+    pushButton(w); CHECK(w.extraction_.isActive());                   // no water counted by the (mock) flow sensor
+    releaseButton(w);
+    for(int i=0;i<80;i++){ t+=100; w.update(); }
+    CHECK(w.extraction_.hasNoWaterError() && !PUMPON);
+    pushButton(w); CHECK(w.extraction_.hasNoWaterError() && !PUMPON && !w.extraction_.isActive());
+    releaseButton(w); w.handleLongPush(); CHECK(!w.extraction_.hasNoWaterError());
+    pushButton(w); CHECK(w.extraction_.isActive());                   // cleared: it starts again
+    releaseButton(w); }
+
+  // standby: the first push only wakes the machine
+  { memset(EEPROM.mem,0xFF,64); SettingsStore s4; s4.load();
+    CoffeeMachine b; t=1000; b.begin(); pins[PIN_START_BUTTON]=1; for(int i=0;i<5;i++){ t+=20; b.update(); }
+    t+=STANDBY_MINUTES*60000UL+1000; b.update(); CHECK(b.standby_);
+    pushButton(b); CHECK(!b.standby_ && !b.extraction_.isActive());
+    releaseButton(b); pushButton(b); CHECK(b.extraction_.isActive());   // the next one starts
+    releaseButton(b); }
+  printf("start button: ok\n");
+}
 // The delay of the stop before the target is learned, saved and given back at the next start
 static void stopDelay(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
@@ -368,4 +451,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

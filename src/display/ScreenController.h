@@ -58,6 +58,9 @@ class ScreenController {
 
     void selectNextParameter();
 
+    // The volume (the main parameter) is selected again, from whichever parameter was being set (the values stay as they are).
+    void selectVolume() { if (active_ != PARAMETER_VOLUME) activate(PARAMETER_VOLUME); }
+
     // Switch between AUTO and MANUAL: the letter in the drop changes (the machine saves the mode).
     // The volume is selected again.
     void toggleMode();

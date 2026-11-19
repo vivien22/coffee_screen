@@ -147,6 +147,21 @@ rest, it is not a setting here), **MANUAL time** (s, 0 = until the second push; 
 down to 0 and the extraction stops by itself) and **temperature**. The volume shown is simply In − Out, with
 no loss subtracted.
 
+### The start / stop button
+
+A second push button, between **A0 and GND** (no resistor: the internal pull-up is used), only starts and stops the extraction
+(`START_BUTTON` in `Config.h`; comment it out if there is no button):
+
+- **Nothing is running**: whatever was being set is **kept** (saved, and the temperature is applied), the **volume** is selected
+  again and an extraction starts, whichever parameter the screen was on. If it was CAL, the weight being entered is validated first
+  (the loss is corrected, as the double push does). It starts in AUTO or MANUAL as the mode says.
+- **During an extraction**: it does what the push of the encoder does: it ends it (AUTO: the flush waits; MANUAL: the pump stops); then
+  it starts the flush, and the next push stops the flush.
+- **After a no-water error** it does nothing (the long push of the encoder clears the error); **in standby** the first push only wakes the
+  machine, like any action.
+- The push counts when the level has stayed 30 ms (`START_BUTTON_DEBOUNCE_MS`), once, however long it is held; a button held at
+  power-up does nothing. The encoder works as before.
+
 ### After an extraction
 
 The final volume and duration stay on the screen for 10 s (from the end of the extraction in MANUAL mode or without flush,
@@ -342,6 +357,7 @@ before the target and learns the delay itself, see [The stop before the target](
 | TFT reset | D8 |
 | TFT backlight | D9 |
 | MAX31865 chip select | D6 |
+| Start / stop button (optional) | A0, between A0 and GND (the internal pull-up is used: no resistor) |
 | Pump relay | D4 |
 | Heater relay | D5 |
 | 3-way valve relay | A3 |
@@ -418,6 +434,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
 | `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
+| `START_BUTTON` / `PIN_START_BUTTON` | on / A0 | The start / stop button (between the pin and GND); `START_BUTTON_DEBOUNCE_MS` 30 |
 | `FLOW_OUT_SENSOR` | on | The Out flow sensor is connected (A2) and read; comment out if it is not: the Out volume is then In * `FLOW_OUT_ESTIMATE_RATIO` |
 | `FLOW_K_FACTOR_IN` / `FLOW_K_FACTOR_OUT` | 12.56 / 74.18 | Pulses per ml of the two flow sensors (Out calibrated against In on 2026-11-19) |
 | `STOP_DELAY_DEFAULT_S` / `STOP_DELAY_MAX_S` / `STOP_DELAY_GAIN` | 0.40 / 1.5 / 0.30 | Stop before the target: first delay, its limit, and how fast it is learned (seconds of flow, see "Cup volume") |

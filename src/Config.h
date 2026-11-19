@@ -16,6 +16,7 @@
 #define PIN_PUMP_RELAY    4
 #define PIN_VALVE_RELAY   A3
 #define PIN_MAX31865_CS   6
+#define PIN_START_BUTTON  A0    // the start / stop button of the extraction (see START_BUTTON below)
 // Flow sensors: they need an interrupt. Nano R3: any of A0..A5 (PCINT1, see USN_FlowSensor). Nano R4: A1 is external
 // interrupt channel 6 and A2 channel 7 (A0 has none; D2 / D3, the encoder, are channels 0 / 1; keep A4 free: it shares
 // channel 1 with D3, and A5: it shares channel 2 with A3, the valve relay, a plain output). The same wiring works on both
@@ -29,6 +30,14 @@
                                 // it switches between AUTO and MANUAL (or clears the no-water error)
 #define DOUBLE_PUSH_MS    350   // max delay (ms) between two short pushes for a double push (0 = disabled)
                                 // a short push is reported once this delay has passed
+
+// ---------- Start / stop button ----------
+// START_BUTTON: a push button between PIN_START_BUTTON and GND (the internal pull-up is used: no resistor) that only starts and
+// stops the extraction. Nothing running: whatever was being set is kept (saved), the volume is selected again and an extraction
+// starts. During an extraction: the push of the encoder (it ends it; then it starts and stops the flush, or stops MANUAL).
+// Ignored after a no-water error; in standby the first push only wakes the machine. Comment it out if there is no button.
+#define START_BUTTON
+#define START_BUTTON_DEBOUNCE_MS  30UL   // the level has to stay this long (ms) to count
 
 // ---------- Parameters (limits and defaults of the settings) ----------
 #define VALUE_MIN            0

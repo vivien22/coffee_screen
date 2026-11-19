@@ -34,6 +34,9 @@ class CoffeeMachine {
   private:
     // User actions
     void pollEncoder();
+    void pollStartButton();    // the start / stop button (START_BUTTON): debounced, acts on the push
+    void handleStartButton();  // extraction running: the push of the encoder; nothing running: keep the settings, volume, start
+    void startExtraction(uint32_t pressTime);   // keep the settings and start the extraction (AUTO or MANUAL)
     void handleShortPush();    // start the extraction / end it / start the flush / stop the flush
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
@@ -56,5 +59,10 @@ class CoffeeMachine {
     uint32_t lastActivityAt_ = 0;
     bool calibrationOffered_ = false; // CAL was offered for the last extraction
     bool resultShown_ = false;        // the values of an extraction without flush are still on the screen
+#ifdef START_BUTTON
+    bool buttonRaw_ = false;          // the level of the start / stop button now (true = pushed) ...
+    bool buttonDown_ = false;         // ... and the debounced one
+    uint32_t buttonChangedAt_ = 0;
+#endif
     uint32_t resultShownUntil_ = 0;   // end of that display (EXTRACTION_RESULT_DISPLAY_MS after the end)
 };
