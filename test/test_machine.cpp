@@ -37,13 +37,13 @@ static void scenario(int flush){
     // waiting: the extraction values stay, nothing like "target volume" appears even after a long time
     calls.clear(); for(int i=0;i<150;i++){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)"));
-    m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
+    m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     { ActiveParameter p=m.screen_.activeParameter(); m.handleDoublePush();      // flush: a double push skips it
       CHECK(!m.extraction_.isActive() && m.screen_.activeParameter()!=p); CHECK(pins[PIN_PUMP_RELAY]==0 && pins[PIN_VALVE_RELAY]==0); }
     for(int i=0;i<8 && m.screen_.activeParameter()!=PARAMETER_VOLUME;i++) m.screen_.selectNextParameter();   // back to volume
     CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
     m.handleStartButton(); { unsigned long ts=t; for(int i=0;i<100;i++){ t+=100; m.flow_.vol=(t-ts)/1000.0f*10; m.update(); if(m.extraction_.state()==EXTRACTION_FLUSH_WAIT) break; } }
-    m.handleShortPush(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
+    m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING);
     calls.clear(); unsigned long tf=t;
     for(int i=0;i<100;i++){ t+=100; m.update(); if(!m.extraction_.isActive()) break; }
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
@@ -77,7 +77,7 @@ static void scenario(int flush){
     m.handleStartButton(); t+=100; m.update(); calls.clear();
     for(int i=0;i<30;i++){ t+=100; m.flow_.vol=1; m.update(); }
     CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
-    m.handleShortPush();   // stop it
+    m.handleStartButton();   // stop it
     t0=t; calls.clear(); while(t<t0+4000){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)"));
     m.handleStartButton(); t+=100; m.update();     // start again: cancels the pending hold
@@ -101,11 +101,11 @@ static void noWater(){
   CHECK(tError>0 && !PUMPON);
   CHECK(tHide==tError);                                                              // hidden when the error is detected
   CHECK(tShow-tHide==DROP_BLINK_MS && tHide2-tShow==DROP_BLINK_MS);                  // toggled every 600 ms
-  // short and double pushes are ignored
-  m.handleStartButton(); m.handleDoublePush(); t+=100; m.update();
+  // the start / stop button and the double push are ignored; the long push does not clear it either
+  m.handleStartButton(); m.handleDoublePush(); m.handleLongPush(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_ERROR_NO_WATER && !PUMPON);
-  // a long push clears the error: the drop is shown and stops blinking, nothing is started
-  m.handleLongPush(); calls.clear(); t+=100; m.update();
+  // the short push of the encoder is the only way to clear the error: the drop is shown and stops blinking, nothing is started
+  m.handleShortPush(); calls.clear(); t+=100; m.update();
   CHECK(m.extraction_.state()==EXTRACTION_IDLE && !m.extraction_.hasNoWaterError());
   bool hidden=false; calls.clear(); for(int i=0;i<30;i++){ t+=100; m.update(); } CHECK(!has("drop(0,0,0,0)"));
   (void)hidden;
@@ -144,7 +144,7 @@ static void manualMode(){
   for(int i=0;i<80;i++){ t+=100; m.flow_.in=(t-1000)*0.003f; m.flow_.out=m.flow_.in*0.1f; m.update(); }   // 8 s at 3 ml/s, 10 % back
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL);                                   // far above the target (40): no stop
   uint16_t vol=m.extraction_.volumeMl(); CHECK(vol>=20 && vol<=22 && m.extraction_.durationSeconds()>=7);
-  m.handleShortPush();                                   // stop
+  m.handleStartButton();                                   // stop
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   calls.clear(); unsigned long t0=t;
   while(t<t0+8300){ t+=100; m.update(); }
@@ -156,7 +156,7 @@ static void manualMode(){
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here
   m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
-  m.handleShortPush();                                   // stop: the values of this extraction are shown
+  m.handleStartButton();                                   // stop: the values of this extraction are shown
   t+=100; m.update(); calls.clear();
   m.handleLongPush();                                // MANUAL -> AUTO: the values are reset at once
   t+=100; m.update(); CHECK(has("dur(0,0,0,1)") && has("vol(40,1,0,1)"));
@@ -281,7 +281,7 @@ static void calibration(){
   gotoParam(m,PARAMETER_FLUSH); for(int i=0;i<2;i++) m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION);
   // MANUAL extraction: not offered
   m.handleLongPush(); m.handleStartButton(); for(int i=0;i<60;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
-  m.handleShortPush(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.calibrationAvailable_);
+  m.handleStartButton(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.calibrationAvailable_);
   // the clamp and the validity of the EEPROM value
   { ScreenController sc; Settings in={93,40,10,5,5,0,50.0f,false}; sc.begin(in); sc.offerCalibration(40); sc.selectNextParameter();
     for(int i=0;i<8 && sc.activeParameter()!=PARAMETER_CALIBRATION;i++) sc.selectNextParameter();
@@ -413,7 +413,7 @@ static void startButton(){
     CHECK(c.screen_.activeParameter()==PARAMETER_VOLUME && c.extraction_.isActive() && !c.screen_.calibrationAvailable_);
     releaseButton(c); }
 
-  // a no-water error: the button does nothing (the long push of the encoder clears it)
+  // a no-water error: the button does nothing (the short push of the encoder clears it)
   { memset(EEPROM.mem,0xFF,64); SettingsStore s3; s3.load();
     CoffeeMachine w; t=1000; w.begin(); pins[PIN_START_BUTTON]=1; for(int i=0;i<5;i++){ t+=20; w.update(); }
     pushButton(w); CHECK(w.extraction_.isActive());                   // no water counted by the (mock) flow sensor
@@ -421,7 +421,7 @@ static void startButton(){
     for(int i=0;i<80;i++){ t+=100; w.update(); }
     CHECK(w.extraction_.hasNoWaterError() && !PUMPON);
     pushButton(w); CHECK(w.extraction_.hasNoWaterError() && !PUMPON && !w.extraction_.isActive());
-    releaseButton(w); w.handleLongPush(); CHECK(!w.extraction_.hasNoWaterError());
+    releaseButton(w); w.handleLongPush(); CHECK(w.extraction_.hasNoWaterError()); w.handleShortPush(); CHECK(!w.extraction_.hasNoWaterError());
     pushButton(w); CHECK(w.extraction_.isActive());                   // cleared: it starts again
     releaseButton(w); }
 

@@ -122,9 +122,9 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 | Action on the encoder | Effect |
 |---|---|
 | **Turn** | Changes the selected value (not while an extraction runs, except the temperature) |
-| **Short push** | Does nothing for the moment: the start / stop button starts and stops the extraction |
+| **Short push** | Clears the "no water" error (the only way to clear it); nothing else: the start / stop button starts and stops the extraction |
 | **Double push** (two short pushes in 350 ms) | Validates the edited parameter and selects the next one |
-| **Long push** (800 ms) | Switches between **AUTO** and **MANUAL**, or clears the "no water" error |
+| **Long push** (800 ms) | Switches between **AUTO** and **MANUAL** (does nothing while the "no water" error lasts) |
 
 A short push is reported 350 ms after the release, because the machine waits to see whether a second push
 follows.
@@ -157,7 +157,7 @@ A second push button, between **A0 and GND** (no resistor: the internal pull-up 
   (the loss is corrected, as the double push does). It starts in AUTO or MANUAL as the mode says.
 - **During an extraction**: it ends it (AUTO: the flush waits; MANUAL: the pump stops); then
   it starts the flush, and the next push stops the flush.
-- **After a no-water error** it does nothing (the long push of the encoder clears the error); **in standby** the first push only wakes the
+- **After a no-water error** it does nothing (the short push of the encoder clears the error); **in standby** the first push only wakes the
   machine, like any action.
 - The push counts when the level has stayed 30 ms (`START_BUTTON_DEBOUNCE_MS`), once, however long it is held; a button held at
   power-up does nothing. The encoder works as before.
@@ -328,7 +328,7 @@ before the target and learns the delay itself, see [The stop before the target](
 
 | Safety | What it does |
 |---|---|
-| **No-flow** | If the water entering the boiler (In sensor) does not increase by 2 ml in 5 s while the pump runs, the extraction stops and the drop blinks. A long push clears it |
+| **No-flow** | If the water entering the boiler (In sensor) does not increase by 2 ml in 5 s while the pump runs, the extraction stops and the drop blinks. A short push of the encoder clears it (the only way) |
 | **Maximum duration** | An extraction stops with an error after `DURATION_MAX` seconds (120 by default) |
 | **Pre-infusion timeout** | The pre-infusion ends after 30 s even if its volume is not reached |
 | **Temperature sensor** | MAX31865 fault or implausible value, `SENSOR_FAULT_TOLERANCE` (3) readings in a row (0.75 s): the heater is off and the screen shows **ERR**. One or two stray readings are ignored |

@@ -221,7 +221,7 @@ void CoffeeMachine::pollEncoder() {
 
   // The encoder library emits at most one push classification per update call.
   switch (pushEvent) {
-    case PUSH_SHORT:  break;   // for the moment the short push of the encoder does nothing (the start / stop button handles the extraction)
+    case PUSH_SHORT:  handleShortPush();  break;
     case PUSH_DOUBLE: handleDoublePush(); break;
     case PUSH_LONG:   handleLongPush();   break;
     default: break;
@@ -246,15 +246,21 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   screen_.adjustActiveParameter(delta);
 }
 
-// Short push. What it does depends on the extraction state:
-//   idle      -> starts an extraction (only when the volume is selected, so that a push while editing another
-//                parameter does not start the pump by mistake)
+// What the start / stop button does while an extraction runs:
 //   running   -> ends it (AUTO: next is the flush, MANUAL: the pump stops)
 //   flush     -> starts / stops the flush
+// The short push of the encoder: its only action is to clear the no-water error (the only way to clear it).
 void CoffeeMachine::handleShortPush() {
+  if (extraction_.hasNoWaterError()) {
+    extraction_.clearError();
+  }
+}
+
+// What the start / stop button does while an extraction runs.
+void CoffeeMachine::handleExtractionPush() {
   switch (extraction_.state()) {
     case EXTRACTION_ERROR_NO_WATER:
-      // No extraction until the error is cleared by a long push
+      // No extraction until the error is cleared by the short push of the encoder
       break;
 
     case EXTRACTION_PREINFUSION:
@@ -341,7 +347,7 @@ void CoffeeMachine::handleStartButton() {
       break;
 
     default:
-      handleShortPush();
+      handleExtractionPush();
       return;
   }
 
@@ -400,9 +406,8 @@ void CoffeeMachine::saveSettings() {
 
 // Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.
 void CoffeeMachine::handleLongPush() {
-  // A long push clears the no-water error
+  // The no-water error is cleared by the short push only: the long push does nothing while it lasts
   if (extraction_.hasNoWaterError()) {
-    extraction_.clearError();
     return;
   }
 

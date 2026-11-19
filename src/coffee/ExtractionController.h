@@ -18,7 +18,7 @@
       user): it goes to FLUSH_WAIT, or straight to FINISHED if the flush time is 0.
       stop() ends everything at once, in any phase, without flush.
       Safety: no flow while the pump runs (PREINFUSION, RUNNING) for NO_FLOW_TIMEOUT_MS:
-      stop(ERROR_NO_WATER). No extraction can start until clearError() (long push of the user).
+      stop(ERROR_NO_WATER). No extraction can start until clearError() (short push of the encoder).
 
       State              Pump   3-way valve               Ends when
       -----------------  -----  ------------------------  --------------------------------

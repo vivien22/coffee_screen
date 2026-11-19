@@ -220,7 +220,7 @@
 // Keep NO_FLOW_MIN_ML well below the real flow x NO_FLOW_TIMEOUT_MS.
 #define NO_FLOW_TIMEOUT_MS           5000UL
 #define NO_FLOW_MIN_ML               2.0f
-// After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a long push resets the error;
+// After a no-flow error the drop icon blinks (DROP_BLINK_MS) until a short push of the encoder resets the error;
 // a short or double push does nothing meanwhile.
 //
 // Flush: after the extraction, the grouphead is rinsed with hot water.
