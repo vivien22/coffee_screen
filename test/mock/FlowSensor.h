@@ -16,4 +16,5 @@ class FlowSensor {
     float getNetVolume() { return in - out; }
     float getNetVolumeLive() { return in - out; }
     float getVolumeIn() { return in; }
+    float getVolumeOut() { return out; }
 };

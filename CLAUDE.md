@@ -46,6 +46,11 @@ The README describes the behaviour. The user writes in French: reply in French.
   256 KB, 3.7 KB of 32 KB of RAM. **Not run on a real R4 board yet.** `src/platform/nano_r4/wiring_private.h` is an empty stand-in
   that Adafruit_GC9A01A needs.
 
+## Flow monitor (`FLOW_MONITOR`, environment `flow_monitor`)
+- A diagnostic build asked by the user: the heater and the PID are off (`CoffeeMachine::update` gives `heating = false`), and
+  section 4 of `update()` (what the screen shows) is replaced by In -> volume field, Out -> temperature field. Not defined in the normal
+  build (zero cost: 28198 B as before); `test_flow_monitor` runs with `-DFLOW_MONITOR` (run.sh), the CI builds the environment.
+
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
 - `test_display` is a property test (incremental drawing must equal a fresh draw). `test_boiler_only` runs with `DRIVE_PUMP` and `DRIVE_VALVE`
