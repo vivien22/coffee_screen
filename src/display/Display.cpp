@@ -13,8 +13,24 @@
 #define FONT_UNIT  (&FontUnit)    // units: C, ml, s, degree sign and heater dot (codes '0'..'5', see Fonts.h)
 #define FONT_TAG   (&FontTag)     // phase tag: PRE, WAIT (15 px capitals)
 
-// The screen driver
-static Adafruit_GC9A01A tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
+// The text of putText(): a string of flash on the board (F("...")), a plain pointer in the tests on the PC
+#ifdef ARDUINO_STUB
+typedef const char *Text;
+#else
+typedef const __FlashStringHelper *Text;
+#endif
+
+// The screen driver. Its text engine (Print::write -> Adafruit_GFX::drawChar, and the default 5 x 7 font) is not used: every text
+// is drawn by putText() below. Overriding write() with nothing keeps that code, and the 1280 bytes of the default font, out of
+// the firmware (a virtual function of the library is linked even if nobody calls it, unless a class replaces it).
+class Screen : public Adafruit_GC9A01A {
+  public:
+    Screen(int8_t cs, int8_t dc, int8_t rst) : Adafruit_GC9A01A(cs, dc, rst) {}
+    size_t write(uint8_t) override { return 0; }
+};
+static Screen tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);
+
+static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t color, uint8_t scale, Text text);
 
 // What a number field shows, to erase only what is needed (see drawNumber)
 struct NumberField {
@@ -164,10 +180,8 @@ void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
     drawIcon(ICON_DROP_X, ICON_DROP_Y, ICON_DROP, ICON_DROP_WIDTH, ICON_DROP_HEIGHT);
-    tft.setFont(FONT_TAG);
-    tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-    tft.setCursor(ICON_DROP_X + MODE_LETTER_DX, ICON_DROP_Y + MODE_LETTER_DY);
-    tft.print(manual ? F("<") : F("4"));   // FontTag codes: '4' = A, '<' = M
+    putText(FONT_TAG, ICON_DROP_X + MODE_LETTER_DX, ICON_DROP_Y + MODE_LETTER_DY, COLOR_TAG, 1,
+            manual ? F("<") : F("4"));   // FontTag codes: '4' = A, '<' = M
   }
 }
 #else
@@ -257,6 +271,42 @@ static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, in
   tft.endWrite();
 }
 
+// A text with a font of the file (1 bit), the cursor at x on the baseline, 'scale' times the size of the font: only the set pixels
+// of the glyphs are drawn, in runs of a row, over what is on the screen (as Adafruit_GFX::print does). It replaces print(): its
+// text engine and its default font (a 5 x 7 font of 1280 bytes that the library links whenever it can print) are not in the
+// firmware any more, which is about 3 KB of flash. The codes of the characters are those of Fonts.h.
+static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t color, uint8_t scale, Text text) {
+  for (const char *c = (const char *)text; pgm_read_byte(c); c++) {
+    const GFXglyph *glyph = glyphOf(font, *c);
+    const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
+    const uint8_t width = pgm_read_byte(&glyph->width);
+    const uint8_t rows = pgm_read_byte(&glyph->height);
+    const int16_t left = x + (int8_t)pgm_read_byte(&glyph->xOffset) * scale;
+    const int16_t top = baseline + (int8_t)pgm_read_byte(&glyph->yOffset) * scale;
+
+    uint16_t bit = 0;
+    for (uint8_t row = 0; row < rows; row++) {
+      uint8_t runStart = 0;
+      bool inRun = false;
+      for (uint8_t column = 0; column <= width; column++) {
+        // one more step than there are columns: it ends a run that reaches the end of the row
+        const bool set = (column < width) && (pgm_read_byte(&bits[bit >> 3]) & (0x80 >> (bit & 7)));
+        if (column < width) {
+          bit++;
+        }
+        if (set && !inRun) {
+          inRun = true;
+          runStart = column;
+        } else if (!set && inRun) {
+          inRun = false;
+          tft.fillRect(left + runStart * scale, top + row * scale, (column - runStart) * scale, scale, color);
+        }
+      }
+    }
+    x += pgm_read_byte(&glyph->xAdvance) * scale;
+  }
+}
+
 // Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
 // replaces what was there (see drawGlyphBlock), so nothing is erased first and nothing flickers, even if the
 // digits are the same as before. The rest of the zone is erased only where it is needed:
@@ -294,8 +344,6 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
     tft.fillRect(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight, COLOR_BG);
   }
 
-  tft.setTextColor(COLOR_TEXT);   // for the unit that follows (the tag drawn last changed the color)
-
   field.xEnd = xEnd;
   field.size = size;
   field.tag = tag;
@@ -329,11 +377,9 @@ void drawTemperature(double value, TextSize size) {
 
   if (moved) {
     // Degree sign (glyph '4' of FontUnit, centered on the cursor), then the unit
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y);
-    tft.print('4');
-    tft.setCursor(xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE);
-    tft.print('0');   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
+    putText(FONT_UNIT, xNumberEnd + TEMPERATURE_DEGREE_DX, TEMPERATURE_DEGREE_Y, COLOR_TEXT, 1, F("4"));
+    putText(FONT_UNIT, xNumberEnd + TEMPERATURE_UNIT_DX, TEMPERATURE_UNIT_BASELINE, COLOR_TEXT, 1,
+            F("0"));   // FontUnit codes: '0' = C, '2' '1' = ml, '3' = s (see Fonts.h)
   }
 }
 
@@ -341,23 +387,16 @@ void drawTemperature(double value, TextSize size) {
 void drawTemperatureError() {
   tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
   temperatureField.valid = false;   // the temperature has to be drawn again in full
-  tft.setFont(FONT_TAG);
-  tft.setTextColor(COLOR_TEXT);
-  tft.setTextSize(2);
-  tft.setCursor(TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE);
-  tft.print(F("211"));
-  tft.setTextSize(1);   // the other texts are drawn at size 1
+  putText(FONT_TAG, TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE, COLOR_TEXT, 2, F("211"));
 }
 
 // Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
 // codes '0'..';' (see Fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
 static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
-  tft.setFont(FONT_TAG);
-  tft.setTextColor(COLOR_TAG);   // drawNumber() sets COLOR_TEXT again before the next value
-  tft.setCursor(x, baseline);
   // FontTag codes: P R E = "012", C A L = "=48", F L U S H = "789:;", W A I T = "3456"
-  tft.print(tag == PHASE_TAG_PREINFUSION ? F("012") :
-            (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
+  putText(FONT_TAG, x, baseline, COLOR_TAG, 1,
+          tag == PHASE_TAG_PREINFUSION ? F("012") :
+          (tag == PHASE_TAG_CALIBRATION ? F("=48") : (tag == PHASE_TAG_FLUSH ? F("789:;") : F("3456"))));
 }
 
 // Volume in ml, with its tag (PRE, CAL...) when there is one. The tag is redrawn only if redrawTag.
@@ -387,9 +426,7 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
                    VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
     }
 
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE);
-    tft.print(F("21"));
+    putText(FONT_UNIT, xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE, COLOR_TEXT, 1, F("21"));
   }
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
@@ -426,9 +463,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
                    DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
     }
 
-    tft.setFont(FONT_UNIT);
-    tft.setCursor(xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE);
-    tft.print('3');
+    putText(FONT_UNIT, xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE, COLOR_TEXT, 1, F("3"));
   }
 
   if (tag != PHASE_TAG_NONE && redrawTag) {
@@ -457,8 +492,5 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
 // The small dot next to the temperature that shows the heater is on.
 void drawHeaterIndicator(bool visible) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
-  tft.setFont(FONT_UNIT);
-  tft.setTextColor(visible ? COLOR_TEXT : COLOR_BG);
-  tft.setCursor(TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y);
-  tft.print('5');
+  putText(FONT_UNIT, TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, visible ? COLOR_TEXT : COLOR_BG, 1, F("5"));
 }

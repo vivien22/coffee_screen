@@ -11,6 +11,7 @@ extern uint16_t frameBuffer[240 * 240];
 
 class Adafruit_GFX {
   public:
+    virtual size_t write(uint8_t) { return 0; }   // as Print::write: Display.cpp replaces it (see class Screen)
     void fillScreen(uint16_t color) { fillRect(0, 0, 240, 240, color); }
     void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) {
       for (int16_t j = y; j < y + h; j++) for (int16_t i = x; i < x + w; i++) writePixel(i, j, color);
