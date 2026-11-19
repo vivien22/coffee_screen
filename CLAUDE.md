@@ -2,7 +2,7 @@
 
 Espresso-machine controller (Ascaso Steel Uno Pro) on an Arduino Nano (ATmega328P): GC9A01 round display,
 CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, two flow sensors.
-The README describes the behaviour. The user writes in French: reply in French.
+`docs/DOCUMENTATION.md` describes the behaviour in full (the README is the presentation of the project). The user writes in French: reply in French.
 
 ## Build (PlatformIO, env `nanoatmega328new`)
 - The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here.
@@ -64,7 +64,7 @@ The README describes the behaviour. The user writes in French: reply in French.
   those definitions into a test again.
 - File names are case-sensitive on the CI (Linux) but not on Windows: write every `#include` and every script path with
   the exact case of the file, and rename a file with `git mv` (twice for a change of case only).
-- `./tools/render_screens.sh` regenerates the README PNGs; they must stay identical after display changes
+- `./tools/render_screens.sh` regenerates the PNGs of `docs/images` (README and documentation); they must stay identical after display changes
   that are not meant to change the look.
 - The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
   `tools/icons_raw.h`; after changing it run `./tools/compress_icons.sh` (it checks that the decoded icons equal the source).
@@ -100,7 +100,7 @@ The README describes the behaviour. The user writes in French: reply in French.
 - One change per commit when several are asked. A risky refactor is tried on a branch, its flash size measured, and
   the branch deleted if it does not fit or is not wanted. Stay on `master` unless told otherwise.
 
-## Behaviour decided by the user (README has the full description; ask before changing)
+## Behaviour decided by the user (`docs/DOCUMENTATION.md` has the full description; ask before changing)
 - During an extraction a long push does nothing and neither does a double push.
 - A missed push is better than a false one: no encoder detection that can invent a push.
 - Colors: the numbers never change color; the tags (PRE, WAIT, FLUSH, CAL) and the AUTO / MANUAL letter use the icon
@@ -122,7 +122,7 @@ The README describes the behaviour. The user writes in French: reply in French.
   its CAL) is brought up to date after the settle. Asked by the user (precision on the volume): do not remove the learning.
 - Limits: `TEMPERATURE_MAX` is 150 because the user sets the steaming temperature (140-145 °C) by hand, and
   `DURATION_MAX` is 120 s. The user does NOT want other safety limits on `master` (no cap of the setpoint, no
-  over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in the README (hardware).
+  over-temperature cut-off): do not add them. A pull-down resistor on each relay input is advised in `docs/DOCUMENTATION.md` (hardware).
 - Standby after 30 min without action: heater off, the welcome picture replaces the screen (this branch; nothing is
   drawn over it until the wake-up), the first action only wakes the
   machine, nothing is saved across a reboot.
@@ -136,7 +136,7 @@ The README describes the behaviour. The user writes in French: reply in French.
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
 - Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
-  sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in the README and `docs/calibration/`) and is READ now
+  sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ now
   (`FLOW_OUT_SENSOR` on, pin A2). Until then (2026-11-17) it was not wired: `FLOW_OUT_SENSOR` was commented out, A2 ignored and the volume out estimated (kept as an option if the sensor is removed): Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
   Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too: `DRIVE_PUMP` and `DRIVE_VALVE` are both on. For a test the user
   swapped the two GPIOs and operated the valve by hand for a while (pump A2 / valve D4, `DRIVE_VALVE` off), then went back to

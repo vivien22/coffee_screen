@@ -54,7 +54,7 @@
 // is set with the encoder (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one is shown again).
 #define DEFAULT_STEAMING_TEMPERATURE  135    // used when the EEPROM has never been written
 #define STEAM_SETPOINT_SHOW_MS        2000UL
-// Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see the README, "Extraction phases").
+// Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see docs/DOCUMENTATION.md, "Extraction phases").
 #define PREINFUSION_MAX_ML                50
 #define DEFAULT_PREINFUSION_ML            10
 #define PREINFUSION_WAIT_MAX_SECONDS      9
@@ -124,7 +124,7 @@
 // ---------- Flow sensors ----------
 // Calibration, in pulses per millilitre. In: water entering the boiler. Out: return of the OPV valve.
 // Out was calibrated against In on 2026-11-19 with the two sensors in series (10 sequences of 100 ml, sequence 6 left out:
-// 74.18 pulses per ml, see the README, "Calibration of the flow sensors").
+// 74.18 pulses per ml, see docs/DOCUMENTATION.md, "Calibration of the flow sensors").
 #define FLOW_K_FACTOR_IN             12.56f
 #define FLOW_K_FACTOR_OUT            74.18f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
