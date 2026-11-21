@@ -61,7 +61,6 @@ class CoffeeMachine {
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
     bool steaming_ = false;           // steaming mode (see toggleSteaming)
-    bool pumpWasOn_ = false;          // the pump relay in the previous pass (to see it start)
     bool standby_ = false;            // the heater is off after STANDBY_MINUTES without activity
     uint32_t lastActivityAt_ = 0;
     bool calibrationOffered_ = false; // CAL was offered for the last extraction

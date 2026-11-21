@@ -435,8 +435,6 @@ inputs, and use a transistor if they need more.
 > drove the pump output correctly, but the pump relay did not pull in while the valve one did, until a more powerful
 > 5 V supply was used. Use a real 5 V supply (or the supply of the machine) for the relay board and the Nano; a PC
 > on USB is fine to upload the firmware and to watch the serial traces only with the relays disconnected.
->
-> Same symptom seen on the machine: with the boiler **cold** (under *setpoint − 20 °C* shown, 70 °C for a 90 °C setpoint) the heater runs at full power, its relay stays on, and the pump relay did not pull in (its LED stayed off) although a test sketch without the screen drove the three relays correctly. A relay needs more voltage to pull in than to stay on: the firmware now releases the heater relay for `HEATER_PAUSE_AT_PUMP_START_MS` when the pump starts. The real fix is a supply that holds 5 V with the screen and the three relays on.
 
 ### Pump and valve
 
@@ -474,7 +472,6 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `LONG_PUSH_MS` / `DOUBLE_PUSH_MS` | 800 / 350 | Push detection times |
 | `DEFAULT_TEMPERATURE` / `TEMPERATURE_MAX` | 93 / 150 | Water temperature, °C (BrewingTemp), and the maximum of both temperatures |
 | `DEFAULT_STEAMING_TEMPERATURE` / `STEAM_SETPOINT_SHOW_MS` | 135 / 2000 | Steaming mode: SteamingTemp, °C, and how long the setpoint is shown after a turn (ms) |
-| `HEATER_PAUSE_AT_PUMP_START_MS` | 500 | When the pump starts while the heater relay is on, the heater relay is released this long (ms) so that the pump and valve relays pull in (0 = never), see the power supply note |
 | `TEMPERATURE_OFFSET` | 5 | The probe is hotter than the water at the grouphead of this machine, °C |
 | `DEFAULT_VOLUME` | 40 | Target volume, ml (`VOLUME_MAX` 99) |
 | `DEFAULT_PREINFUSION_ML` / `_WAIT_SECONDS` / `DEFAULT_FLUSH_SECONDS` | 10 / 5 / 5 | AUTO defaults (`WAIT` and `FLUSH` are limited to 9: one digit next to their tag) |

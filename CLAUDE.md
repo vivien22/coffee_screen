@@ -112,7 +112,6 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
 - Errors: no water makes the drop blink every 600 ms until a short push of the encoder (the only way to clear it); a probe fault (3 readings in a row,
   `SENSOR_FAULT_TOLERANCE`) shows a white, larger "ERR" in place of the temperature (heater off).
-- Bench finding 2026-11-21: under (setpoint - 20) shown the heater is at full power (relay on all the time) and the pump relay LED stayed off (a test sketch without the screen worked): marginal 5 V supply, a relay needs more to pull in than to hold. `HEATER_PAUSE_AT_PUMP_START_MS` releases the heater relay 500 ms when the pump starts while the heater is on. Not a firmware bug: the pump never depends on the temperature (test `coldBoiler`). The user did NOT want a "no pump under 70" safety.
 - The start / stop button (A0 to GND, `START_BUTTON`): nothing running = keep (save) what was being set, select the volume again, start an
   extraction (CAL: validated first); running = the short push of the encoder (end, start / stop the flush, stop MANUAL); no-water error
   = nothing; standby = wake only. Asked by the user 2026-11-19. The long push of the encoder now enters / leaves the steaming mode (see below); the old actions of the long push (AUTO <-> MANUAL, clear the no-water error) are on the short push (`handleShortPush()` calls `handleLongPush()`); only the button starts / ends / flushes / stops. Double push unchanged.
