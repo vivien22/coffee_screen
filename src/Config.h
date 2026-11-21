@@ -101,6 +101,11 @@
 
 // ---------- Heater: PID + feedforward ----------
 #define PID_WINDOW_MS        1000
+// When the pump starts while the heater relay is on (a cold boiler: full power, the relay stays on), the heater relay is released
+// for this long (ms): the relays of the pump and of the valve have to pull in on a supply that already feeds the screen and the
+// heater relay (seen on the bench: the pump relay did not pull in under 70 degrees shown, where the heater is at full power).
+// 0 = never.
+#define HEATER_PAUSE_AT_PUMP_START_MS  500
 // The PID is activated only if the temperature is at least PID_WORKING_RANGE from the setpoint
 #define PID_WORKING_RANGE    20
 #define PID_KP               40.0

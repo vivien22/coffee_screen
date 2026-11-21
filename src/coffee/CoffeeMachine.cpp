@@ -87,6 +87,15 @@ void CoffeeMachine::update() {
   }
 #endif
 
+#if HEATER_PAUSE_AT_PUMP_START_MS > 0
+  // The pump starts while the heater relay is on: the heater relay is released a moment, so that the pump (and valve) relays pull in
+  const bool pumpOn = (digitalRead(PIN_PUMP_RELAY) == HIGH);
+  if (pumpOn && !pumpWasOn_ && heater_.isOn()) {
+    heater_.pause(now, HEATER_PAUSE_AT_PUMP_START_MS);
+  }
+  pumpWasOn_ = pumpOn;
+#endif
+
   const bool heating = !standby_ && temperature_.isValid();   // standby: the heater is off (same as a probe error)
   heater_.update(now,
                  heating,

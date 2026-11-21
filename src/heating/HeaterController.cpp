@@ -37,6 +37,11 @@ void HeaterController::setSetpoint(double celsius) {
   setpoint_ = celsius;
 }
 
+void HeaterController::pause(uint32_t now, uint32_t ms) {
+  paused_ = true;
+  pausedUntil_ = now + ms;
+}
+
 // One pass. The relay is switched on for part of each PID_WINDOW_MS window (time-proportional control):
 //   - invalid temperature (or standby): relay off
 //   - far below the setpoint: full power, the PID stays off so that it cannot wind up
@@ -79,7 +84,10 @@ void HeaterController::update(uint32_t now, bool temperatureValid, double temper
 
   const uint32_t elapsedInWindow = (uint32_t)(now - windowStart_);
   const int onTimeMs = constrain((int)output_ + feedforwardMs_, 0, PID_WINDOW_MS);
-  setRelay(elapsedInWindow < (uint32_t)onTimeMs);
+  if (paused_ && (int32_t)(now - pausedUntil_) >= 0) {
+    paused_ = false;
+  }
+  setRelay(!paused_ && elapsedInWindow < (uint32_t)onTimeMs);
 
   if ((uint32_t)(now - lastDebugAt_) >= 1000UL) {
     lastDebugAt_ = now;

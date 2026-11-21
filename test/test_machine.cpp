@@ -450,7 +450,11 @@ static void coldBoiler(){
     probeAt(probe); CoffeeMachine m; t=1000; m.begin(); for(int i=0;i<60;i++){ t+=100; m.update(); }
     const bool full = probe < DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET-PID_WORKING_RANGE;
     if(full) CHECK(m.heater_.isOn());                                   // full power under (setpoint - 20) on the probe
-    m.handleStartButton();
+    const bool heaterWasOn = m.heater_.isOn();
+    m.handleStartButton(); t+=20; m.update();
+    if(heaterWasOn) CHECK(!m.heater_.isOn() && PUMPON && pins[PIN_VALVE_RELAY]==1);   // the heater relay is released while the pump pulls in
+    if(heaterWasOn){ unsigned long tp=t; bool back=false; while(t<tp+HEATER_PAUSE_AT_PUMP_START_MS-100){ t+=20; m.flow_.in=m.flow_.in+0.01f; m.update(); CHECK(!m.heater_.isOn()); }
+      while(t<tp+HEATER_PAUSE_AT_PUMP_START_MS+400){ t+=20; m.flow_.in=m.flow_.in+0.01f; m.update(); back=back||m.heater_.isOn(); } CHECK(back); }   // ... and comes back after
     bool pumpAlways=true, heaterSeen=false;
     for(int i=0;i<50;i++){ t+=100; m.flow_.in=m.flow_.in+0.05f; m.update(); pumpAlways=pumpAlways&&PUMPON&&pins[PIN_VALVE_RELAY]==1; heaterSeen=heaterSeen||m.heater_.isOn(); }
     CHECK(m.extraction_.state()==EXTRACTION_RUNNING && pumpAlways);     // the pump and the valve follow the extraction at any temperature

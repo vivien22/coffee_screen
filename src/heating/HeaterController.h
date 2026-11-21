@@ -25,6 +25,10 @@ class HeaterController {
 
     bool isOn() const { return on_; }
 
+    // The relay stays off for the next ms milliseconds (the PID goes on computing). Used when the pump starts: the relays of the
+    // pump and the valve have to pull in while the heater relay is not drawing (see HEATER_PAUSE_AT_PUMP_START_MS in Config.h).
+    void pause(uint32_t now, uint32_t ms);
+
   private:
     int computeFeedforwardMs(float inflowMlPerSec) const;
     void setRelay(bool on);
@@ -38,6 +42,8 @@ class HeaterController {
     PID pid_;
 
     bool on_;
+    bool paused_ = false;       // the relay is held off until pausedUntil_
+    uint32_t pausedUntil_ = 0;
     bool manualMode_;           // far from the setpoint: full power, PID off
     int feedforwardMs_;         // part of the window given by the feedforward; the PID output is added to it
     uint32_t windowStart_;
