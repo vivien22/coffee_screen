@@ -12,6 +12,14 @@
 #include "src/settings/Settings.h"
 #include <SPI.h>
 #include "TestSupport.h"
+// The MAX31865 answers the RTD register: the probe is at 93 degrees (PT100, Callendar-Van Dusen) unless a test sets another one
+static uint16_t rtdRegister=0; static int byteIndex=0;
+static uint8_t answer(uint8_t v){ if(v==0x01){ byteIndex=0; return 0; } if(v!=0) { byteIndex=-1; return 0; }
+  if(byteIndex<0) return 0; return byteIndex++==0 ? (uint8_t)(rtdRegister>>8) : (uint8_t)rtdRegister; }
+static void probeAt(double celsius){
+  const double A=3.9083e-3,B=-5.775e-7; const double r=RNOMINAL*(1+A*celsius+B*celsius*celsius);
+  rtdRegister=(uint16_t)(((uint16_t)(r/RREF*32768.0+0.5))<<1);
+}
 static unsigned long welcomeAt=0, welcomeEnd=0;   // the clock when the welcome picture starts and ends
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
@@ -435,6 +443,22 @@ static void startButton(){
     releaseButton(b); }
   printf("start button: ok\n");
 }
+// A cold boiler (the heater at full power, the relay on all the time): the pump and the valve work as usual, whatever the temperature
+static void coldBoiler(){
+  for(double probe: {30.0, 60.0, 74.0, 76.0, 93.0}){
+    memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
+    probeAt(probe); CoffeeMachine m; t=1000; m.begin(); for(int i=0;i<60;i++){ t+=100; m.update(); }
+    const bool full = probe < DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET-PID_WORKING_RANGE;
+    if(full) CHECK(m.heater_.isOn());                                   // full power under (setpoint - 20) on the probe
+    m.handleStartButton();
+    bool pumpAlways=true, heaterSeen=false;
+    for(int i=0;i<50;i++){ t+=100; m.flow_.in=m.flow_.in+0.05f; m.update(); pumpAlways=pumpAlways&&PUMPON&&pins[PIN_VALVE_RELAY]==1; heaterSeen=heaterSeen||m.heater_.isOn(); }
+    CHECK(m.extraction_.state()==EXTRACTION_RUNNING && pumpAlways);     // the pump and the valve follow the extraction at any temperature
+    if(full) CHECK(heaterSeen);
+    m.extraction_.stop(EXTRACTION_FINISHED);
+  }
+  printf("cold boiler: ok\n");
+}
 // The steaming mode (long push of the encoder): the heater alone at SteamingTemp, no extraction, the temperature alone on the screen
 static std::string lastSteam(){ std::string r; for(auto&c:calls) if(c.rfind("steam(",0)==0) r=c; return r; }
 static void steaming(){
@@ -494,4 +518,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); coldBoiler(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
