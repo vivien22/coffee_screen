@@ -130,15 +130,6 @@
 #define FLOW_K_FACTOR_OUT            74.18f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 
-// ---------- Pump and valve ----------
-// DRIVE_PUMP: the pump relay is driven and extractions can be started. Commented out (only the boiler is connected, or
-// being tested): the pump output stays LOW (off) and no extraction can be started (a push does nothing when the machine
-// is idle); the heater is controlled as usual.
-#define DRIVE_PUMP
-// DRIVE_VALVE: the 3-way valve relay is driven by the phases of the extraction. Commented out (the valve is operated by
-// hand): the valve output stays LOW and the extraction runs as usual with the pump only.
-#define DRIVE_VALVE
-
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 

@@ -445,15 +445,6 @@ valve), two flow sensors (In and Out / OPV return), a 5 V power supply (2 A).
 > - A 100 µF + 100 nF capacitor near the screen helps; check the voltage of a cheap supply (5.0 to 5.3 V) before connecting.
 > - A mains supply without a case has live parts: put it in a closed insulating box, with a fuse on its input.
 
-### Pump and valve
-
-> [!IMPORTANT]
-> Two options in `Config.h`. `DRIVE_PUMP` (on): the pump relay follows the phases of the extraction. Commented out, the pump
-> stays off and no extraction can be started (a push does nothing when the machine is idle), the **boiler being controlled
-> as usual** (PID, the standby, the temperature screen). `DRIVE_VALVE` (on): the 3-way valve relay is driven.
-> Commented out, the valve output stays off: the valve is operated by hand, and the extraction (pre-infusion, flush, MANUAL
-> mode) runs with the pump only. Comment out `DRIVE_VALVE` if the valve is operated by hand.
-
 ### Flow sensors and the simulator
 
 The calibration factors, in pulses per millilitre, are `FLOW_K_FACTOR_IN` (12.56) and `FLOW_K_FACTOR_OUT` (**74.18**, measured
@@ -492,8 +483,6 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
-| `DRIVE_PUMP` | on | The pump relay is driven and extractions can start (commented out: the boiler only) |
-| `DRIVE_VALVE` | on | The 3-way valve relay is driven (commented out: the valve is operated by hand) |
 | `START_BUTTON` / `PIN_START_BUTTON` | on / A0 | The start / stop button (between the pin and GND); `START_BUTTON_DEBOUNCE_MS` 30 |
 | `FLOW_OUT_SENSOR` | on | The Out flow sensor is connected (A2) and read; comment out if it is not: the Out volume is then In * `FLOW_OUT_ESTIMATE_RATIO` |
 | `FLOW_K_FACTOR_IN` / `FLOW_K_FACTOR_OUT` | 12.56 / 74.18 | Pulses per ml of the two flow sensors (Out calibrated against In on 2026-11-19) |

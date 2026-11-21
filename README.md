@@ -117,8 +117,7 @@ pio run -e nano_r4 -t upload               # Arduino Nano R4
 ```
 
 Everything that depends on your machine is in `src/Config.h`: the pins, the limits and defaults of the settings, the
-temperature offset, the PID gains, the calibration factors of the flow sensors, what is driven (`DRIVE_PUMP`,
-`DRIVE_VALVE`), and the optional start button. Each option is described in
+temperature offset, the PID gains, the calibration factors of the flow sensors and the optional start button. Each option is described in
 [Configuration](docs/DOCUMENTATION.md#-configuration).
 
 ---

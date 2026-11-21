@@ -269,14 +269,6 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
   }
 }
 
-// What the start / stop button does while an extraction runs:
-//   running   -> ends it (AUTO: next is the flush, MANUAL: the pump stops)
-//   flush     -> starts / stops the flush
-// The short push of the encoder: it does what the long push did (the long push is disabled for the moment, its code is kept).
-void CoffeeMachine::handleShortPush() {
-  handleLongPush();
-}
-
 // What the start / stop button does while an extraction runs.
 void CoffeeMachine::handleExtractionPush() {
   switch (extraction_.state()) {
@@ -313,7 +305,6 @@ void CoffeeMachine::handleExtractionPush() {
 // Starts the extraction with the settings as they are (AUTO or MANUAL), after saving them: what was just set is validated by
 // the start (written only if it changed). Used by the start / stop button.
 void CoffeeMachine::startExtraction(uint32_t pressTime) {
-#ifdef DRIVE_PUMP   // without the pump no extraction can start
   const Settings &settings = screen_.settings();
   saveSettings();
   calibrationOffered_ = false;   // the previous extraction can no longer be used to calibrate
@@ -324,9 +315,6 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();
-#else
-  (void)pressTime;
-#endif
 }
 
 // The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the
@@ -372,7 +360,6 @@ void CoffeeMachine::handleStartButton() {
       return;
   }
 
-#ifdef DRIVE_PUMP
   // The weight that was being entered for CAL is validated like the double push does (the loss is corrected); every other
   // value is already in the settings, startExtraction() saves them.
   if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
@@ -380,7 +367,6 @@ void CoffeeMachine::handleStartButton() {
   }
   screen_.selectVolume();
   startExtraction(millis());
-#endif
 }
 
 // Double push: validates the parameter being edited and selects the next one (the cycle is in ScreenController.h).
@@ -388,7 +374,7 @@ void CoffeeMachine::handleStartButton() {
 void CoffeeMachine::handleDoublePush() {
   switch (extraction_.state()) {
     case EXTRACTION_ERROR_NO_WATER:
-      return;   // ignored until the error is cleared by a long push
+      return;   // ignored until the error is cleared by a short push of the encoder
 
     case EXTRACTION_PREINFUSION:
     case EXTRACTION_PREINFUSION_WAIT:
@@ -425,9 +411,9 @@ void CoffeeMachine::saveSettings() {
   heater_.setSetpoint((steaming_ ? settings.steamingTemperature : settings.temperature) + TEMPERATURE_OFFSET);
 }
 
-// Long push: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.
-void CoffeeMachine::handleLongPush() {
-  // A long push clears the no-water error
+// Short push of the encoder: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.
+void CoffeeMachine::handleShortPush() {
+  // The short push clears the no-water error (the only way to clear it)
   if (extraction_.hasNoWaterError()) {
     extraction_.clearError();
     return;

@@ -38,14 +38,13 @@ class CoffeeMachine {
     void handleStartButton();  // extraction running: the push of the encoder; nothing running: keep the settings, volume, start
     void startExtraction(uint32_t pressTime);   // keep the settings and start the extraction (AUTO or MANUAL)
     void handlePush(PushEvent pushEvent);   // the push events of the encoder: short and double (the long push is disabled)
-    void handleShortPush();    // the short push of the encoder: what the long push did (see handleLongPush)
+    void handleShortPush();    // the short push of the encoder: switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction)
     void handleExtractionPush();   // what the start / stop button does while an extraction runs: end it / start the flush / stop the flush
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
     void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
     void showExtraction(uint32_t now);
-    void handleLongPush();     // switch between AUTO and MANUAL, or clear the no-water error (ignored during an extraction). The long push is disabled: the short push calls this
     void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
     void wakeUp();             // end of the standby: the heater works again, the real screen comes back
     void adjustActiveParameter(int16_t delta);

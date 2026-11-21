@@ -21,8 +21,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   the functions nobody calls (-0.5 KB). Together with `putText()` in Display.cpp (every text is drawn by the firmware, the
   `Screen` class replaces `Print::write` by nothing) the text engine of Adafruit_GFX and its 5 x 7 font (1280 B) are not linked
   any more (-2.6 KB): do not call `tft.print()` / `setFont` / `setCursor`, use `putText()`.
-- Last measured (2026-11-19, flags above, welcome picture and standby, the pump and the valve driven, In and Out sensors, the
-  stop before the target): **28198 B flash (91.8 %), 490 B RAM**; 28156 B without the Out sensor, 27786 B boiler only.
+- Last measured (2026-11-21, flags above, welcome picture and standby, In and Out sensors, the stop before the target, the steaming
+  mode): **29632 B flash (96.5 %)**; the RAM stays under 500 B.
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
@@ -52,13 +52,12 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `steaming_`: `updateExtraction()` / `showExtraction()` are not called (no volume read), the start button does nothing, short and double
   pushes are ignored, `saveSettings()` applies the steaming setpoint; the screen (`ScreenController::enterSteaming/leaveSteaming`,
   `Display::drawSteamTemperature` / `drawSteamIcon`: thermometer, ICON_STEAM volutes, text STEAM) shows the temperature alone in large digits, the setpoint for `STEAM_SETPOINT_SHOW_MS` after a turn.
-  `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot. `handleLongPush()` is the old AUTO/MANUAL + clear-error code, now called by the short push.
+  `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
-- `test_display` is a property test (incremental drawing must equal a fresh draw). `test_boiler_only` runs with `DRIVE_PUMP` and `DRIVE_VALVE`
-  switched off in a copy of Config.h (the boiler only) and `test_valve_by_hand` with `DRIVE_VALVE` switched off (the pump
-  works, the valve output stays off); the other tests use the Config.h as it is.
+- `test_display` is a property test (incremental drawing must equal a fresh draw). `test_sim_*` run with the flow simulator switched on in a copy of
+  Config.h; the other tests use the Config.h as it is.
 - The tests share the Arduino stand-in `test/stubs/ArduinoStubs.cpp` (clock `t`, `pins[]`, `Serial`, `SPI`, `EEPROM`) and
   `test/stubs/TestSupport.h` (`CHECK`): a new test includes `TestSupport.h`, and `run.sh` links the stubs. Do not copy
   those definitions into a test again.
@@ -119,7 +118,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   the heater relay 500 ms at the pump start (made it worse). The pump never depends on the temperature (test `coldBoiler`).
 - The start / stop button (A0 to GND, `START_BUTTON`): nothing running = keep (save) what was being set, select the volume again, start an
   extraction (CAL: validated first); running = the short push of the encoder (end, start / stop the flush, stop MANUAL); no-water error
-  = nothing; standby = wake only. Asked by the user 2026-11-19. The long push of the encoder now enters / leaves the steaming mode (see below); the old actions of the long push (AUTO <-> MANUAL, clear the no-water error) are on the short push (`handleShortPush()` calls `handleLongPush()`); only the button starts / ends / flushes / stops. Double push unchanged.
+  = nothing; standby = wake only. Asked by the user 2026-11-19. The long push of the encoder now enters / leaves the steaming mode (see below); the old actions of the long push (AUTO <-> MANUAL, clear the no-water error) are on the short push (`handleShortPush()`); only the button starts / ends / flushes / stops. Double push unchanged.
 - The pump stops BEFORE the target volume: the volume is checked on every pass with the pulses not yet converted, and
   `volume + stopDelay x flow >= target` stops it (the water of the stop, 2-3 ml at 5 ml/s, fills the rest). `stopDelay` (seconds)
   is learned after every extraction that ends in the main phase (STOP_SETTLE_MS later: water that came / flow at the stop,
@@ -143,10 +142,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
   sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ now
   (`FLOW_OUT_SENSOR` on, pin A2). Until then (2026-11-17) it was not wired: `FLOW_OUT_SENSOR` was commented out, A2 ignored and the volume out estimated (kept as an option if the sensor is removed): Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
-  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too: `DRIVE_PUMP` and `DRIVE_VALVE` are both on. For a test the user
-  swapped the two GPIOs and operated the valve by hand for a while (pump A2 / valve D4, `DRIVE_VALVE` off), then went back to
-  the normal wiring (pump D4, valve A2). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one). Without `DRIVE_VALVE` the valve output stays LOW and the extraction runs with the
-  pump only; without `DRIVE_PUMP` only the boiler is controlled.
+  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
 
