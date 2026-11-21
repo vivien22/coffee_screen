@@ -95,6 +95,7 @@ No-water detection (the pump stops and the screen says so), maximum duration of 
 | **Temperature** | MAX31865 amplifier + PT100 probe |
 | **Water** | pump relay, 3-way valve relay, two flow sensors (In, and Out on the return of the OPV valve) |
 | **Heating** | boiler relay, driven by the PID |
+| **Power** | a 5 V 2 A supply for the screen, the sensors and the probe board; the Nano on USB or on its own supply |
 
 The pin table, the notes on the power supply and on the relays, and the calibration of the flow sensors are in
 [Hardware and wiring](docs/DOCUMENTATION.md#-hardware-and-wiring).

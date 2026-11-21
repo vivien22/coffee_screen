@@ -112,6 +112,11 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
 - Errors: no water makes the drop blink every 600 ms until a short push of the encoder (the only way to clear it); a probe fault (3 readings in a row,
   `SENSOR_FAULT_TOLERANCE`) shows a white, larger "ERR" in place of the temperature (heater off).
+- Relay problems (2026-11-21) are SOLVED and were a POWER SUPPLY issue, not a firmware bug: the screen + backlight on the 5 V of the Nano
+  (USB) left the SSR inputs at 3.4 V (turn-on threshold about 3-3.5 V); with a dedicated 5 V supply for the screen, the sensors and the
+  MAX31865 everything works (details in `docs/DOCUMENTATION.md`, Hardware). Do not look for a firmware cause for a relay that does not
+  switch on. Two firmware ideas were tried and rejected: a "no pump under 70 degrees" safety (the user did not ask for it) and releasing
+  the heater relay 500 ms at the pump start (made it worse). The pump never depends on the temperature (test `coldBoiler`).
 - The start / stop button (A0 to GND, `START_BUTTON`): nothing running = keep (save) what was being set, select the volume again, start an
   extraction (CAL: validated first); running = the short push of the encoder (end, start / stop the flush, stop MANUAL); no-water error
   = nothing; standby = wake only. Asked by the user 2026-11-19. The long push of the encoder now enters / leaves the steaming mode (see below); the old actions of the long push (AUTO <-> MANUAL, clear the no-water error) are on the short push (`handleShortPush()` calls `handleLongPush()`); only the button starts / ends / flushes / stops. Double push unchanged.

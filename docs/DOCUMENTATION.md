@@ -427,14 +427,22 @@ A GPIO of the R4 gives 8 mA at most (the R3: 40 mA): check the current of the di
 inputs, and use a transistor if they need more.
 
 **Parts:** Arduino Nano R3 or R4, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
-(pump, heater, valve), two flow sensors (In and Out / OPV return).
+(pump, heater, valve; solid state relays in the author's build: a DC-DC one for the pump, an AC one for the heater and one for the
+valve), two flow sensors (In and Out / OPV return), a 5 V power supply (2 A).
 
 > [!IMPORTANT]
-> **Power supply.** Do not power the board and the relay board from the USB port of a PC once everything is connected: the
-> screen (and its backlight) and three relays together ask more than a USB port gives. Seen on the bench: the firmware
-> drove the pump output correctly, but the pump relay did not pull in while the valve one did, until a more powerful
-> 5 V supply was used. Use a real 5 V supply (or the supply of the machine) for the relay board and the Nano; a PC
-> on USB is fine to upload the firmware and to watch the serial traces only with the relays disconnected.
+> **Power supply.** The relays did not always switch on when the screen and the boiler were running (the pump relay stayed off,
+> with the firmware driving its output correctly, a test sketch showing it). That was a **lack of power**, not a firmware matter:
+> from the 5 V of the Nano (powered by a PC USB port) the input of the pump solid state relay saw only **3.4 V** with the screen
+> on, just at its turn-on threshold (about 3 to 3.5 V), and over 4 V without the screen. The fix, confirmed on the machine: the
+> screen (and its backlight), the flow sensors and the MAX31865 are fed directly by a **dedicated 5 V supply** (5.15 V measured,
+> 2 A), not by the 5 V pin of the Nano. The Nano stays on USB, or on its own supply.
+>
+> - Join the grounds: the GND of the supply, of the Nano, of the screen, the sensors and the relay inputs.
+> - Never put the USB 5 V and the 5 V of another supply in parallel: use a USB cable without its 5 V wire to upload, or a Schottky
+>   diode (1N5819) in series between the supply and the 5V pin of the Nano.
+> - A 100 µF + 100 nF capacitor near the screen helps; check the voltage of a cheap supply (5.0 to 5.3 V) before connecting.
+> - A mains supply without a case has live parts: put it in a closed insulating box, with a fuse on its input.
 
 ### Pump and valve
 
