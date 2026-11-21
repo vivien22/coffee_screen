@@ -436,7 +436,8 @@ valve), two flow sensors (In and Out / OPV return), a 5 V power supply (2 A).
 > from the 5 V of the Nano (powered by a PC USB port) the input of the pump solid state relay saw only **3.4 V** with the screen
 > on, just at its turn-on threshold (about 3 to 3.5 V), and over 4 V without the screen. The fix, confirmed on the machine: the
 > screen (and its backlight), the flow sensors and the MAX31865 are fed directly by a **dedicated 5 V supply** (5.15 V measured,
-> 2 A), not by the 5 V pin of the Nano. The Nano stays on USB, or on its own supply.
+> 2 A), not by the 5 V pin of the Nano. In the final build everything is on that supply, and the USB cable is plugged in only with the
+> machine switched off (upload, debug).
 >
 > - Join the grounds: the GND of the supply, of the Nano, of the screen, the sensors and the relay inputs.
 > - Never put the USB 5 V and the 5 V of another supply in parallel: use a USB cable without its 5 V wire to upload, or a Schottky
