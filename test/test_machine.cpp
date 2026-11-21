@@ -251,8 +251,14 @@ static void calibration(){
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && m.extraction_.calibratable());
   float net=m.extraction_.netVolumeMl(); CHECK(net>=DEFAULT_LOSS_ML+40 && net<DEFAULT_LOSS_ML+43);
   CHECK(m.screen_.calibrationAvailable_);
+  // the 10 s of the display of the result pass: CAL does not go away, and what was entered is not touched
+  { const int16_t estimate=m.screen_.calibrationValue_; gotoParam(m,PARAMETER_CALIBRATION); m.screen_.adjustActiveParameter(-3);
+    calls.clear(); unsigned long tr=t; while(t<tr+EXTRACTION_RESULT_DISPLAY_MS+5000){ t+=100; m.update(); }
+    CHECK(m.screen_.calibrationAvailable_ && m.screen_.activeParameter()==PARAMETER_CALIBRATION && m.screen_.calibrationValue_==estimate-3);
+    for(auto&c:calls) CHECK(c.rfind("vol(",0)!=0 || c.find(",1,0,")==std::string::npos);   // no vol(...) of the target (no tag) over the CAL one
+    m.screen_.adjustActiveParameter(3); }
   gotoParam(m,PARAMETER_CALIBRATION); CHECK(m.screen_.activeParameter()==PARAMETER_CALIBRATION);
-  { char b[40]; snprintf(b,40,"vol(%d,1,%d,1)",m.screen_.calibrationValue_,(int)PHASE_TAG_CALIBRATION);
+  { char b[40]; snprintf(b,40,"vol(%d,1,%d,0)",m.screen_.calibrationValue_,(int)PHASE_TAG_CALIBRATION);   // (the tag is already drawn)
     calls.clear(); t+=100; m.update(); CHECK(has(b)); }
   CHECK(m.screen_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
   m.screen_.adjustActiveParameter(-(m.screen_.calibrationValue_-30)); // the cup really holds 30 g
