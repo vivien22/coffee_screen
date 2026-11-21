@@ -36,8 +36,6 @@ void platformWatchdogKick() {
 // ---------- Pulses of the flow sensors ----------
 // The two inputs are on port C (A0..A5): one pin change interrupt (PCINT1) serves both. The edges are found by comparing
 // the state of the port with its state at the previous interrupt.
-#ifndef FLOW_SIMULATOR
-
 #define FLOW_IN_BIT   (PIN_FLOW_IN - A0)
 #define FLOW_OUT_BIT  (PIN_FLOW_OUT - A0)
 
@@ -45,17 +43,13 @@ static volatile uint8_t lastPortC;
 
 void platformPulsesBegin() {
   pinMode(PIN_FLOW_IN, INPUT_PULLUP);
-#ifdef FLOW_OUT_SENSOR
   pinMode(PIN_FLOW_OUT, INPUT_PULLUP);
-#endif
 
   // Synchronize the port state before enabling the interrupt.
   noInterrupts();
   lastPortC = PINC;
   PCMSK1 |= _BV(FLOW_IN_BIT);
-#ifdef FLOW_OUT_SENSOR
   PCMSK1 |= _BV(FLOW_OUT_BIT);
-#endif
   PCIFR |= _BV(PCIF1);  // Clear any pending PORTC pin-change flag.
   PCICR |= _BV(PCIE1);
   interrupts();
@@ -69,15 +63,11 @@ ISR(PCINT1_vect) {
   if (fallingEdges & _BV(FLOW_IN_BIT)) {
     flowPulseIn();
   }
-#ifdef FLOW_OUT_SENSOR
   if (fallingEdges & _BV(FLOW_OUT_BIT)) {
     flowPulseOut();
   }
-#endif
 
   lastPortC = currentPort;
 }
-
-#endif  // FLOW_SIMULATOR
 
 #endif  // ARDUINO_ARCH_AVR

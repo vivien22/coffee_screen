@@ -2,7 +2,7 @@
 # Host tests of the logic (no Arduino needed): ./test/run.sh
 # The sources are copied to a build folder. Two flavours:
 #   test_*.cpp      the flow sensor is replaced by test/mock/FlowSensor.h (values set by the test)
-#   test_sim_*.cpp  the real FlowSimulator (FLOW_SIMULATOR, switched on in the copy of Config.h) follows the pump relay
+#   test_sim_*.cpp  the flow sensor is replaced by test/mock/FlowSimulator.h: the simulated water follows the pump relay
 set -e
 cd "$(dirname "$0")/.."
 B=${TMPDIR:-/tmp}/coffee_screen_test
@@ -12,8 +12,7 @@ for d in mock real; do
   cp test/stubs/EEPROM.h "$B/$d/"
 done
 cp test/mock/FlowSensor.h "$B/mock/src/drivers/FlowSensor.h"
-# FLOW_SIMULATOR is commented out in Config.h (the real flow sensors): the copy of the test_sim_* flavour switches it on
-sed -i 's|^// #define FLOW_SIMULATOR|#define FLOW_SIMULATOR|' "$B/real/src/Config.h"
+cp test/mock/FlowSimulator.h "$B/real/src/drivers/FlowSensor.h"
 status=0
 for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)

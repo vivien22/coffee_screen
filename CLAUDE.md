@@ -56,8 +56,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
-- `test_display` is a property test (incremental drawing must equal a fresh draw). `test_sim_*` run with the flow simulator switched on in a copy of
-  Config.h; the other tests use the Config.h as it is.
+- `test_display` is a property test (incremental drawing must equal a fresh draw). `test_sim_*` use the flow simulator `test/mock/FlowSimulator.h`
+  (copied over `FlowSensor.h` by `run.sh`); the other tests use the mock `test/mock/FlowSensor.h`.
 - The tests share the Arduino stand-in `test/stubs/ArduinoStubs.cpp` (clock `t`, `pins[]`, `Serial`, `SPI`, `EEPROM`) and
   `test/stubs/TestSupport.h` (`CHECK`): a new test includes `TestSupport.h`, and `run.sh` links the stubs. Do not copy
   those definitions into a test again.
@@ -140,9 +140,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
 - Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
-  sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ now
-  (`FLOW_OUT_SENSOR` on, pin A2). Until then (2026-11-17) it was not wired: `FLOW_OUT_SENSOR` was commented out, A2 ignored and the volume out estimated (kept as an option if the sensor is removed): Out = In * `FLOW_OUT_ESTIMATE_RATIO` (0.385, from the user: a 50 ml cup goes with 50 ml returned by the OPV, with the 30 ml loss; the CAL calibration absorbs the rest).
-  Uncomment `FLOW_OUT_SENSOR` when the Out sensor is wired (`pid-tuning` has the same option). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
+  sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ
+  (pin A2; there is no option any more to run without it: the options `FLOW_OUT_SENSOR`, with an estimated Out volume, and `FLOW_SIMULATOR` were removed on 2026-11-21 at the user's request). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
 

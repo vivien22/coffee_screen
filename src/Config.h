@@ -133,21 +133,6 @@
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction
 
-// The Out sensor (A2, return of the OPV valve) is connected and calibrated (FLOW_K_FACTOR_OUT): it is read. Comment this line
-// out if it is not connected: the pin A2 is then left alone (a floating input would count false pulses) and the volume out
-// is ESTIMATED from the volume in: Out = In * FLOW_OUT_ESTIMATE_RATIO. The user's figure: a 50 ml cup goes with 50 ml
-// returned by the OPV, so with the default loss of 30 ml In = 50 + 50 + 30 = 130 ml and the ratio is 50 / 130 = 0.385.
-// The CAL calibration absorbs the rest (it corrects the loss).
-#define FLOW_OUT_SENSOR
-#define FLOW_OUT_ESTIMATE_RATIO      0.385f    // used only without FLOW_OUT_SENSOR
-
-// Flow simulator: uncomment this line to replace the two flow sensors when they are not connected. While the pump
-// is on, the simulated water enters the boiler at FLOW_SIM_PUMP_ML_PER_S and FLOW_SIM_OPV_RATIO of it comes back
-// through the OPV valve. Commented out: the real sensors are read (A1 for In, A2 for Out if FLOW_OUT_SENSOR).
-// #define FLOW_SIMULATOR
-#define FLOW_SIM_PUMP_ML_PER_S       3.0f      // water entering the boiler while the pump is on (ml/s)
-#define FLOW_SIM_OPV_RATIO           0.1f      // part of it returning through the OPV (0 = none, 0.1 = 10 %)
-
 // The target volume is the volume wanted in the cup. The flow sensors measure the water that
 // enters the boiler (In) and the water that comes back through the OPV valve (Out); the water
 // that really stays in the system is In - Out. Not all of it ends in the cup: the puck retains some

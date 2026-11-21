@@ -359,8 +359,7 @@ K_OUT = 12.56 × 68 549 / 11 606 = 74.18 pulses per ml          (with the 10 seq
 
 - The nine sequences agree: K from 73.66 to 75.01, standard deviation 0.45 (0.6 %). The Out sensor counts **5.9 pulses for one
   of the In sensor** (the placeholder of the code, 50, was 33 % too low).
-- **Applied**: `FLOW_K_FACTOR_OUT` = 74.18 in `Config.h`, and the Out sensor is now read (`FLOW_OUT_SENSOR` on): the volume out is
-  measured, no longer estimated.
+- **Applied**: `FLOW_K_FACTOR_OUT` = 74.18 in `Config.h`, and the Out sensor is read: the volume out is measured.
 - The raw data are kept in [`docs/calibration/`](calibration/) (the table in CSV, and what the board printed).
 - To do it again (a new sensor, a new pump): the sketch of the branch `out-calibration`, with the sensors in series, gives the
   new coefficient in about 15 minutes.
@@ -452,14 +451,7 @@ against In, see [Calibration of the flow sensors](#-calibration-of-the-flow-sens
 
 > [!IMPORTANT]
 > The board reads the **In** sensor (A1: the water entering the boiler) and the **Out** sensor (A2: the return of the OPV
-> valve), both connected (`#define FLOW_OUT_SENSOR` in `Config.h`). If the Out sensor is not connected, comment that line
-> out: A2 is then ignored (a floating input would count false pulses) and the volume out is **estimated** from the volume
-> in: `FLOW_OUT_ESTIMATE_RATIO` (0.385) of the water that enters the boiler is taken as returned by the OPV. That is the
-> figure of the machine: a 50 ml cup goes with 50 ml returned, so with the 30 ml loss 130 ml enter the boiler. The CAL
-> calibration absorbs the rest.
->
-> `// #define FLOW_SIMULATOR` replaces both sensors by a simulator (3 ml/s while the pump runs, 10 % returning through the
-> OPV): uncomment it to test the machine without any flow sensor. It is commented out by default.
+> valve). Both have to be connected: the volume in the cup is In − Out − the loss.
 
 ---
 
@@ -484,12 +476,9 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
 | `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
 | `START_BUTTON` / `PIN_START_BUTTON` | on / A0 | The start / stop button (between the pin and GND); `START_BUTTON_DEBOUNCE_MS` 30 |
-| `FLOW_OUT_SENSOR` | on | The Out flow sensor is connected (A2) and read; comment out if it is not: the Out volume is then In * `FLOW_OUT_ESTIMATE_RATIO` |
 | `FLOW_K_FACTOR_IN` / `FLOW_K_FACTOR_OUT` | 12.56 / 74.18 | Pulses per ml of the two flow sensors (Out calibrated against In on 2026-11-19) |
 | `STOP_DELAY_DEFAULT_S` / `STOP_DELAY_MAX_S` / `STOP_DELAY_GAIN` | 0.40 / 1.5 / 0.30 | Stop before the target: first delay, its limit, and how fast it is learned (seconds of flow, see "Cup volume") |
 | `STOP_SETTLE_MS` / `STOP_ANTICIPATION_MAX_ML` | 2000 / 6 | How long after the stop the water that still comes is measured, and the most the pump stops before the target |
-| `FLOW_OUT_ESTIMATE_RATIO` | 0.385 | Out / In without the Out sensor (50 ml cup, 50 ml returned, 30 ml loss) |
-| `FLOW_SIMULATOR` | commented out | Uncomment to replace the flow sensors by a simulator |
 
 ---
 
@@ -556,7 +545,7 @@ computer, with no Arduino:
 It compiles every `test/test_*.cpp` with `g++`, with stubs of the Arduino libraries in `test/stubs` and a
 mock of the flow sensor in `test/mock`. The Arduino API that all the tests share (clock, pins, `Serial`, `SPI`,
 `EEPROM`) is in `test/stubs/ArduinoStubs.cpp`, and `test/stubs/TestSupport.h` gives them `CHECK`. The
-`test_sim_*` tests use the real flow simulator.
+`test_sim_*` tests use a flow simulator (`test/mock/FlowSimulator.h`, the simulated water follows the pump relay).
 
 **Continuous integration** (`.github/workflows/test.yml`), on every push: the tests, a `cppcheck` static
 analysis, and the build of the firmware for the Nano with the flow simulator and with the real flow sensors,
@@ -592,8 +581,7 @@ src/
   drivers/
     CJMCU111               rotary encoder + push button (short, double, long push)
     USN_FlowSensor         flow sensors (pin change interrupt)
-    FlowSimulator.h        replaces the flow sensors when FLOW_SIMULATOR is defined
-    FlowSensor.h           FlowSensor = the real sensor or the simulator
+    FlowSensor.h           FlowSensor = USN_FlowSensor (replaced by a mock or a simulator in the tests)
 test/                      host tests (run.sh, stubs, mocks)
 tools/                     screen pictures (render_screens), icons (compress_icons, png_to_icon.ps1), size and RAM budget (check_flash)
 images/               the screen pictures
