@@ -65,6 +65,9 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   counted), once; the start temperature is taken in `startExtraction()`.
 - Read it with `pio run -e journal_dump -t upload` (`tools/journal_dump.cpp`), the serial line, then flash the machine again.
   The bootloader (Optiboot) cannot read the EEPROM. Tests: `test_journal` and `journal()` of `test_machine`.
+- `tools/journal_view.py` (Python, standard library only) parses the text of `journal_dump` (file, `--port` with pyserial, or `--demo`) and writes one
+  HTML page with inline SVG charts (water stacked: cup / loss / Out, target tick, end reason glyphs; duration; temperatures; table). Asked by the
+  user 2026-11-22. It has no automated test: check it by eye with `--demo` and a Chrome screenshot (`chrome --headless --screenshot`).
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).

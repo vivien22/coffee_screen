@@ -225,6 +225,22 @@ It prints one line per extraction, the last one first:
 #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 | delay 0.37 | 88 -> 91 C
 ```
 
+**A graphical view.** `tools/journal_view.py` turns that text into one HTML page (no dependency, no network, light and dark themes): the water
+of each extraction (the volume in the cup, the loss and the Out water, with a tick for the target, and how each one ended: target reached,
+button, no water, maximum duration), the duration, the temperatures, and a table. Hover a bar for the details.
+
+```
+python tools/journal_view.py dump.txt      # the text printed by the journal_dump sketch, saved from a serial monitor
+python tools/journal_view.py --port COM8   # or read the board itself (pip install pyserial; the sketch must be running)
+python tools/journal_view.py --demo        # an example with made up extractions
+```
+
+It writes `journal.html` (`-o` to change the name); open it in a browser.
+
+![journal view](images/journal-view-example.png)
+
+*The picture is the example (made up extractions), not a real machine.*
+
 An entry is 15 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 66 entries take 991 bytes of the 1024 of the
 EEPROM (address 24 to 1014; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
 end of an extraction (15 bytes), far from its limit of 100 000 writes per byte.
