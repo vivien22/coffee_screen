@@ -190,6 +190,42 @@ The final volume and duration stay on the screen for 10 s (from the end of the e
 from the end of the flush otherwise), then the target values come back (they do not blink). A change of
 mode resets them at once. With a flush, the machine waits for a push to start the rinse.
 
+### The journal of the last extractions
+
+The machine keeps in its EEPROM a **journal of the last 10 extractions** (a ring: the oldest one is overwritten). It is there to
+understand an extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the
+machine shows or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the
+water that still comes is then counted), so a power cut in the middle loses that extraction only.
+
+| Field | Meaning |
+|---|---|
+| reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`), `TIMER` (the MANUAL time) |
+| phase | in which phase it ended: `PRE` (pre-infusion), `WAIT`, `RUN` (main extraction) or `MANUAL` |
+| AUTO / MANUAL, target, pre, wait | the mode and the settings it used (target volume, pre-infusion volume, wait time) |
+| duration | seconds from the start |
+| in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |
+| cup | the final volume shown on the screen: In − Out − loss |
+| loss, delay | the loss (CAL) and the delay of the stop before the target used |
+| temperature | the temperature shown at the end (°C) |
+
+**Reading it.** The journal cannot be read through the bootloader, so a tiny sketch prints it over the serial line (115200 baud) and
+does nothing else (it writes nothing). Flash it, read the serial line, then flash the machine again (the EEPROM is kept):
+
+```
+pio run -e journal_dump -t upload      # the sketch of tools/journal_dump.cpp
+pio device monitor                     # (or any serial monitor, 115200 baud, reset the board to see it again)
+pio run -e nanoatmega328new -t upload  # the machine again
+```
+
+It prints one line per extraction, the last one first:
+
+```
+#12 TARGET  ended in RUN  AUTO tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
+```
+
+The layout (address 128: the next position, then 10 entries of 26 bytes) is in `src/settings/Journal.h`. The EEPROM is written only
+at the end of an extraction (about 26 bytes), far from its limit of 100 000 writes per byte.
+
 ### What is saved, and when
 
 Settings are saved **automatically**, never by hand, and only when something changed (the EEPROM is written
@@ -198,7 +234,8 @@ byte by byte, only for the bytes that differ, to spare its life):
 - at a double push (the edited parameter is validated),
 - at the start of an extraction,
 - at a change of mode,
-- at each turn of the encoder in the steaming mode (SteamingTemp).
+- at each turn of the encoder in the steaming mode (SteamingTemp),
+- at the end of each extraction: its line in the [journal](#the-journal-of-the-last-extractions).
 
 The EEPROM layout is in `src/settings/Settings.cpp`.
 

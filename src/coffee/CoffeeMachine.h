@@ -16,6 +16,7 @@
 #include "../drivers/CJMCU111.h"
 #include "../drivers/FlowSensor.h"
 #include "../settings/Settings.h"
+#include "../settings/Journal.h"
 #include "../heating/TemperatureSensor.h"
 #include "../heating/HeaterController.h"
 #include "ExtractionController.h"
@@ -43,6 +44,7 @@ class CoffeeMachine {
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
     void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
+    void writeJournal();       // one line in the journal of the last extractions
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
     void showExtraction(uint32_t now);
     void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
@@ -52,6 +54,7 @@ class CoffeeMachine {
     FlowSensor flow_;
     CJMCU111 encoder_;
     SettingsStore store_;
+    Journal journal_;
     TemperatureSensor temperature_;
     HeaterController heater_;
     ExtractionController extraction_;
@@ -60,6 +63,7 @@ class CoffeeMachine {
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
     bool steaming_ = false;           // steaming mode (see toggleSteaming)
+    bool journalPending_ = false;     // an extraction was started and is not in the journal yet
     bool standby_ = false;            // the heater is off after STANDBY_MINUTES without activity
     uint32_t lastActivityAt_ = 0;
     bool calibrationOffered_ = false; // CAL was offered for the last extraction

@@ -21,8 +21,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   the functions nobody calls (-0.5 KB). Together with `putText()` in Display.cpp (every text is drawn by the firmware, the
   `Screen` class replaces `Print::write` by nothing) the text engine of Adafruit_GFX and its 5 x 7 font (1280 B) are not linked
   any more (-2.6 KB): do not call `tft.print()` / `setFont` / `setCursor`, use `putText()`.
-- Last measured (2026-11-21, flags above, welcome picture and standby, In and Out sensors, the stop before the target, the steaming
-  mode): **29632 B flash (96.5 %)**; the RAM stays under 500 B.
+- Last measured (2026-11-22, flags above, welcome picture and standby, In and Out sensors, the stop before the target, the steaming
+  mode, the journal): **30654 B flash (99.8 %), 66 B free**; the RAM stays under 500 B. THE FLASH IS FULL: a new feature needs savings first.
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
@@ -53,6 +53,14 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   pushes are ignored, `saveSettings()` applies the steaming setpoint; the screen (`ScreenController::enterSteaming/leaveSteaming`,
   `Display::drawSteamTemperature` / `drawSteamIcon`: thermometer, ICON_STEAM volutes, text STEAM) shows the temperature alone in large digits, the setpoint for `STEAM_SETPOINT_SHOW_MS` after a turn.
   `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
+
+## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
+- `src/settings/Journal.{h,cpp}`: a ring of 10 entries of 26 bytes in the EEPROM from address 128 (`JournalEntry`: reason, phase, mode,
+  settings, duration, cup, temperature, In / Out / loss / delay as floats: no conversion, flash is full). `ExtractionController::endedBy()`
+  keeps the FIRST reason (target, user, no water, max time, timer) with the phase; `CoffeeMachine::writeJournal()` writes the entry when
+  `endReason()` is set and `settlePending()` is over (the water after the stop is counted), once (`journalPending_`).
+- Read it with `pio run -e journal_dump -t upload` (`tools/journal_dump.cpp`), the serial line, then flash the machine again.
+  The bootloader (Optiboot) cannot read the EEPROM. Tests: `test_journal` and `journal()` of `test_machine`.
 
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).

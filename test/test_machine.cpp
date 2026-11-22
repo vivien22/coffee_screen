@@ -501,6 +501,49 @@ static void steaming(){
   { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140+TEMPERATURE_OFFSET); }
   printf("steaming: ok\n");
 }
+// The journal of the last extractions: how each one ended and the volumes it counted (see Journal.h)
+static void journal(){
+  memset(EEPROM.mem,0xFF,sizeof(EEPROM.mem)); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
+  Journal j; JournalEntry e;
+  CoffeeMachine m; t=1000; m.begin();
+  CHECK(!j.read(0,e));                                                 // nothing yet
+  // 1. AUTO to the target: written when the water after the stop is counted (not before), once
+  m.handleStartButton(); unsigned long t0=t;
+  for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
+  CHECK(!j.read(0,e));                                                 // the pump just stopped: the water that comes after is being counted
+  for(int i=0;i<40;i++){ t+=100; m.update(); }
+  CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING && e.flags==0 && e.sequence==0);
+  CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.wait==0 && e.duration>=21 && e.duration<=25 && e.temperature>=85 && e.temperature<=90);
+  CHECK(e.cup>=DEFAULT_VOLUME-1 && e.cup<=DEFAULT_VOLUME+2 && e.outMl==0.0f && e.loss==DEFAULT_LOSS_ML && e.delay>0.0f);
+  CHECK(e.inMl-e.outMl-e.loss>e.cup-1.0f && e.inMl-e.outMl-e.loss<e.cup+1.0f);   // the volumes add up: cup = In - Out - loss
+  CHECK(!j.read(1,e));
+  for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!j.read(1,e));    // written once
+  // 2. stopped by the start button, in the main phase
+  m.handleStartButton(); t0=t;
+  for(int i=0;i<15;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.update(); }
+  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.sequence==1 && e.cup<DEFAULT_VOLUME-20);
+  // 3. no water: the pump runs, nothing counted
+  m.handleStartButton();
+  for(int i=0;i<80;i++){ t+=100; m.update(); }
+  CHECK(m.extraction_.hasNoWaterError() && j.read(0,e) && e.reason==END_NO_WATER && e.phase==EXTRACTION_RUNNING && e.sequence==2 && e.inMl==0.0f);
+  m.handleShortPush();                                                 // the error is cleared (the short push of the encoder)
+  // 4. MANUAL, stopped by the button: the volume is In - Out (no loss)
+  m.handleShortPush(); CHECK(m.screen_.settings().manual);
+  m.handleStartButton(); t0=t;
+  for(int i=0;i<30;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=(t-t0)*0.001f; m.update(); }
+  m.handleStartButton(); for(int i=0;i<10;i++){ t+=100; m.update(); }
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_MANUAL && (e.flags&1) && e.sequence==3);
+  CHECK(e.inMl>8.0f && e.inMl<10.0f && e.outMl>2.5f && e.outMl<3.5f && e.cup>=5 && e.cup<=7);
+  m.handleShortPush(); CHECK(!m.screen_.settings().manual);            // AUTO again
+  // 5. the maximum duration: the water trickles, the target is never reached
+  m.handleStartButton(); t0=t;
+  for(int i=0;i<1400 && m.extraction_.state()!=EXTRACTION_ERROR;i++){ t+=100; m.flow_.in=m.flow_.in+0.05f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.sequence==4 && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
+  // the order and the count: the last one first, five in all
+  CHECK(j.read(1,e) && e.reason==END_USER && e.sequence==3 && j.read(4,e) && e.reason==END_TARGET && !j.read(5,e));
+  printf("journal: ok\n");
+}
 // The delay of the stop before the target is learned, saved and given back at the next start
 static void stopDelay(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
@@ -518,4 +561,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); coldBoiler(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); journal(); coldBoiler(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

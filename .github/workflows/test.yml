@@ -19,6 +19,9 @@ jobs:
         include:
           - name: In and Out sensors (as configured)
             edit: "true"
+          - name: journal reader (tools/journal_dump.cpp)
+            edit: "true"
+            env: journal_dump
           - name: Nano R4 (as configured)
             edit: "true"
             env: nano_r4

@@ -46,6 +46,7 @@
 #include <Arduino.h>
 #include "../Config.h"
 #include "../drivers/FlowSensor.h"
+#include "../settings/Journal.h"   // EndReason
 
 // The phases PREINFUSION..MANUAL are described by the phase table of ExtractionController.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.
@@ -101,6 +102,17 @@ class ExtractionController {
     void update(uint32_t now, uint16_t targetVolumeMl);
 
     ExtractionState state() const { return state_; }
+
+    // Why the extraction (or the last one) ended, and in which phase: given by whoever ends it, the first reason is kept
+    // (the end of a flush does not replace it). END_NONE until it ends. See Journal.h.
+    void endedBy(EndReason reason);
+    EndReason endReason() const { return (EndReason)endReason_; }
+    uint8_t endPhase() const { return endPhase_; }
+    bool isManual() const { return manual_; }
+    float loss() const { return lossMl_; }
+    // The water counted by the sensors, final like volumeMl() (not those of a flush)
+    float volumeInMl() const { return finalInMl_; }
+    float volumeOutMl() const { return finalOutMl_; }
 
     // No-water error: the pump is stopped, the state stays EXTRACTION_ERROR_NO_WATER and start() is
     // ignored until clearError() puts the controller back to IDLE (ignored in any other state).
@@ -206,6 +218,10 @@ class ExtractionController {
     float lossMl_;              // water that does not end in the cup (setting)
     float netMl_;               // In - Out when volumeMl_ was last computed
     bool finishedNormally_;     // the last extraction ended with finish()
+    uint8_t endReason_;         // why it ended (EndReason) and in which phase, see endedBy()
+    uint8_t endPhase_;
+    float finalInMl_;           // In and Out when the volume was last made final (stop() and settle())
+    float finalOutMl_;
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
 

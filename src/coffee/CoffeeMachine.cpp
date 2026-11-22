@@ -127,8 +127,34 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
     screen_.offerCalibration(extraction_.volumeMl());
   }
 
+  // The journal: the extraction is over (how it ended is known) and its volumes are final
+  if (journalPending_ && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
+    journalPending_ = false;
+    writeJournal();
+  }
+
   // The drop icon blinks until the no-water error is cleared
   screen_.showNoWater(extraction_.hasNoWaterError());
+}
+
+// One line in the journal of the last extractions (EEPROM, see Journal.h)
+void CoffeeMachine::writeJournal() {
+  const Settings &settings = screen_.settings();
+  JournalEntry entry;
+  entry.reason = extraction_.endReason();
+  entry.phase = extraction_.endPhase();
+  entry.flags = extraction_.isManual() ? 1 : 0;
+  entry.target = settings.volume;
+  entry.preinfusion = settings.preinfusion;
+  entry.wait = settings.preinfusionWait;
+  entry.duration = (uint8_t)extraction_.durationSeconds();   // 120 s at most (DURATION_MAX)
+  entry.cup = (uint8_t)extraction_.volumeMl();
+  entry.temperature = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
+  entry.inMl = extraction_.volumeInMl();
+  entry.outMl = extraction_.volumeOutMl();
+  entry.loss = extraction_.loss();
+  entry.delay = extraction_.stopDelaySeconds();
+  journal_.add(entry);
 }
 
 // Section 4 of update(): the state of the extraction on the screen; the final values of an extraction are shown once it stopped.
@@ -280,11 +306,13 @@ void CoffeeMachine::handleExtractionPush() {
     case EXTRACTION_PREINFUSION_WAIT:
     case EXTRACTION_RUNNING:
       // The user ends the extraction: next is the flush (if its time is not 0)
+      extraction_.endedBy(END_USER);
       extraction_.finish(millis());
       break;
 
     case EXTRACTION_MANUAL:
       // MANUAL mode: the second push stops the pump (no flush)
+      extraction_.endedBy(END_USER);
       extraction_.stop(EXTRACTION_FINISHED);
       break;
 
@@ -315,6 +343,7 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();
+  journalPending_ = extraction_.isActive();   // the journal gets this extraction when its values are final
 }
 
 // The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the

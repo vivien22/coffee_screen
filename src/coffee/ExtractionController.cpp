@@ -78,6 +78,10 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   lossMl_(DEFAULT_LOSS_ML),
   netMl_(0.0f),
   finishedNormally_(false),
+  endReason_(END_NONE),
+  endPhase_(0),
+  finalInMl_(0.0f),
+  finalOutMl_(0.0f),
   flowCheckMl_(0.0f),
   flowCheckAt_(0),
   stopDelayS_(STOP_DELAY_DEFAULT_S),
@@ -128,6 +132,8 @@ bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   volumeMl_ = 0;
   netMl_ = 0.0f;
   finishedNormally_ = false;
+  endReason_ = END_NONE;
+  finalInMl_ = finalOutMl_ = 0.0f;
   durationSeconds_ = 0;
   lastVolumeAt_ = now;
 
@@ -159,6 +165,14 @@ void ExtractionController::startManual(uint32_t pressTime, uint16_t seconds) {
   manual_ = true;
   phaseSeconds_[DURATION_MANUAL] = (uint8_t)seconds;
   enterPhase(EXTRACTION_MANUAL, millis());
+}
+
+// The reason why the extraction ended, with the phase it was in: the first reason is kept
+void ExtractionController::endedBy(EndReason reason) {
+  if (endReason_ == END_NONE) {
+    endReason_ = reason;
+    endPhase_ = state_;
+  }
 }
 
 // Normal end of an AUTO extraction (target volume reached, or the user pushed): then the flush, if any.
@@ -223,6 +237,8 @@ void ExtractionController::stop(ExtractionState finalState) {
     // Final values
     durationSeconds_ = (uint16_t)((uint32_t)(millis() - startedAt_) / 1000UL);
     volumeMl_ = cupVolumeMl();
+    finalInMl_ = flow_.getVolumeIn();
+    finalOutMl_ = flow_.getVolumeOut();
   }
 
   DEBUG_PRINTLN(F("Extraction stopped"));
@@ -257,6 +273,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
       flowCheckMl_ = in;
       flowCheckAt_ = now;
     } else if ((uint32_t)(now - flowCheckAt_) >= NO_FLOW_TIMEOUT_MS) {
+      endedBy(END_NO_WATER);
       stop(EXTRACTION_ERROR_NO_WATER);
       return;
     }
@@ -271,6 +288,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   if (phaseOver) {
     ExtractionState next = (ExtractionState)nextOf(state_);
     if (next == EXTRACTION_FINISHED) {
+      endedBy(END_TIMER);
       stop(EXTRACTION_FINISHED);
       return;
     }
@@ -302,6 +320,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   // The target is checked on every pass, with the volume counted so far (the pulses not yet converted included), and the pump
   // stops a little BEFORE it: the water that still comes after the stop fills the rest (see anticipationMl()).
   if (state_ == EXTRACTION_RUNNING && cupVolumeLiveMl() + anticipationMl() >= (float)targetVolumeMl) {
+    endedBy(END_TARGET);
     finish(now);
     return;
   }
@@ -313,6 +332,7 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
 
   // ----- Maximum extraction duration guard -----
   if (elapsedSeconds > (uint32_t)DURATION_MAX) {
+    endedBy(END_MAX_TIME);
     stop(EXTRACTION_ERROR);
   }
 }
@@ -389,6 +409,8 @@ void ExtractionController::settle(uint32_t now) {
   }
 
   volumeMl_ = cupVolumeMl();   // with the water that came after the stop (also brings netMl_ up to date)
+  finalInMl_ = flow_.getVolumeIn();
+  finalOutMl_ = flow_.getVolumeOut();
   settled_ = true;
 }
 

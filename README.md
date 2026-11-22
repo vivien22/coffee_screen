@@ -54,6 +54,11 @@ Built and used every day on an **Ascaso Steel Uno Pro**: it controls the boiler 
   EEPROM as they are set.
 - **A welcome picture** at start-up and in standby.
 
+### Journal
+The last 10 extractions are kept in the EEPROM: how each one ended (target reached, stopped by the button, no water...), the water
+counted by the two sensors, the loss and the settings used. A small sketch prints them, to understand a cup that went wrong
+([The journal](docs/DOCUMENTATION.md#the-journal-of-the-last-extractions)).
+
 ### Safeties
 No-water detection (the pump stops and the screen says so), maximum duration of an extraction, probe fault detection
 (heater off, `ERR` on the screen), watchdog reset. The details are in

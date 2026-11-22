@@ -23,11 +23,12 @@ for t in test/test_*.cpp; do
   case "$n" in
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp";;
     test_anticipation) C="$C $B/$d/src/settings/Settings.cpp";;
+    test_journal) C="$B/$d/src/settings/Journal.cpp";;
     test_temperature) C="$B/$d/src/heating/TemperatureSensor.cpp";;
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
-    test_machine) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
+    test_machine) C="$C $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
   esac
   g++ -std=c++11 -w $EXTRA -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
