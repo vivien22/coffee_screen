@@ -3,7 +3,8 @@
 // read the serial line, then flash the machine again: pio run -e nanoatmega328new -t upload (the EEPROM is kept).
 //
 // One line per extraction, the last one first:
-//   #12 TARGET  RUN  AUTO tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
+//   #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
+// Only the AUTO extractions are in the journal.
 #include <Arduino.h>
 #include <EEPROM.h>
 #include "../src/settings/Journal.h"
@@ -25,7 +26,6 @@ static const __FlashStringHelper *phaseName(uint8_t phase) {
     case EXTRACTION_PREINFUSION:      return F("PRE");
     case EXTRACTION_PREINFUSION_WAIT: return F("WAIT");
     case EXTRACTION_RUNNING:          return F("RUN");
-    case EXTRACTION_MANUAL:           return F("MANUAL");
     default:                          return F("?");
   }
 }
@@ -46,8 +46,7 @@ void setup() {
     Serial.print('#'); Serial.print(e.sequence);
     Serial.print(' '); Serial.print(reasonName(e.reason));
     Serial.print(F("  ended in ")); Serial.print(phaseName(e.phase));
-    Serial.print((e.flags & 1) ? F("  MANUAL") : F("  AUTO"));
-    Serial.print(F(" tgt ")); Serial.print(e.target);
+    Serial.print(F("  tgt ")); Serial.print(e.target);
     Serial.print(F(" pre ")); Serial.print(e.preinfusion);
     Serial.print(F(" wait ")); Serial.print(e.wait);
     Serial.print(F(" | ")); Serial.print(e.duration); Serial.print(F(" s | in "));

@@ -143,7 +143,6 @@ void CoffeeMachine::writeJournal() {
   JournalEntry entry;
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
-  entry.flags = extraction_.isManual() ? 1 : 0;
   entry.target = settings.volume;
   entry.preinfusion = settings.preinfusion;
   entry.wait = settings.preinfusionWait;
@@ -343,7 +342,7 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();
-  journalPending_ = extraction_.isActive();   // the journal gets this extraction when its values are final
+  journalPending_ = extraction_.isActive() && !settings.manual;   // the journal gets this extraction (AUTO only) when its values are final
 }
 
 // The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the

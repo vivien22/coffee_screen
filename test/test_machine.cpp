@@ -512,7 +512,7 @@ static void journal(){
   for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
   CHECK(!j.read(0,e));                                                 // the pump just stopped: the water that comes after is being counted
   for(int i=0;i<40;i++){ t+=100; m.update(); }
-  CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING && e.flags==0 && e.sequence==0);
+  CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING && e.sequence==0);
   CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.wait==0 && e.duration>=21 && e.duration<=25 && e.temperature>=85 && e.temperature<=90);
   CHECK(e.cup>=DEFAULT_VOLUME-1 && e.cup<=DEFAULT_VOLUME+2 && e.outMl==0.0f && e.loss==DEFAULT_LOSS_ML && e.delay>0.0f);
   CHECK(e.inMl-e.outMl-e.loss>e.cup-1.0f && e.inMl-e.outMl-e.loss<e.cup+1.0f);   // the volumes add up: cup = In - Out - loss
@@ -528,20 +528,19 @@ static void journal(){
   for(int i=0;i<80;i++){ t+=100; m.update(); }
   CHECK(m.extraction_.hasNoWaterError() && j.read(0,e) && e.reason==END_NO_WATER && e.phase==EXTRACTION_RUNNING && e.sequence==2 && e.inMl==0.0f);
   m.handleShortPush();                                                 // the error is cleared (the short push of the encoder)
-  // 4. MANUAL, stopped by the button: the volume is In - Out (no loss)
+  // 4. MANUAL: not in the journal (only the AUTO extractions are kept), the next one goes on with the next number
   m.handleShortPush(); CHECK(m.screen_.settings().manual);
   m.handleStartButton(); t0=t;
   for(int i=0;i<30;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=(t-t0)*0.001f; m.update(); }
-  m.handleStartButton(); for(int i=0;i<10;i++){ t+=100; m.update(); }
-  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_MANUAL && (e.flags&1) && e.sequence==3);
-  CHECK(e.inMl>8.0f && e.inMl<10.0f && e.outMl>2.5f && e.outMl<3.5f && e.cup>=5 && e.cup<=7);
+  m.handleStartButton(); for(int i=0;i<60;i++){ t+=100; m.update(); }
+  CHECK(j.read(0,e) && e.reason==END_NO_WATER && e.sequence==2 && !j.read(3,e));
   m.handleShortPush(); CHECK(!m.screen_.settings().manual);            // AUTO again
   // 5. the maximum duration: the water trickles, the target is never reached
   m.handleStartButton(); t0=t;
   for(int i=0;i<1400 && m.extraction_.state()!=EXTRACTION_ERROR;i++){ t+=100; m.flow_.in=m.flow_.in+0.05f; m.update(); }
-  CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.sequence==4 && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
-  // the order and the count: the last one first, five in all
-  CHECK(j.read(1,e) && e.reason==END_USER && e.sequence==3 && j.read(4,e) && e.reason==END_TARGET && !j.read(5,e));
+  CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.sequence==3 && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
+  // the order and the count: the last one first, four in all
+  CHECK(j.read(1,e) && e.reason==END_NO_WATER && e.sequence==2 && j.read(3,e) && e.reason==END_TARGET && !j.read(4,e));
   printf("journal: ok\n");
 }
 // The delay of the stop before the target is learned, saved and given back at the next start

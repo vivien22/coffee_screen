@@ -192,16 +192,16 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 10 extractions** (a ring: the oldest one is overwritten). It is there to
+The machine keeps in its EEPROM a **journal of the last 10 AUTO extractions** (a ring: the oldest one is overwritten; the MANUAL ones are not kept). It is there to
 understand an extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the
 machine shows or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the
 water that still comes is then counted), so a power cut in the middle loses that extraction only.
 
 | Field | Meaning |
 |---|---|
-| reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`), `TIMER` (the MANUAL time) |
-| phase | in which phase it ended: `PRE` (pre-infusion), `WAIT`, `RUN` (main extraction) or `MANUAL` |
-| AUTO / MANUAL, target, pre, wait | the mode and the settings it used (target volume, pre-infusion volume, wait time) |
+| reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`), `TIMER` (not used by the AUTO extractions) |
+| phase | in which phase it ended: `PRE` (pre-infusion), `WAIT` or `RUN` (main extraction) |
+| target, pre, wait | the settings it used (target volume, pre-infusion volume, wait time) |
 | duration | seconds from the start |
 | in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |
 | cup | the final volume shown on the screen: In − Out − loss |
@@ -220,11 +220,11 @@ pio run -e nanoatmega328new -t upload  # the machine again
 It prints one line per extraction, the last one first:
 
 ```
-#12 TARGET  ended in RUN  AUTO tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
+#12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
 ```
 
-The layout (address 128: the next position, then 10 entries of 26 bytes) is in `src/settings/Journal.h`. The EEPROM is written only
-at the end of an extraction (about 26 bytes), far from its limit of 100 000 writes per byte.
+The layout (address 128: the next position, then 10 entries of 25 bytes) is in `src/settings/Journal.h`. The EEPROM is written only
+at the end of an extraction (about 25 bytes), far from its limit of 100 000 writes per byte.
 
 ### What is saved, and when
 

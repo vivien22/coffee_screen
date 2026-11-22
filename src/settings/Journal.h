@@ -1,10 +1,10 @@
 /*
   Journal: the last JOURNAL_COUNT extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
-  extraction, written when its values are final: how it ended and why, the volumes counted by the flow sensors, the
+  AUTO extraction (the MANUAL ones are not kept), written when its values are final: how it ended and why, the volumes counted by the flow sensors, the
   settings it used and the machine state. It is read with the journal_dump environment (see platformio.ini), which prints the
   entries over the serial line: nothing in the machine itself shows or uses it.
 
-  EEPROM layout, from address 128: [next slot: 1 byte][JOURNAL_COUNT entries of 26 bytes]. A blank (0xFF) or unknown slot is
+  EEPROM layout, from address 128: [next slot: 1 byte][JOURNAL_COUNT entries of 25 bytes]. A blank (0xFF) or unknown slot is
   empty. The addresses 0..31 are the settings (Settings.cpp).
 */
 
@@ -18,14 +18,13 @@ enum EndReason : uint8_t {
   END_USER,        // the start / stop button
   END_NO_WATER,    // the no-flow safety: no water entering the boiler
   END_MAX_TIME,    // the maximum duration of an extraction (DURATION_MAX)
-  END_TIMER        // the MANUAL time elapsed
+  END_TIMER        // a timed phase elapsed (not used by the AUTO extractions: kept for the numbering)
 };
 
-// 26 bytes, written as they are (the floats are kept as they are: no conversion in the machine)
+// 25 bytes, written as they are (the floats are kept as they are: no conversion in the machine)
 struct JournalEntry {
   uint8_t reason;        // EndReason
-  uint8_t phase;         // ExtractionState it was in when it ended (PREINFUSION, PREINFUSION_WAIT, RUNNING, MANUAL)
-  uint8_t flags;         // bit 0: MANUAL
+  uint8_t phase;         // ExtractionState it was in when it ended (PREINFUSION, PREINFUSION_WAIT, RUNNING)
   uint8_t target;        // target volume (ml) of the settings
   uint8_t preinfusion;   // pre-infusion volume (ml) of the settings
   uint8_t wait;          // wait time (s) of the settings
