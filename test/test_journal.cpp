@@ -1,4 +1,4 @@
-// The journal of the last extractions (Journal.cpp): a ring of JOURNAL_COUNT (66) entries of 15 bytes in the EEPROM, the last one first.
+// The journal of the last extractions (Journal.cpp): a ring of JOURNAL_COUNT (62) entries of 16 bytes in the EEPROM, the last one first.
 #include <cstdio>
 #include <cstring>
 #include "EEPROM.h"
@@ -14,7 +14,7 @@ static JournalEntry entry(uint8_t reason, uint16_t in) {
 
 int main() {
   Journal j; JournalEntry e;
-  CHECK(sizeof(JournalEntry) == 15 && JOURNAL_COUNT == 66);
+  CHECK(sizeof(JournalEntry) == 16 && JOURNAL_COUNT == 62);
   // a blank EEPROM: nothing in the journal
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
   CHECK(!j.read(0, e) && !j.read(5, e) && !j.read(JOURNAL_COUNT, e));
@@ -22,6 +22,7 @@ int main() {
   j.add(entry(END_TARGET, 1023));
   CHECK(j.read(0, e) && e.reason == END_TARGET && e.phase == 3 && e.target == 60 && e.preinfusion == 40 && e.wait == 5 && e.duration == 27);
   CHECK(e.inTenths == 1023 && e.outTenths == 541 && e.loss4 == 145 && e.cup == 12 && e.delay100 == 37 && e.tempStart == 88 && e.tempEnd == 91 && e.sequence == 0);
+  CHECK(e.cal == 0);                                                     // CAL not entered
   CHECK(!j.read(1, e));                                                  // only one
   // three more: the last one first, the order is the one of the writes
   j.add(entry(END_USER, 100)); j.add(entry(END_NO_WATER, 200)); j.add(entry(END_MAX_TIME, 300));
@@ -47,7 +48,7 @@ int main() {
   CHECK(j.read(0, e) && e.inTenths == 5);
   // a slot of the ring that was never written (0xFF) is empty
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem)); j.add(entry(END_TARGET, 1));
-  CHECK(j.read(0, e) && !j.read(1, e) && !j.read(65, e));
+  CHECK(j.read(0, e) && !j.read(1, e) && !j.read(JOURNAL_COUNT - 1, e));
   // the writes: an entry costs at most its own bytes and the position
   EEPROM.writes = 0; j.add(entry(END_TARGET, 1));
   CHECK(EEPROM.writes <= (int)sizeof(JournalEntry) + 1);

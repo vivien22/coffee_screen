@@ -271,6 +271,7 @@ static void calibration(){
   CHECK(m.screen_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
   m.screen_.adjustActiveParameter(-(m.screen_.calibrationValue_-30)); // the cup really holds 30 g
   m.handleDoublePush();                                  // validates
+  { Journal jj; JournalEntry je; CHECK(jj.read(0,je) && je.cal==30 && je.reason==END_TARGET); }   // the weight is in the journal (last entry)
   float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
   CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
   CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);        // saved
@@ -284,6 +285,7 @@ static void calibration(){
   // CAL not touched: the loss stays
   gotoParam(m,PARAMETER_CALIBRATION); float before=m.screen_.settings().loss; m.handleDoublePush();
   CHECK(m.screen_.settings().loss==before && m.screen_.activeParameter()==PARAMETER_PREINFUSION);   // not modified: the cycle goes on
+  { Journal jj; JournalEntry je; CHECK(jj.read(0,je) && je.cal==0 && jj.read(1,je) && je.cal==30); }   // not modified: nothing written, the older one keeps its weight
   // an extraction under CALIBRATION_MIN_ML is not offered
   gotoParam(m,PARAMETER_VOLUME); m.screen_.adjustActiveParameter(5-m.screen_.settings().volume); runAuto(m);
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !m.extraction_.calibratable());
@@ -559,7 +561,7 @@ static void journal(){
   for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the main phase
   CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.preinfusion==10 && e.sequence==6 && j.read(6,e) && !j.read(7,e));
-  // 7. the ring keeps the last 66: more extractions (quick ones) than it holds, the oldest ones go
+  // 7. the ring keeps the last 62: more extractions (quick ones) than it holds, the oldest ones go
   for(int n=0;n<110;n++){
     m.handleStartButton(); for(int i=0;i<15;i++){ t+=100; m.update(); }
     m.handleStartButton(); for(int i=0;i<30;i++){ t+=100; m.update(); }   // stopped in the pre-infusion

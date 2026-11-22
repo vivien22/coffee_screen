@@ -17,7 +17,7 @@
 #define PIN_VALVE_RELAY   A3
 #define PIN_MAX31865_CS   6
 #define PIN_START_BUTTON  A0    // the start / stop button of the extraction (see START_BUTTON below)
-// Flow sensors: they need an interrupt. Nano R3: any of A0..A5 (PCINT1, see USN_FlowSensor). Nano R4: A1 is external
+// Flow sensors: they need an interrupt. Nano R3: any of A0..A5 (PCINT1, see FlowSensor). Nano R4: A1 is external
 // interrupt channel 6 and A2 channel 7 (A0 has none; D2 / D3, the encoder, are channels 0 / 1; keep A4 free: it shares
 // channel 1 with D3, and A5: it shares channel 2 with A3, the valve relay, a plain output). The same wiring works on both
 // boards. A0 is not used.

@@ -1,14 +1,14 @@
-// USN_FlowSensor.cpp: pulse counting of the two flow sensors, volumes and flow rate.
+// FlowSensor.cpp: pulse counting of the two flow sensors, volumes and flow rate.
 #include "../Config.h"
 
-#include "USN_FlowSensor.h"
+#include "FlowSensor.h"
 #include "../platform/Platform.h"
 
-USN_FlowSensor* USN_FlowSensor::instance_ = nullptr;
+FlowSensor* FlowSensor::instance_ = nullptr;
 
 // Counts the pulses of the two flow sensors (in the interrupt of the board, see platform/), and turns them into volumes
 // and flow rate.
-USN_FlowSensor::USN_FlowSensor() :
+FlowSensor::FlowSensor() :
     pulsesIn_(0),
     pulsesOut_(0),
     lastUpdateAt_(0),
@@ -20,7 +20,7 @@ USN_FlowSensor::USN_FlowSensor() :
 }
 
 // Configure the In and Out inputs and enable the interrupt of the board for them.
-void USN_FlowSensor::begin()
+void FlowSensor::begin()
 {
     instance_ = this;
     platformPulsesBegin();
@@ -30,21 +30,21 @@ void USN_FlowSensor::begin()
 // Called by the interrupt of the board (platform/) on each falling edge of an input.
 void flowPulseIn()
 {
-    if (USN_FlowSensor::instance_ != nullptr) {
-        USN_FlowSensor::instance_->countPulseIn();
+    if (FlowSensor::instance_ != nullptr) {
+        FlowSensor::instance_->countPulseIn();
     }
 }
 
 void flowPulseOut()
 {
-    if (USN_FlowSensor::instance_ != nullptr) {
-        USN_FlowSensor::instance_->countPulseOut();
+    if (FlowSensor::instance_ != nullptr) {
+        FlowSensor::instance_->countPulseOut();
     }
 }
 
 // Call from loop(): every FLOW_UPDATE_MS, the pulses counted since the last time are converted
 // into volumes and flow rates (the actual elapsed time is used for the rates).
-void USN_FlowSensor::update()
+void FlowSensor::update()
 {
     const uint32_t now = millis();
     const uint32_t durationMs = now - lastUpdateAt_;
@@ -71,7 +71,7 @@ void USN_FlowSensor::update()
 }
 
 // In - Out including the pulses that update() has not converted yet (the pulses counted since it ran).
-float USN_FlowSensor::getNetVolumeLive()
+float FlowSensor::getNetVolumeLive()
 {
     noInterrupts();
     const uint16_t pulsesIn = pulsesIn_;
@@ -84,20 +84,20 @@ float USN_FlowSensor::getNetVolumeLive()
 }
 
 // Begin a new extraction and clear previous measurements.
-void USN_FlowSensor::startExtraction()
+void FlowSensor::startExtraction()
 {
     resetVolume();
 }
 
 // Stop reporting instantaneous flow. Accumulated volumes are preserved.
-void USN_FlowSensor::stopExtraction()
+void FlowSensor::stopExtraction()
 {
     lastInRate_ = 0.0f;
     lastOutRate_ = 0.0f;
 }
 
 // Reset pulse counters and accumulated measurements.
-void USN_FlowSensor::resetVolume()
+void FlowSensor::resetVolume()
 {
     noInterrupts();
     pulsesIn_ = 0;

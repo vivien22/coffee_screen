@@ -55,9 +55,10 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
 
 ## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
-- `src/settings/Journal.{h,cpp}`: a ring of 66 entries of 15 bytes in the EEPROM from address 24 (991 bytes of the 1024 of the R3; the
+- `src/settings/Journal.{h,cpp}`: a ring of 62 entries of 16 bytes in the EEPROM from address 24 (993 bytes of the 1024 of the R3; 66 entries became 62 when `cal` was added, as the user allowed; the
   settings are at 0..19): `JournalEntry` = reason + phase (4 bits each), target, pre-infusion, wait, duration, In and Out in tenths of ml
-  (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number. The
+  (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
+  `CoffeeMachine::validateCalibration()` through `Journal::setLastCal()`, only when the weight was changed, else 0). The
   user asked for 100 compact entries, then for all these fields back "even if there are fewer entries": do not trade them again
   without asking. AUTO extractions only (`journalPending_` is not set in MANUAL), whichever phase they ended in.
   `ExtractionController::endedBy()` keeps the FIRST reason (target, user, no water, max time) with the phase;

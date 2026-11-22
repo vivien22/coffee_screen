@@ -16,7 +16,7 @@ void platformWatchdogKick();
 
 // ---------- Pulses of the flow sensors ----------
 // platformPulsesBegin() sets the inputs PIN_FLOW_IN and PIN_FLOW_OUT as inputs with a pull-up and enables the interrupt that
-// calls flowPulseIn() / flowPulseOut() on each falling edge. The two functions are defined by USN_FlowSensor.cpp and called
+// calls flowPulseIn() / flowPulseOut() on each falling edge. The two functions are defined by FlowSensor.cpp and called
 // from the interrupt: they must be short.
 void platformPulsesBegin();
 void flowPulseIn();

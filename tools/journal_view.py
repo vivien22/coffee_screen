@@ -25,7 +25,7 @@ import sys
 
 LINE = re.compile(
     r"#(?P<seq>\d+)\s+(?P<reason>\w+)\s+ended in (?P<phase>\w+)\s+tgt (?P<tgt>\d+) pre (?P<pre>\d+) wait (?P<wait>\d+)"
-    r"\s*\|\s*(?P<dur>\d+) s\s*\|\s*in (?P<inn>[\d.]+) out (?P<out>[\d.]+) net (?P<net>-?[\d.]+) loss (?P<loss>[\d.]+) cup (?P<cup>\d+)"
+    r"\s*\|\s*(?P<dur>\d+) s\s*\|\s*in (?P<inn>[\d.]+) out (?P<out>[\d.]+) net (?P<net>-?[\d.]+) loss (?P<loss>[\d.]+) cup (?P<cup>\d+)(?: cal (?P<cal>\d+))?"
     r"\s*\|\s*delay (?P<delay>[\d.]+)\s*\|\s*(?P<t0>\d+) -> (?P<t1>\d+) C")
 
 # how an extraction ended: label, glyph (never the color alone), color token (status colors of the palette)
@@ -49,7 +49,7 @@ def parse(text):
             entries.append({
                 "seq": int(d["seq"]), "reason": d["reason"], "phase": d["phase"], "target": int(d["tgt"]), "pre": int(d["pre"]),
                 "wait": int(d["wait"]), "duration": int(d["dur"]), "inn": float(d["inn"]), "out": float(d["out"]),
-                "net": float(d["net"]), "loss": float(d["loss"]), "cup": int(d["cup"]), "delay": float(d["delay"]),
+                "net": float(d["net"]), "loss": float(d["loss"]), "cup": int(d["cup"]), "cal": int(d["cal"] or 0), "delay": float(d["delay"]),
                 "t0": int(d["t0"]), "t1": int(d["t1"]),
             })
     entries.reverse()
@@ -121,9 +121,9 @@ def chart_body(entries):
         reason = REASONS.get(e["reason"], (e["reason"], "?", "info"))
         cup_calc = e["inn"] - e["out"] - e["loss"]
         return ("#%d: %s, in the %s&#10;target %d ml, pre-infusion %d ml, wait %d s&#10;in %.1f, out %.1f, net %.1f ml&#10;"
-                "loss %.1f ml, final volume %d ml (In - Out - loss = %.1f)&#10;duration %d s, stop delay %.2f s&#10;temperature %d -> %d C") % (
+                "loss %.1f ml, final volume %d ml (In - Out - loss = %.1f)%s&#10;duration %d s, stop delay %.2f s&#10;temperature %d -> %d C") % (
             e["seq"], esc(reason[0]), PHASES.get(e["phase"], e["phase"]), e["target"], e["pre"], e["wait"], e["inn"], e["out"],
-            e["net"], e["loss"], e["cup"], cup_calc, e["duration"], e["delay"], e["t0"], e["t1"])
+            e["net"], e["loss"], e["cup"], cup_calc, ("&#10;CAL: cup weighed %d g" % e["cal"]) if e["cal"] else "", e["duration"], e["delay"], e["t0"], e["t1"])
 
     # ---------------- chart 1: the water, stacked
     top, ticks = nice_max(max([e["inn"] for e in entries] + [e["target"] for e in entries]) * 1.05)
@@ -304,7 +304,7 @@ def build(entries, source):
         '<section><h2>Duration</h2><p class="note">Seconds from the start of the extraction (the pre-infusion included).</p><div class="scroll">%s</div></section>' % c2 +
         '<section><h2>Temperature</h2><p class="note">At the start (hollow) and at the end (filled), in degrees C, as shown on the screen.</p><div class="scroll">%s</div></section>' % c3 +
         '<section><h2>The extractions</h2><div class="scroll"><table><thead><tr><th>#</th><th>Ended</th><th>In phase</th><th>Target</th><th>Pre / wait</th><th>s</th>'
-        '<th>In</th><th>Out</th><th>Net</th><th>Loss</th><th>Cup</th><th>Delay</th><th>&deg;C</th></tr></thead><tbody>%s</tbody></table></div></section>' % table_rows(entries))
+        '<th>In</th><th>Out</th><th>Net</th><th>Loss</th><th>Cup</th><th>CAL</th><th>Delay</th><th>&deg;C</th></tr></thead><tbody>%s</tbody></table></div></section>' % table_rows(entries))
     return PAGE.replace("@SUB@", html.escape(source)).replace("@CONTENT@", content)
 
 
@@ -313,9 +313,9 @@ def table_rows(entries):
     for e in reversed(entries):
         label, glyph, tone = REASONS.get(e["reason"], (e["reason"], "?", "info"))
         out.append("<tr><td>#%d</td><td><span class=\"chip %s\">%s</span> %s</td><td>%s</td><td>%d</td><td>%d / %d</td><td>%d</td>"
-                   "<td>%.1f</td><td>%.1f</td><td>%.1f</td><td>%.1f</td><td>%d</td><td>%.2f</td><td>%d &rarr; %d</td></tr>" % (
+                   "<td>%.1f</td><td>%.1f</td><td>%.1f</td><td>%.1f</td><td>%d</td><td>%s</td><td>%.2f</td><td>%d &rarr; %d</td></tr>" % (
                        e["seq"], tone, html.escape(glyph), html.escape(label), PHASES.get(e["phase"], e["phase"]), e["target"], e["pre"], e["wait"],
-                       e["duration"], e["inn"], e["out"], e["net"], e["loss"], e["cup"], e["delay"], e["t0"], e["t1"]))
+                       e["duration"], e["inn"], e["out"], e["net"], e["loss"], e["cup"], e["cal"] or "", e["delay"], e["t0"], e["t1"]))
     return "".join(out)
 
 

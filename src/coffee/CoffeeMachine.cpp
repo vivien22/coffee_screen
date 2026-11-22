@@ -155,7 +155,17 @@ void CoffeeMachine::writeJournal() {
   entry.delay100 = (uint8_t)(extraction_.stopDelaySeconds() * 100.0f + 0.5f);
   entry.tempStart = journalTempStart_;
   entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
+  entry.cal = 0;   // set later if the cup weight is entered in CAL
   journal_.add(entry);
+}
+
+// The weight entered in CAL is validated: written in the journal (last entry = the extraction CAL was offered for) only if it was
+// changed, then the loss is corrected (the same thing for the double push and for the start button).
+void CoffeeMachine::validateCalibration() {
+  if (screen_.calibrationChanged()) {
+    journal_.setLastCal(screen_.calibrationWeight());
+  }
+  extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
 }
 
 // Section 4 of update(): the state of the extraction on the screen; the final values of an extraction are shown once it stopped.
@@ -394,7 +404,7 @@ void CoffeeMachine::handleStartButton() {
   // The weight that was being entered for CAL is validated like the double push does (the loss is corrected); every other
   // value is already in the settings, startExtraction() saves them.
   if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
-    extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
+    validateCalibration();
   }
   screen_.selectVolume();
   startExtraction(millis());
@@ -425,7 +435,7 @@ void CoffeeMachine::handleDoublePush() {
   }
   if (screen_.activeParameter() == PARAMETER_CALIBRATION) {
     // The cup weight entered corrects the loss, used by the next extractions
-    extraction_.setLossMl(screen_.applyCalibration(extraction_.netVolumeMl()));
+    validateCalibration();
     if (screen_.activeParameter() == PARAMETER_VOLUME) {
       saveSettings();
       return;   // a weight was entered: back to the volume, the rest of the cycle is skipped

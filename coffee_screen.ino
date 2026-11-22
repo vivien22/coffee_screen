@@ -15,7 +15,7 @@
  *   ScreenController       what is shown and when
  *   Display                drawing on the GC9A01 (Layout.h, Fonts.h)
  *   CJMCU111               rotary encoder + push button
- *   USN_FlowSensor         flow sensors (PCINT1 on the R3, external interrupts on the R4)
+ *   FlowSensor             flow sensors (PCINT1 on the R3, external interrupts on the R4)
  *
  * Safeties: the heater is switched off on MAX31865 fault, implausible temperature or standby
  * (STANDBY_MINUTES without activity); the pump stops when no water flows (no-flow safety) and

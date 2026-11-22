@@ -192,7 +192,7 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 66 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
+The machine keeps in its EEPROM a **journal of the last 62 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
 extractions are not kept; an AUTO extraction is, whichever phase it ended in (pre-infusion included). It is there to understand an
 extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the machine shows
 or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the water that still
@@ -206,7 +206,8 @@ comes is then counted), so a power cut in the middle loses that extraction only.
 | tgt, pre, wait | the settings it used: the target volume, the pre-infusion volume and the wait time |
 | duration | seconds from the start |
 | in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |
-| loss, cup | the loss (CAL) used, and the final volume shown: In − Out − loss |
+| loss, cup | the loss used, and the final volume shown: In − Out − loss |
+| cal | the cup weight entered in the CAL parameter and validated (g = ml); written afterwards into the entry of that extraction, only if the weight was changed, otherwise nothing (0 in the EEPROM, not printed) |
 | delay | the delay of the stop before the target used (seconds of flow) |
 | temperatures | the temperature shown at the start of the extraction and when the entry was written (a few seconds after the end), °C |
 
@@ -222,8 +223,10 @@ pio run -e nanoatmega328new -t upload  # the machine again
 It prints one line per extraction, the last one first:
 
 ```
-#12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 | delay 0.37 | 88 -> 91 C
+#12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 cal 10 | delay 0.37 | 88 -> 91 C
 ```
+
+(`cal` only appears when a weight was entered.)
 
 **A graphical view.** `tools/journal_view.py` turns that text into one HTML page (no dependency, no network, light and dark themes): the water
 of each extraction (the volume in the cup, the loss and the Out water, with a tick for the target, and how each one ended: target reached,
@@ -241,9 +244,9 @@ It writes `journal.html` (`-o` to change the name); open it in a browser.
 
 *The picture is the example (made up extractions), not a real machine.*
 
-An entry is 15 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 66 entries take 991 bytes of the 1024 of the
-EEPROM (address 24 to 1014; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
-end of an extraction (15 bytes), far from its limit of 100 000 writes per byte.
+An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 62 entries take 993 bytes of the 1024 of the
+EEPROM (address 24 to 1016; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
+end of an extraction (16 bytes, and one more byte when CAL is validated), far from its limit of 100 000 writes per byte.
 
 ### What is saved, and when
 
@@ -382,7 +385,7 @@ K_IN = 55 681 pulses / 4 435.3 ml = 12.554 pulses per ml      -> 12.56 in Config
   run to the next (the scatter of the measurement of the volume and of the sensor). The total over 25 runs
   smooths it: the error on the factor itself is about 1.4 % ÷ √25 = **0.3 %**.
 - The volume the machine shows is `pulses / K_IN`; a factor 1 % too high would show 1 % too little water (0.4 ml on a 40 ml cup).
-- To do it again (a new sensor, another pump or tubing): run the pump, note the pulses (`USN_FlowSensor` counts them) and the
+- To do it again (a new sensor, another pump or tubing): run the pump, note the pulses (`FlowSensor` counts them) and the
   volume measured at the output, compute `pulses / ml` over the total of several runs, and put it in `FLOW_K_FACTOR_IN`.
 
 ### The Out sensor against the In sensor (2026-11-19)
@@ -636,8 +639,7 @@ src/
     IconsData.h            the icons and the welcome picture, compressed (generated from tools/icons_raw.h)
   drivers/
     CJMCU111               rotary encoder + push button (short, double, long push)
-    USN_FlowSensor         flow sensors (pin change interrupt)
-    FlowSensor.h           FlowSensor = USN_FlowSensor (replaced by a mock or a simulator in the tests)
+    FlowSensor             flow sensors (pin change interrupt); replaced by a mock or a simulator in the tests
 test/                      host tests (run.sh, stubs, mocks)
 tools/                     screen pictures (render_screens), icons (compress_icons, png_to_icon.ps1), size and RAM budget (check_flash)
 images/               the screen pictures

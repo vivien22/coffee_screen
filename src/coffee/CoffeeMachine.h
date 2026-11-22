@@ -45,6 +45,7 @@ class CoffeeMachine {
                                // the extraction, skips the flush if it is waiting or running
     void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
     void writeJournal();       // one line in the journal of the last extractions
+    void validateCalibration();   // CAL validated: the weight goes to the journal (if changed), the loss is corrected
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
     void showExtraction(uint32_t now);
     void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint

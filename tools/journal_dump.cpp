@@ -1,9 +1,9 @@
-// journal_dump: a small sketch that prints the journal of the last 66 AUTO extractions (EEPROM) over the serial line (115200 baud),
+// journal_dump: a small sketch that prints the journal of the last 62 AUTO extractions (EEPROM) over the serial line (115200 baud),
 // then does nothing. It does not write anything. Flash it with: pio run -e journal_dump -t upload, read the serial line, then flash
 // the machine again: pio run -e nanoatmega328new -t upload (the EEPROM is kept).
 //
 // One line per extraction, the last one first (the first number is its sequence number):
-//   #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 | delay 0.37 | 88 -> 91 C
+//   #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 cal 10 | delay 0.37 | 88 -> 91 C
 #include <Arduino.h>
 #include <EEPROM.h>
 #include "../src/settings/Journal.h"
@@ -55,6 +55,7 @@ void setup() {
     Serial.print(F(" net ")); Serial.print(in - out, 1);
     Serial.print(F(" loss ")); Serial.print(e.loss4 / 4.0f, 1);
     Serial.print(F(" cup ")); Serial.print(e.cup);
+    if (e.cal) { Serial.print(F(" cal ")); Serial.print(e.cal); }   // the cup weight entered in CAL (nothing if it was not)
     Serial.print(F(" | delay ")); Serial.print(e.delay100 / 100.0f, 2);
     Serial.print(F(" | ")); Serial.print(e.tempStart); Serial.print(F(" -> ")); Serial.print(e.tempEnd); Serial.println(F(" C"));
   }

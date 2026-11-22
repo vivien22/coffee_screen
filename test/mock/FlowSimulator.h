@@ -1,6 +1,6 @@
 /*
   FlowSimulator: test replacement of src/drivers/FlowSensor.h (run.sh copies it there for the test_sim_* tests), in place of
-  the real USN_FlowSensor. Same interface; no input is read.
+  the real FlowSensor. Same interface; no input is read.
 
   The simulated water follows the pump relay: while the pump is on, water enters the boiler at
   FLOW_SIM_PUMP_ML_PER_S and a part of it (FLOW_SIM_OPV_RATIO) comes back through the OPV valve.
@@ -17,7 +17,7 @@
 
 class FlowSimulator {
   public:
-    // Same as USN_FlowSensor
+    // Same as FlowSensor
     void begin() { lastUpdateAt_ = millis(); }
 
     // Call on every loop pass: integrates the simulated flow
@@ -34,7 +34,7 @@ class FlowSimulator {
       const float outMlPerSec = inMlPerSec * FLOW_SIM_OPV_RATIO;
       const float seconds = durationMs / 1000.0f;
 
-      lastInRate_ = inMlPerSec * 60.0f;     // mL/min, like USN_FlowSensor
+      lastInRate_ = inMlPerSec * 60.0f;     // mL/min, like FlowSensor
       lastOutRate_ = outMlPerSec * 60.0f;
       volumeIn_ += inMlPerSec * seconds;
       volumeOut_ += outMlPerSec * seconds;

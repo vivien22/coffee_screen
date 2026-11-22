@@ -82,6 +82,8 @@ class ScreenController {
     void offerCalibration(uint16_t estimateMl);
     void withdrawCalibration();
     float applyCalibration(float netMl);
+    bool calibrationChanged() const { return calibrationValue_ != calibrationStart_; }   // a weight was entered in CAL
+    uint8_t calibrationWeight() const { return (uint8_t)calibrationValue_; }
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
     // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, MANUAL_MAX_SECONDS, TEMPERATURE_MAX).
