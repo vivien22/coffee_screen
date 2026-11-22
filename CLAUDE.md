@@ -22,7 +22,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `Screen` class replaces `Print::write` by nothing) the text engine of Adafruit_GFX and its 5 x 7 font (1280 B) are not linked
   any more (-2.6 KB): do not call `tft.print()` / `setFont` / `setCursor`, use `putText()`.
 - Last measured (2026-11-22, flags above, welcome picture and standby, In and Out sensors, the stop before the target, the steaming
-  mode, the journal): **30654 B flash (99.8 %), 66 B free**; the RAM stays under 500 B. THE FLASH IS FULL: a new feature needs savings first.
+  mode, the journal): **30314 B flash (98.7 %), 406 B free**; the RAM stays under 500 B. The flash is almost full: watch every feature.
 - `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
   memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
   more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
@@ -55,10 +55,12 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
 
 ## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
-- `src/settings/Journal.{h,cpp}`: a ring of 10 entries of 25 bytes (AUTO extractions only: `journalPending_` is not set in MANUAL; and only those that ended in the main phase, `endPhase() == EXTRACTION_RUNNING`: asked by the user 2026-11-22) in the EEPROM from address 128 (`JournalEntry`: reason, phase,
-  settings, duration, cup, temperature, In / Out / loss / delay as floats: no conversion, flash is full). `ExtractionController::endedBy()`
-  keeps the FIRST reason (target, user, no water, max time, timer) with the phase; `CoffeeMachine::writeJournal()` writes the entry when
-  `endReason()` is set and `settlePending()` is over (the water after the stop is counted), once (`journalPending_`).
+- `src/settings/Journal.{h,cpp}`: a ring of 100 entries of 9 bytes in the EEPROM from address 100 (901 bytes of the 1024 of the R3):
+  `JournalEntry` = reason + phase (4 bits each), target, pre-infusion, duration, In and Out in tenths of ml (16 bits), loss in quarters
+  of ml. Cup = In - Out - loss. AUTO extractions only (`journalPending_` is not set in MANUAL), whichever phase they ended in (the user
+  asked for a filter on the pre-infusion, then withdrew it). `ExtractionController::endedBy()` keeps the FIRST reason (target, user, no
+  water, max time) with the phase; `CoffeeMachine::writeJournal()` writes the entry when `endReason()` is set and `settlePending()` is
+  over (the water after the stop is counted), once.
 - Read it with `pio run -e journal_dump -t upload` (`tools/journal_dump.cpp`), the serial line, then flash the machine again.
   The bootloader (Optiboot) cannot read the EEPROM. Tests: `test_journal` and `journal()` of `test_machine`.
 

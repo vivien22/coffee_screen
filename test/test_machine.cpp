@@ -501,7 +501,7 @@ static void steaming(){
   { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140+TEMPERATURE_OFFSET); }
   printf("steaming: ok\n");
 }
-// The journal of the last extractions: how each one ended and the volumes it counted (see Journal.h)
+// The journal of the last extractions: how each AUTO one ended and the volumes it counted (see Journal.h)
 static void journal(){
   memset(EEPROM.mem,0xFF,sizeof(EEPROM.mem)); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0);
   Journal j; JournalEntry e;
@@ -512,55 +512,59 @@ static void journal(){
   for(int i=0;i<300 && m.extraction_.isActive();i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=0; m.update(); }
   CHECK(!j.read(0,e));                                                 // the pump just stopped: the water that comes after is being counted
   for(int i=0;i<40;i++){ t+=100; m.update(); }
-  CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING && e.sequence==0);
-  CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.wait==0 && e.duration>=21 && e.duration<=25 && e.temperature>=85 && e.temperature<=90);
-  CHECK(e.cup>=DEFAULT_VOLUME-1 && e.cup<=DEFAULT_VOLUME+2 && e.outMl==0.0f && e.loss==DEFAULT_LOSS_ML && e.delay>0.0f);
-  CHECK(e.inMl-e.outMl-e.loss>e.cup-1.0f && e.inMl-e.outMl-e.loss<e.cup+1.0f);   // the volumes add up: cup = In - Out - loss
+  CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING);
+  CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.duration>=21 && e.duration<=25 && e.outTenths==0 && e.loss4==(uint8_t)(DEFAULT_LOSS_ML*4));
+  { const float cup=(e.inTenths-e.outTenths)/10.0f-e.loss4/4.0f; CHECK(cup>=DEFAULT_VOLUME-1 && cup<=DEFAULT_VOLUME+2); }   // the volumes add up
   CHECK(!j.read(1,e));
   for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!j.read(1,e));    // written once
   // 2. stopped by the start button, in the main phase
   m.handleStartButton(); t0=t;
   for(int i=0;i<15;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.update(); }
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }
-  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.sequence==1 && e.cup<DEFAULT_VOLUME-20);
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && (e.inTenths-e.outTenths)/10.0f-e.loss4/4.0f<DEFAULT_VOLUME-20);
   // 3. no water: the pump runs, nothing counted
   m.handleStartButton();
   for(int i=0;i<80;i++){ t+=100; m.update(); }
-  CHECK(m.extraction_.hasNoWaterError() && j.read(0,e) && e.reason==END_NO_WATER && e.phase==EXTRACTION_RUNNING && e.sequence==2 && e.inMl==0.0f);
+  CHECK(m.extraction_.hasNoWaterError() && j.read(0,e) && e.reason==END_NO_WATER && e.phase==EXTRACTION_RUNNING && e.inTenths==0);
   m.handleShortPush();                                                 // the error is cleared (the short push of the encoder)
-  // 4. MANUAL: not in the journal (only the AUTO extractions are kept), the next one goes on with the next number
+  // 4. MANUAL: not in the journal (only the AUTO extractions are kept)
   m.handleShortPush(); CHECK(m.screen_.settings().manual);
   m.handleStartButton(); t0=t;
   for(int i=0;i<30;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.flow_.out=(t-t0)*0.001f; m.update(); }
   m.handleStartButton(); for(int i=0;i<60;i++){ t+=100; m.update(); }
-  CHECK(j.read(0,e) && e.reason==END_NO_WATER && e.sequence==2 && !j.read(3,e));
+  CHECK(j.read(0,e) && e.reason==END_NO_WATER && !j.read(3,e));
   m.handleShortPush(); CHECK(!m.screen_.settings().manual);            // AUTO again
   // 5. the maximum duration: the water trickles, the target is never reached
   m.handleStartButton(); t0=t;
   for(int i=0;i<1400 && m.extraction_.state()!=EXTRACTION_ERROR;i++){ t+=100; m.flow_.in=m.flow_.in+0.05f; m.update(); }
-  CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.sequence==3 && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
+  CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
   // the order and the count: the last one first, four in all
-  CHECK(j.read(1,e) && e.reason==END_NO_WATER && e.sequence==2 && j.read(3,e) && e.reason==END_TARGET && !j.read(4,e));
-  // 6. with a pre-infusion (10 ml, 3 s of wait): an extraction that ends in the pre-infusion or in its wait is not kept, one that goes
-  //    through it is
+  CHECK(j.read(1,e) && e.reason==END_NO_WATER && j.read(3,e) && e.reason==END_TARGET && !j.read(4,e));
+  // 6. with a pre-infusion (10 ml, 3 s of wait): the extractions that end in the pre-infusion or in its wait are kept too, with the phase
   m.screen_.settings_.preinfusion=10; m.screen_.settings_.preinfusionWait=3;
   m.handleStartButton(); for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   CHECK(m.extraction_.state()==EXTRACTION_PREINFUSION);
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the pre-infusion
-  CHECK(j.read(0,e) && e.sequence==3 && !j.read(4,e));
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_PREINFUSION && e.preinfusion==10 && j.read(4,e) && !j.read(5,e));
   m.handleStartButton();
   for(int i=0;i<100 && m.extraction_.state()!=EXTRACTION_PREINFUSION_WAIT;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   CHECK(m.extraction_.state()==EXTRACTION_PREINFUSION_WAIT);
   for(int i=0;i<10;i++){ t+=100; m.update(); }
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the wait
-  CHECK(j.read(0,e) && e.sequence==3 && !j.read(4,e));
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_PREINFUSION_WAIT && j.read(5,e) && !j.read(6,e));
   m.handleStartButton();
   for(int i=0;i<200 && m.extraction_.state()!=EXTRACTION_RUNNING;i++){ t+=100; if(m.extraction_.state()==EXTRACTION_PREINFUSION) m.flow_.in=m.flow_.in+0.3f; m.update(); }
   CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
   for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
-  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the main phase: kept
-  CHECK(j.read(0,e) && e.sequence==4 && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.preinfusion==10 && e.wait==3);
-  CHECK(j.read(1,e) && e.sequence==3 && !j.read(5,e));
+  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the main phase
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.preinfusion==10 && j.read(6,e) && !j.read(7,e));
+  // 7. the ring keeps the last 100: more extractions (no water, quick) than it holds, the oldest ones go
+  for(int n=0;n<110;n++){
+    m.handleStartButton(); for(int i=0;i<15;i++){ t+=100; m.update(); }
+    m.handleStartButton(); for(int i=0;i<30;i++){ t+=100; m.update(); }   // stopped in the pre-infusion
+  }
+  CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_PREINFUSION && j.read(99,e) && !j.read(100,e));
+  CHECK(j.read(99,e) && e.phase==EXTRACTION_PREINFUSION);                // the first ones are gone: the oldest is one of the last quick ones
   printf("journal: ok\n");
 }
 // The delay of the stop before the target is learned, saved and given back at the next start

@@ -130,9 +130,7 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
   // The journal: the extraction is over (how it ended is known) and its volumes are final
   if (journalPending_ && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
     journalPending_ = false;
-    if (extraction_.endPhase() == EXTRACTION_RUNNING) {   // only the extractions that went through the pre-infusion (if there is one)
-      writeJournal();
-    }
+    writeJournal();
   }
 
   // The drop icon blinks until the no-water error is cleared
@@ -143,19 +141,14 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
 void CoffeeMachine::writeJournal() {
   const Settings &settings = screen_.settings();
   JournalEntry entry;
-  entry.sequence = 0;   // given by the journal
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
   entry.target = settings.volume;
   entry.preinfusion = settings.preinfusion;
-  entry.wait = settings.preinfusionWait;
   entry.duration = (uint8_t)extraction_.durationSeconds();   // 120 s at most (DURATION_MAX)
-  entry.cup = (uint8_t)extraction_.volumeMl();
-  entry.temperature = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
-  entry.inMl = extraction_.volumeInMl();
-  entry.outMl = extraction_.volumeOutMl();
-  entry.loss = extraction_.loss();
-  entry.delay = extraction_.stopDelaySeconds();
+  entry.inTenths = (uint16_t)(extraction_.volumeInMl() * 10.0f + 0.5f);
+  entry.outTenths = (uint16_t)(extraction_.volumeOutMl() * 10.0f + 0.5f);
+  entry.loss4 = (uint8_t)(extraction_.loss() * 4.0f + 0.5f);
   journal_.add(entry);
 }
 

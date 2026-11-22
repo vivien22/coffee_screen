@@ -1,12 +1,11 @@
 /*
-  Journal: the last JOURNAL_COUNT extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
-  AUTO extraction that went through its pre-infusion, if there is one (an extraction that ended during the pre-infusion or its wait,
-  and the MANUAL ones, are not kept), written when its values are final: how it ended and why, the volumes counted by the flow sensors, the
-  settings it used and the machine state. It is read with the journal_dump environment (see platformio.ini), which prints the
-  entries over the serial line: nothing in the machine itself shows or uses it.
+  Journal: the last JOURNAL_COUNT (100) AUTO extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
+  extraction, written when its values are final: how it ended and why, the volumes counted by the flow sensors, the loss (CAL) and
+  the settings it used. The MANUAL extractions are not kept. It is read with the journal_dump environment (see platformio.ini),
+  which prints the entries over the serial line: nothing in the machine itself shows or uses it.
 
-  EEPROM layout, from address 128: [next slot: 1 byte][JOURNAL_COUNT entries of 25 bytes]. A blank (0xFF) or unknown slot is
-  empty. The addresses 0..31 are the settings (Settings.cpp).
+  EEPROM layout, from address JOURNAL_ADDRESS (Journal.cpp): [next slot: 1 byte][JOURNAL_COUNT entries of 9 bytes]: 901 bytes of the
+  1024 of the Nano R3, after the settings (addresses 0..31). A blank (0xFF) or unknown slot is empty.
 */
 
 #pragma once
@@ -22,28 +21,23 @@ enum EndReason : uint8_t {
   END_TIMER        // a timed phase elapsed (not used by the AUTO extractions: kept for the numbering)
 };
 
-// 25 bytes, written as they are (the floats are kept as they are: no conversion in the machine)
-struct JournalEntry {
-  uint8_t reason;        // EndReason
-  uint8_t phase;         // ExtractionState it was in when it ended (PREINFUSION, PREINFUSION_WAIT, RUNNING)
+// 9 bytes, written as they are (packed: the same size on every board). The volume in the cup is In - Out - loss.
+struct __attribute__((packed)) JournalEntry {
+  uint8_t reason : 4;    // EndReason
+  uint8_t phase : 4;     // ExtractionState it was in when it ended (PREINFUSION, PREINFUSION_WAIT, RUNNING)
   uint8_t target;        // target volume (ml) of the settings
   uint8_t preinfusion;   // pre-infusion volume (ml) of the settings
-  uint8_t wait;          // wait time (s) of the settings
-  uint8_t duration;      // duration of the extraction (s), 255 at most
-  uint8_t cup;           // final volume shown (ml): In - Out - loss, 255 at most
-  uint8_t temperature;   // temperature shown at the end (degrees C)
-  uint8_t sequence;      // number of the extraction, from 0, wraps at 256: gives the order
-  float inMl;            // water counted by the In sensor (ml)
-  float outMl;           // water counted by the Out sensor (ml)
-  float loss;            // the loss (CAL) used (ml)
-  float delay;           // the delay of the stop before the target (s of flow)
+  uint8_t duration;      // duration of the extraction (s)
+  uint16_t inTenths;     // water counted by the In sensor, in tenths of ml
+  uint16_t outTenths;    // water counted by the Out sensor, in tenths of ml
+  uint8_t loss4;         // the loss (CAL) used, in quarters of ml
 };
 
-static const uint8_t JOURNAL_COUNT = 10;
+static const uint8_t JOURNAL_COUNT = 100;
 
 class Journal {
   public:
-    // Writes an entry (the sequence is given here): the next slot of the ring.
+    // Writes an entry: the next slot of the ring.
     void add(JournalEntry entry) const;
 
     // age 0 = the last extraction, 1 = the one before... Returns false if there is none.

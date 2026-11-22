@@ -192,23 +192,20 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 10 AUTO extractions that went through their pre-infusion** (a ring: the oldest one is
-overwritten). The MANUAL ones are not kept, and neither is an extraction that ended during the pre-infusion or its wait (when the
-pre-infusion is switched off, every AUTO extraction is kept). It is there to
-understand an extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the
-machine shows or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the
-water that still comes is then counted), so a power cut in the middle loses that extraction only.
+The machine keeps in its EEPROM a **journal of the last 100 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
+extractions are not kept; an AUTO extraction is, whichever phase it ended in (pre-infusion included). It is there to understand an
+extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the machine shows
+or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the water that still
+comes is then counted), so a power cut in the middle loses that extraction only.
 
 | Field | Meaning |
 |---|---|
-| reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`), `TIMER` (not used by the AUTO extractions) |
-| phase | in which phase it ended: always `RUN` (the main extraction): the others are not kept |
-| target, pre, wait | the settings it used (target volume, pre-infusion volume, wait time) |
+| reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`) |
+| phase | in which phase it ended: `PRE` (pre-infusion), `WAIT` or `RUN` (main extraction) |
+| tgt, pre | the settings it used: the target volume and the pre-infusion volume |
 | duration | seconds from the start |
 | in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |
-| cup | the final volume shown on the screen: In − Out − loss |
-| loss, delay | the loss (CAL) and the delay of the stop before the target used |
-| temperature | the temperature shown at the end (°C) |
+| loss, cup | the loss (CAL) used, and the final volume: In − Out − loss |
 
 **Reading it.** The journal cannot be read through the bootloader, so a tiny sketch prints it over the serial line (115200 baud) and
 does nothing else (it writes nothing). Flash it, read the serial line, then flash the machine again (the EEPROM is kept):
@@ -219,14 +216,15 @@ pio device monitor                     # (or any serial monitor, 115200 baud, re
 pio run -e nanoatmega328new -t upload  # the machine again
 ```
 
-It prints one line per extraction, the last one first:
+It prints one line per extraction, the last one first (the number is the age: 0 is the last one):
 
 ```
-#12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 | cup 12 loss 36.3 delay 0.37 | 91 C
+#0 TARGET  ended in RUN  tgt 60 pre 40 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12.0
 ```
 
-The layout (address 128: the next position, then 10 entries of 25 bytes) is in `src/settings/Journal.h`. The EEPROM is written only
-at the end of an extraction (about 25 bytes), far from its limit of 100 000 writes per byte.
+An entry is 9 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 100 entries take 901 bytes of the 1024 of
+the EEPROM (address 100 to 1000; the settings are at 0..31). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
+end of an extraction (9 bytes), far from its limit of 100 000 writes per byte.
 
 ### What is saved, and when
 
