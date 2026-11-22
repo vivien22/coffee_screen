@@ -60,7 +60,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
   `CoffeeMachine::validateCalibration()` through `Journal::setLastCal()`, only when the weight was changed, else 0). The
   user asked for 100 compact entries, then for all these fields back "even if there are fewer entries": do not trade them again
-  without asking. AUTO extractions only (`journalPending_` is not set in MANUAL), whichever phase they ended in.
+  without asking. If the entry layout changes, run `pio run -e journal_clear -t upload` once (tools/journal_clear.cpp erases EEPROM 24..1023, settings kept) before flashing the machine, or the old entries are misread. AUTO extractions only (`journalPending_` is not set in MANUAL), whichever phase they ended in.
   `ExtractionController::endedBy()` keeps the FIRST reason (target, user, no water, max time) with the phase;
   `CoffeeMachine::writeJournal()` writes the entry when `endReason()` is set and `settlePending()` is over (the water after the stop is
   counted), once; the start temperature is taken in `startExtraction()`.
