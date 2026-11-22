@@ -3,7 +3,7 @@
 #include "Journal.h"
 #include <EEPROM.h>
 
-static const int JOURNAL_ADDRESS = 100;   // 100 + 1 + 100 entries of 9 bytes = 1001: inside the 1024 bytes of the Nano R3
+static const int JOURNAL_ADDRESS = 24;   // 24 + 1 + 66 entries of 15 bytes = 1015: inside the 1024 bytes of the Nano R3
 static const int ENTRY_SIZE = (int)sizeof(JournalEntry);
 
 static int slotAddress(uint8_t slot) {
@@ -26,6 +26,8 @@ bool Journal::read(uint8_t age, JournalEntry &entry) const {
 }
 
 void Journal::add(JournalEntry entry) const {
+  JournalEntry last;
+  entry.sequence = read(0, last) ? (uint8_t)(last.sequence + 1) : 0;
   const uint8_t slot = nextSlot();
   EEPROM.put(slotAddress(slot), entry);                                       // only the bytes that changed are written
   EEPROM.update(JOURNAL_ADDRESS, (uint8_t)((slot + 1) % JOURNAL_COUNT));      // after the entry: a power cut loses the entry only

@@ -63,6 +63,7 @@ class CoffeeMachine {
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
     bool steaming_ = false;           // steaming mode (see toggleSteaming)
+    uint8_t journalTempStart_ = 0;    // the temperature shown when the extraction started (for the journal)
     bool journalPending_ = false;     // an extraction was started and is not in the journal yet
     bool standby_ = false;            // the heater is off after STANDBY_MINUTES without activity
     uint32_t lastActivityAt_ = 0;

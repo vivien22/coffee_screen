@@ -141,14 +141,20 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
 void CoffeeMachine::writeJournal() {
   const Settings &settings = screen_.settings();
   JournalEntry entry;
+  entry.sequence = 0;   // given by the journal
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
   entry.target = settings.volume;
   entry.preinfusion = settings.preinfusion;
+  entry.wait = settings.preinfusionWait;
   entry.duration = (uint8_t)extraction_.durationSeconds();   // 120 s at most (DURATION_MAX)
   entry.inTenths = (uint16_t)(extraction_.volumeInMl() * 10.0f + 0.5f);
   entry.outTenths = (uint16_t)(extraction_.volumeOutMl() * 10.0f + 0.5f);
   entry.loss4 = (uint8_t)(extraction_.loss() * 4.0f + 0.5f);
+  entry.cup = (uint8_t)extraction_.volumeMl();
+  entry.delay100 = (uint8_t)(extraction_.stopDelaySeconds() * 100.0f + 0.5f);
+  entry.tempStart = journalTempStart_;
+  entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
   journal_.add(entry);
 }
 
@@ -338,6 +344,7 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();
+  journalTempStart_ = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);   // for the journal
   journalPending_ = extraction_.isActive() && !settings.manual;   // the journal gets this extraction (AUTO only) when its values are final
 }
 

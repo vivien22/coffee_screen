@@ -192,7 +192,7 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 100 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
+The machine keeps in its EEPROM a **journal of the last 66 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
 extractions are not kept; an AUTO extraction is, whichever phase it ended in (pre-infusion included). It is there to understand an
 extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the machine shows
 or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the water that still
@@ -200,12 +200,15 @@ comes is then counted), so a power cut in the middle loses that extraction only.
 
 | Field | Meaning |
 |---|---|
+| #number | the sequence number of the extraction (it wraps at 256): it gives the order |
 | reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`) |
 | phase | in which phase it ended: `PRE` (pre-infusion), `WAIT` or `RUN` (main extraction) |
-| tgt, pre | the settings it used: the target volume and the pre-infusion volume |
+| tgt, pre, wait | the settings it used: the target volume, the pre-infusion volume and the wait time |
 | duration | seconds from the start |
 | in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |
-| loss, cup | the loss (CAL) used, and the final volume: In − Out − loss |
+| loss, cup | the loss (CAL) used, and the final volume shown: In − Out − loss |
+| delay | the delay of the stop before the target used (seconds of flow) |
+| temperatures | the temperature shown at the start of the extraction and when the entry was written (a few seconds after the end), °C |
 
 **Reading it.** The journal cannot be read through the bootloader, so a tiny sketch prints it over the serial line (115200 baud) and
 does nothing else (it writes nothing). Flash it, read the serial line, then flash the machine again (the EEPROM is kept):
@@ -216,15 +219,15 @@ pio device monitor                     # (or any serial monitor, 115200 baud, re
 pio run -e nanoatmega328new -t upload  # the machine again
 ```
 
-It prints one line per extraction, the last one first (the number is the age: 0 is the last one):
+It prints one line per extraction, the last one first:
 
 ```
-#0 TARGET  ended in RUN  tgt 60 pre 40 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12.0
+#12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 | delay 0.37 | 88 -> 91 C
 ```
 
-An entry is 9 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 100 entries take 901 bytes of the 1024 of
-the EEPROM (address 100 to 1000; the settings are at 0..31). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
-end of an extraction (9 bytes), far from its limit of 100 000 writes per byte.
+An entry is 15 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 66 entries take 991 bytes of the 1024 of the
+EEPROM (address 24 to 1014; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
+end of an extraction (15 bytes), far from its limit of 100 000 writes per byte.
 
 ### What is saved, and when
 
