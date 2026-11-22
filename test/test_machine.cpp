@@ -541,6 +541,26 @@ static void journal(){
   CHECK(m.extraction_.state()==EXTRACTION_ERROR && j.read(0,e) && e.reason==END_MAX_TIME && e.sequence==3 && e.duration>=DURATION_MAX && e.duration<=DURATION_MAX+2);
   // the order and the count: the last one first, four in all
   CHECK(j.read(1,e) && e.reason==END_NO_WATER && e.sequence==2 && j.read(3,e) && e.reason==END_TARGET && !j.read(4,e));
+  // 6. with a pre-infusion (10 ml, 3 s of wait): an extraction that ends in the pre-infusion or in its wait is not kept, one that goes
+  //    through it is
+  m.screen_.settings_.preinfusion=10; m.screen_.settings_.preinfusionWait=3;
+  m.handleStartButton(); for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_PREINFUSION);
+  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the pre-infusion
+  CHECK(j.read(0,e) && e.sequence==3 && !j.read(4,e));
+  m.handleStartButton();
+  for(int i=0;i<100 && m.extraction_.state()!=EXTRACTION_PREINFUSION_WAIT;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_PREINFUSION_WAIT);
+  for(int i=0;i<10;i++){ t+=100; m.update(); }
+  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the wait
+  CHECK(j.read(0,e) && e.sequence==3 && !j.read(4,e));
+  m.handleStartButton();
+  for(int i=0;i<200 && m.extraction_.state()!=EXTRACTION_RUNNING;i++){ t+=100; if(m.extraction_.state()==EXTRACTION_PREINFUSION) m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_RUNNING);
+  for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
+  m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the main phase: kept
+  CHECK(j.read(0,e) && e.sequence==4 && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.preinfusion==10 && e.wait==3);
+  CHECK(j.read(1,e) && e.sequence==3 && !j.read(5,e));
   printf("journal: ok\n");
 }
 // The delay of the stop before the target is learned, saved and given back at the next start

@@ -192,7 +192,9 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 10 AUTO extractions** (a ring: the oldest one is overwritten; the MANUAL ones are not kept). It is there to
+The machine keeps in its EEPROM a **journal of the last 10 AUTO extractions that went through their pre-infusion** (a ring: the oldest one is
+overwritten). The MANUAL ones are not kept, and neither is an extraction that ended during the pre-infusion or its wait (when the
+pre-infusion is switched off, every AUTO extraction is kept). It is there to
 understand an extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the
 machine shows or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the
 water that still comes is then counted), so a power cut in the middle loses that extraction only.
@@ -200,7 +202,7 @@ water that still comes is then counted), so a power cut in the middle loses that
 | Field | Meaning |
 |---|---|
 | reason | why it ended: `TARGET` (the volume was reached), `USER` (the start / stop button), `NO_WATER` (no-flow safety), `MAX_TIME` (`DURATION_MAX`), `TIMER` (not used by the AUTO extractions) |
-| phase | in which phase it ended: `PRE` (pre-infusion), `WAIT` or `RUN` (main extraction) |
+| phase | in which phase it ended: always `RUN` (the main extraction): the others are not kept |
 | target, pre, wait | the settings it used (target volume, pre-infusion volume, wait time) |
 | duration | seconds from the start |
 | in, out, net | the water counted by the In and the Out sensor (ml), and In − Out |

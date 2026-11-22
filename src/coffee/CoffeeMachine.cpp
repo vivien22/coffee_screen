@@ -130,7 +130,9 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
   // The journal: the extraction is over (how it ended is known) and its volumes are final
   if (journalPending_ && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
     journalPending_ = false;
-    writeJournal();
+    if (extraction_.endPhase() == EXTRACTION_RUNNING) {   // only the extractions that went through the pre-infusion (if there is one)
+      writeJournal();
+    }
   }
 
   // The drop icon blinks until the no-water error is cleared
@@ -141,6 +143,7 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
 void CoffeeMachine::writeJournal() {
   const Settings &settings = screen_.settings();
   JournalEntry entry;
+  entry.sequence = 0;   // given by the journal
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
   entry.target = settings.volume;

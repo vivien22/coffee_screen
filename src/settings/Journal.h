@@ -1,6 +1,7 @@
 /*
   Journal: the last JOURNAL_COUNT extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
-  AUTO extraction (the MANUAL ones are not kept), written when its values are final: how it ended and why, the volumes counted by the flow sensors, the
+  AUTO extraction that went through its pre-infusion, if there is one (an extraction that ended during the pre-infusion or its wait,
+  and the MANUAL ones, are not kept), written when its values are final: how it ended and why, the volumes counted by the flow sensors, the
   settings it used and the machine state. It is read with the journal_dump environment (see platformio.ini), which prints the
   entries over the serial line: nothing in the machine itself shows or uses it.
 
