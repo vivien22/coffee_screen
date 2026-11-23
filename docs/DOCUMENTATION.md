@@ -52,7 +52,7 @@ push to brew.
 
 A steaming cup of coffee on a dark background. It is shown in two cases:
 
-- **at start-up**, for 5 seconds (`WELCOME_MS`) while the probe and the flow sensors start; then the real screen
+- **at start-up**, for 2 seconds (`WELCOME_MS`) while the probe and the flow sensors start; then the real screen
   appears, complete, at once;
 - **in standby**: after 30 minutes without activity (`STANDBY_MINUTES`) the heater is switched off and the picture
   replaces the screen until the next action on the encoder (see [Standby](#standby)).
@@ -529,7 +529,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `DEFAULT_LOSS_ML` | 30 | Water that does not end in the cup |
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.3 / 500 | PID gains, over a 1 s window |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
-| `WELCOME_MS` | 5000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
+| `WELCOME_MS` | 2000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |

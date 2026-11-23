@@ -220,7 +220,7 @@
 
 // The welcome picture (a cup of coffee) stays on the screen this long at start-up (ms); 0 = none, and its data
 // (about 1.2 KB of flash, its use in the standby included) is then not in the flash. Needs DISPLAY_ICONS.
-#define WELCOME_MS               5000UL
+#define WELCOME_MS               2000UL
 
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature

@@ -83,7 +83,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   that are not meant to change the look.
 - The icons are stored compressed (`src/display/IconsData.h`, generated, do not edit). The readable source is
   `tools/icons_raw.h`; after changing it run `./tools/compress_icons.sh` (it checks that the decoded icons equal the source).
-  It also holds the welcome picture (96 x 96, shown `WELCOME_MS` = 5 s at start-up): to change it, convert a PNG with
+  It also holds the welcome picture (96 x 96, shown `WELCOME_MS` = 2 s at start-up): to change it, convert a PNG with
   `tools/png_to_icon.ps1` (Windows PowerShell, the palette maps each color to a level 0..3, see its header), paste the
   result in `icons_raw.h` and run the script. `test_welcome` checks that the decoder draws the pictures exactly.
 
