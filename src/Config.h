@@ -229,6 +229,19 @@
 // (about 1.2 KB of flash, its use in the standby included) is then not in the flash. Needs DISPLAY_ICONS.
 #define WELCOME_MS               2000UL
 
+// ---------- Rolling digits ----------
+// During an extraction the digits of the volume and of the duration that change roll: the old one leaves upward while the new one comes
+// up from below, in ROLL_VOLUME_MS (the volume goes up by about 5 ml/s) and ROLL_DURATION_MS (the seconds); ease-out. A frame is drawn
+// at most every ROLL_FRAME_MS (the main loop goes on meanwhile). 0 as a duration: the digits are replaced at once (the tests of the logic
+// of the screen, which look at what is drawn after each update(), are built with 0: test/run.sh).
+#ifndef ROLL_VOLUME_MS
+#define ROLL_VOLUME_MS           160UL
+#endif
+#ifndef ROLL_DURATION_MS
+#define ROLL_DURATION_MS         260UL
+#endif
+#define ROLL_FRAME_MS            30UL
+
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
 #define FLUSH_BLINK_MS           600UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING

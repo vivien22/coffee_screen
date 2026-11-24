@@ -77,7 +77,9 @@ void ScreenController::redrawScreen() {
   dirty_ = steaming_ ? DIRTY_TEMPERATURE : (DIRTY_ALL_VALUES | DIRTY_HEATER);
   temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
   temperatureKey_ = -1;             // the live temperature is drawn again at once
-  render();
+  volumeRoll_ = Roll();             // the fields are drawn as they are: no roll goes on
+  durationRoll_ = Roll();
+  render(lastNow_);
 }
 
 // Steaming mode: the screen is cleared, the temperature alone is drawn. The encoder sets the steaming temperature.
@@ -102,6 +104,7 @@ void ScreenController::leaveSteaming() {
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
+  lastNow_ = now;
 #if WELCOME_MS > 0
   if (standbyShown_) {
     return;   // the picture of the standby is on the screen: nothing is drawn over it
@@ -115,7 +118,7 @@ void ScreenController::update(uint32_t now) {
       temperatureShown_ = liveTemperature_;
       dirty_ |= DIRTY_TEMPERATURE;
     }
-    render();
+    render(now);
     return;
   }
 
@@ -145,7 +148,8 @@ void ScreenController::update(uint32_t now) {
     }
   }
 
-  render();
+  render(now);
+  stepRolls(now);
 }
 
 // The drop icon blinks while the no-water error lasts, and stays on again once it is cleared.
@@ -428,8 +432,13 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
     volumeTagShown_ = volumeTag;
     dirty_ |= DIRTY_VOLUME;
   } else if ((int16_t)volumeValue != volumeShown_) {
+    if (volumeRoll_.active) {                         // the roll in progress ends at once, then the new one starts
+      volumeRoll_.finishFirst = true;
+      volumeRoll_.finishValue = volumeShown_;
+    }
     volumeShown_ = (int16_t)volumeValue;
     dirty_ |= DIRTY_VOLUME_NUMBER;
+    volumeRoll_.requested = true;
   }
   if (durationTag != durationTagShown_) {
     durationShown_ = (int16_t)durationValue;
@@ -438,8 +447,13 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
     tagVisible_ = true;
     dirty_ |= DIRTY_DURATION;
   } else if ((int16_t)durationValue != durationShown_) {
+    if (durationRoll_.active) {
+      durationRoll_.finishFirst = true;
+      durationRoll_.finishValue = durationShown_;
+    }
     durationShown_ = (int16_t)durationValue;
     dirty_ |= DIRTY_DURATION_NUMBER;
+    durationRoll_.requested = true;
   }
 }
 
@@ -448,7 +462,7 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
 
 // Draws the fields marked dirty. The size of the digits shows which parameter is selected (large = selected),
 // and the field of a parameter being edited shows that parameter instead of the extraction values.
-void ScreenController::render() {
+void ScreenController::render(uint32_t now) {
   if (dirty_ == DIRTY_NONE) {
     return;
   }
@@ -483,13 +497,29 @@ void ScreenController::render() {
     // setting (large digits, with its tag).
     // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
     if (active_ == PARAMETER_PREINFUSION) {
+      volumeRoll_ = Roll();   // a setting is drawn as it is: its number does not roll
       drawVolume(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
     } else if (active_ == PARAMETER_FLOW_LIMIT) {
+      volumeRoll_ = Roll();
       drawFlowLimit(settings_.flowLimit, redrawTag);
     } else if (active_ == PARAMETER_CALIBRATION) {
+      volumeRoll_ = Roll();
       drawVolume(calibrationValue_, TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
+    } else if (!redrawTag && volumeRoll_.requested) {
+      // A new number during an extraction: it rolls. The screen shows the old one until the first frame.
+      if (volumeRoll_.active && volumeRoll_.finishFirst) {
+        drawVolumeValue(volumeRoll_.finishValue, false, DISPLAY_ROLL_DONE);
+      }
+      volumeRoll_.requested = volumeRoll_.finishFirst = false;
+      volumeRoll_.active = ROLL_VOLUME_MS > 0;
+      volumeRoll_.start = now;
+      volumeRoll_.nextFrame = now + ROLL_FRAME_MS;
+      if (!volumeRoll_.active) {
+        drawVolumeValue(volumeShown_, false, DISPLAY_ROLL_DONE);
+      }
     } else {
-      drawVolume(volumeShown_, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag);
+      volumeRoll_ = Roll();
+      drawVolumeValue(volumeShown_, redrawTag, DISPLAY_ROLL_DONE);
     }
   }
   if (dirty & (DIRTY_DURATION | DIRTY_DURATION_NUMBER)) {
@@ -499,13 +529,28 @@ void ScreenController::render() {
     // While the wait or flush time is selected, the field shows that setting (large digits, with its tag).
     // Otherwise it shows the duration of the extraction (or the countdown of the wait or of the flush).
     if (active_ == PARAMETER_PREINFUSION_WAIT) {
+      durationRoll_ = Roll();
       drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
     } else if (active_ == PARAMETER_FLUSH) {
+      durationRoll_ = Roll();
       drawDuration(settings_.flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
     } else if (active_ == PARAMETER_MANUAL_TIME) {
+      durationRoll_ = Roll();
       drawDuration(settings_.manualSeconds, TEXT_SIZE_LARGE, PHASE_TAG_NONE, redrawTag);   // no tag: the clock says it
+    } else if (!redrawTag && durationRoll_.requested) {
+      if (durationRoll_.active && durationRoll_.finishFirst) {
+        drawDurationValue(durationRoll_.finishValue, false, DISPLAY_ROLL_DONE);
+      }
+      durationRoll_.requested = durationRoll_.finishFirst = false;
+      durationRoll_.active = ROLL_DURATION_MS > 0;
+      durationRoll_.start = now;
+      durationRoll_.nextFrame = now + ROLL_FRAME_MS;
+      if (!durationRoll_.active) {
+        drawDurationValue(durationShown_, false, DISPLAY_ROLL_DONE);
+      }
     } else {
-      drawDuration(durationShown_, TEXT_SIZE_SMALL, durationTagShown_, redrawTag);
+      durationRoll_ = Roll();
+      drawDurationValue(durationShown_, redrawTag, DISPLAY_ROLL_DONE);
     }
   }
   // The blinking tag, after the duration: it also gives the right state to a tag just redrawn
@@ -514,5 +559,48 @@ void ScreenController::render() {
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);
+  }
+}
+
+// ------------------------------------------------------------
+// Rolling digits
+
+// The volume field as it shows the extraction (see render()), with the progress of a roll
+void ScreenController::drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress) {
+  drawVolume(value, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag, progress);
+}
+
+void ScreenController::drawDurationValue(int16_t value, bool redrawTag, uint8_t progress) {
+  drawDuration(value, TEXT_SIZE_SMALL, durationTagShown_, redrawTag, progress);
+}
+
+// The progress (0 to DISPLAY_ROLL_DONE - 1) of a roll that has lasted elapsed ms of duration: ease-out, fast first, slow at the end
+static uint8_t rollProgress(uint32_t elapsed, uint32_t duration) {
+  const uint32_t remaining = DISPLAY_ROLL_DONE - elapsed * DISPLAY_ROLL_DONE / duration;   // 255 at the start, 0 at the end
+  const uint32_t cubed = remaining * remaining * remaining / (DISPLAY_ROLL_DONE * DISPLAY_ROLL_DONE);
+  return (uint8_t)(DISPLAY_ROLL_DONE - cubed);
+}
+
+// Draws the next frame of each roll in progress, when it is due, and the end of a roll (the new number as it is).
+void ScreenController::stepRolls(uint32_t now) {
+  if (volumeRoll_.active && (int32_t)(now - volumeRoll_.nextFrame) >= 0) {
+    const uint32_t elapsed = now - volumeRoll_.start;
+    if (elapsed >= ROLL_VOLUME_MS) {
+      volumeRoll_.active = false;
+      drawVolumeValue(volumeShown_, false, DISPLAY_ROLL_DONE);
+    } else {
+      volumeRoll_.nextFrame = now + ROLL_FRAME_MS;
+      drawVolumeValue(volumeShown_, false, rollProgress(elapsed, ROLL_VOLUME_MS));
+    }
+  }
+  if (durationRoll_.active && (int32_t)(now - durationRoll_.nextFrame) >= 0) {
+    const uint32_t elapsed = now - durationRoll_.start;
+    if (elapsed >= ROLL_DURATION_MS) {
+      durationRoll_.active = false;
+      drawDurationValue(durationShown_, false, DISPLAY_ROLL_DONE);
+    } else {
+      durationRoll_.nextFrame = now + ROLL_FRAME_MS;
+      drawDurationValue(durationShown_, false, rollProgress(elapsed, ROLL_DURATION_MS));
+    }
   }
 }

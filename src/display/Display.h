@@ -18,6 +18,10 @@
 #include <Adafruit_GC9A01A.h>
 #include "../Config.h"
 
+// The progress of the rolling digits of drawVolume() and drawDuration(): 0 to 254 draws a frame of the roll from the number drawn last
+// to the new one, DISPLAY_ROLL_DONE draws the new number as it is (see drawNumber in Display.cpp).
+#define DISPLAY_ROLL_DONE 255
+
 // Size of the digits of a value
 enum TextSize {
   TEXT_SIZE_SMALL,
@@ -81,11 +85,13 @@ void drawTemperatureError();
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
 // The flow limit of the extraction, tenths of ml/s shown as "2:5 ml/s" in the volume field, with the tag LIMIT (test)
 void drawFlowLimit(uint16_t tenths, bool redrawTag);
-void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
+// progress: DISPLAY_ROLL_DONE, or a frame of the roll from the number drawn last (the digits that change leave upward, the new ones come
+// from below); only when the field shows the same look (size, tag) as before.
+void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uint8_t progress = DISPLAY_ROLL_DONE);
 // tag: top right of the field, above the unit, whatever the size of the digits.
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
-void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uint8_t progress = DISPLAY_ROLL_DONE);
 
 // Show or hide the phase tag of the duration field alone (blinking tag): drawn again at its
 // place, or erased.

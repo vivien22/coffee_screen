@@ -135,7 +135,7 @@ class ScreenController {
       DIRTY_ALL_VALUES  = DIRTY_VOLUME | DIRTY_TEMPERATURE | DIRTY_DURATION
     };
 
-    void render();
+    void render(uint32_t now);
     void redrawScreen();                        // the real screen (or the steaming one) in full
     void activate(ActiveParameter next);        // select a parameter and show it
     bool availableInMode(ActiveParameter p) const;
@@ -181,6 +181,22 @@ class ScreenController {
     bool heaterKnown_ = false;
 
     uint8_t dirty_ = DIRTY_NONE;
+
+    // Rolling digits (see ROLL_VOLUME_MS in Config.h): the number of the volume or of the duration that changes during an extraction
+    // rolls from the old one to the new one. The frames are drawn by update(), at most every ROLL_FRAME_MS.
+    struct Roll {
+      bool requested = false;     // a new number came: render() starts the roll
+      bool active = false;        // the frames are being drawn
+      bool finishFirst = false;   // a new number came during the roll: the number of that roll is drawn as it is, then the new roll starts
+      int16_t finishValue = 0;    // that number
+      uint32_t start = 0;
+      uint32_t nextFrame = 0;
+    };
+    Roll volumeRoll_, durationRoll_;
+    uint32_t lastNow_ = 0;      // the time of the last update(): the rolls started by a redraw outside of update() use it
+    void drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress);
+    void drawDurationValue(int16_t value, bool redrawTag, uint8_t progress);
+    void stepRolls(uint32_t now);
 
     // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.

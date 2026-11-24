@@ -41,6 +41,7 @@ struct NumberField {
   uint8_t size;     // TextSize of the digits
   uint8_t tag;      // PhaseTag shown next to it
   bool valid;       // false: the field is not known to show anything (start, or something else was drawn over it)
+  char text[6];     // the number of the last picture drawn as it is (the old number of a roll), see drawNumber
 };
 static NumberField temperatureField, volumeField, durationField;
 
@@ -253,36 +254,50 @@ static uint8_t advanceOf(const GFXfont *font, char c) {
   return (font == FONT_SMALL) ? DIGIT_CELL_SMALL : DIGIT_CELL_LARGE;
 }
 
-// Draws one character as a block of the zone height, in one burst: the glyph blended with the background (the 4 colors of the
+// One glyph of the block of a digit: the character (0 = none) and how many rows it is moved down (negative: up) from its place.
+struct CellGlyph {
+  char code;
+  int16_t shift;
+};
+
+// Draws a digit cell as a block of the zone height, in one burst: the glyph blended with the background (the 4 colors of the
 // palette) and the background around it. The old character is replaced at once, without a moment where the place is blank (what a
 // erase followed by a print would show). The block is as wide as the cell of the character, and the glyph is centered in it: no
 // glyph goes beyond its cell (tools/generate_fonts.py cuts the 1 or 2 columns that would), so the blocks never overlap.
 // The block is sent row by row: an anti-aliased glyph has no long runs of one color.
-static void drawGlyphBlock(const GFXfont *font, char c, int16_t x, int16_t y, int16_t height, int16_t baseline,
-                           const uint16_t *palette) {
-  const GFXglyph *glyph = glyphOf(font, c);
-  const uint8_t width = pgm_read_byte(&glyph->width);
-  const uint8_t rows = pgm_read_byte(&glyph->height);
-  // The glyph is centered in its (wider) cell
-  const int16_t xOffset = (int8_t)pgm_read_byte(&glyph->xOffset)
-                          + (advanceOf(font, c) - pgm_read_byte(&glyph->xAdvance)) / 2;
-  const int16_t top = baseline + (int8_t)pgm_read_byte(&glyph->yOffset);   // first row of the glyph
-  const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
-
-  const uint8_t blockWidth = advanceOf(font, c);
-  uint16_t line[DIGIT_CELL_LARGE];   // one row of the block
+// Up to two glyphs share the cell, one leaving it and one coming in (the digits that roll, see drawNumber): on every row the most
+// opaque of the two wins (they are never on the same rows: the shifts are a zone height apart).
+static void drawCell(const GFXfont *font, const CellGlyph *glyphs, uint8_t count, int16_t x, int16_t y, int16_t height,
+                     int16_t baseline, const uint16_t *palette) {
+  const uint8_t blockWidth = advanceOf(font, glyphs[0].code);
+  uint8_t levels[DIGIT_CELL_LARGE];   // one row of the block
+  uint16_t line[DIGIT_CELL_LARGE];
 
   tft.startWrite();
   tft.setAddrWindow(x, y, blockWidth, height);
   for (int16_t row = 0; row < height; row++) {
-    const int16_t glyphRow = y + row - top;
-    for (int16_t column = 0; column < blockWidth; column++) {
-      const int16_t glyphColumn = column - xOffset;
-      uint8_t level = 0;
-      if (glyphRow >= 0 && glyphRow < rows && glyphColumn >= 0 && glyphColumn < width) {
-        level = levelAt(bits, glyphRow * width + glyphColumn);
+    memset(levels, 0, blockWidth);
+    for (uint8_t i = 0; i < count; i++) {
+      const GFXglyph *glyph = glyphOf(font, glyphs[i].code);
+      const uint8_t width = pgm_read_byte(&glyph->width);
+      const int16_t glyphRow = y + row - (baseline + (int8_t)pgm_read_byte(&glyph->yOffset) + glyphs[i].shift);   // row of the glyph
+      if (glyphRow < 0 || glyphRow >= pgm_read_byte(&glyph->height)) {
+        continue;
       }
-      line[column] = palette[level];
+      // The glyph is centered in its (wider) cell
+      const int16_t xOffset = (int8_t)pgm_read_byte(&glyph->xOffset)
+                              + (blockWidth - pgm_read_byte(&glyph->xAdvance)) / 2;
+      const uint8_t *bits = glyphBitmap(font) + pgm_read_word(&glyph->bitmapOffset);
+      for (uint8_t column = 0; column < width; column++) {
+        const int16_t position = xOffset + column;
+        const uint8_t level = levelAt(bits, glyphRow * width + column);
+        if (position >= 0 && position < blockWidth && level > levels[position]) {
+          levels[position] = level;
+        }
+      }
+    }
+    for (uint8_t column = 0; column < blockWidth; column++) {
+      line[column] = palette[levels[column]];
     }
     tft.writePixels(line, blockWidth);
   }
@@ -355,16 +370,24 @@ static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t c
 }
 
 // Draws a number (small or large digits) left-aligned at x, on the given baseline. Every digit is a block that
-// replaces what was there (see drawGlyphBlock), so nothing is erased first and nothing flickers, even if the
+// replaces what was there (see drawCell), so nothing is erased first and nothing flickers, even if the
 // digits are the same as before. The rest of the zone is erased only where it is needed:
 //   - left of the number and right of it, when the field did not show the same look before (first draw, other
 //     digit size, other tag) or when force is set;
 //   - right of the number, when it ends elsewhere than before (shorter number...).
 // moved is set when the end of the number is not where it was: the unit that follows must be drawn again.
 // Returns the x position after the number, where the unit goes.
+//
+// Rolling digits: progress is DISPLAY_ROLL_DONE (255) for a number drawn as it is. From 0 to 254 the picture is a frame of the roll
+// from the number drawn last (field.text) to text: the digits that change leave upward while the new ones come up from below, shifted
+// by progress / 255 of the height of the zone; the others do not move. At 0 the picture is the old number, and DISPLAY_ROLL_DONE draws
+// the new one. A number that gains a digit (9 -> 10) rolls too: the unit moves to its new place on the first frame, like a number
+// drawn as it is. There is no roll when the field has not been drawn in the same look (size, tag), or when the number loses digits
+// (the leaving digit would be under the unit): the new number is then drawn as it is. field.text is the number of the last picture
+// drawn as it is, so the frames of a roll always start from the same old number.
 static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
-                          int16_t x, int16_t baseline, bool &moved, bool threeLarge = false) {
+                          int16_t x, int16_t baseline, bool &moved, bool threeLarge = false, uint8_t progress = DISPLAY_ROLL_DONE) {
   // Three digits do not fit in large digits next to the other fields (the cells are wide): a long value is shown in small
   // digits (the steaming temperature has the whole screen)
   if (strlen(text) > 2 && !threeLarge) {
@@ -373,14 +396,28 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
 
   const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
+  const uint8_t length = strlen(text);
+  const uint8_t oldLength = strlen(field.text);
+  const bool rolling = progress < DISPLAY_ROLL_DONE && sameLook && oldLength > 0 && oldLength <= length;
+  const int16_t shiftUp = rolling ? (int16_t)((uint32_t)zoneHeight * progress / DISPLAY_ROLL_DONE) : 0;
 
   // One block per digit, from left to right
   uint16_t palette[4];
   makePalette(COLOR_TEXT, palette);
   int16_t xEnd = x;
-  for (const char *c = text; *c; c++) {
-    drawGlyphBlock(font, *c, xEnd, zoneY, zoneHeight, baseline, palette);
-    xEnd += advanceOf(font, *c);
+  for (uint8_t i = 0; i < length; i++) {
+    CellGlyph glyphs[2];
+    uint8_t count = 0;
+    if (rolling && (length != oldLength || text[i] != field.text[i])) {
+      glyphs[count++] = {text[i], (int16_t)(zoneHeight - shiftUp)};            // the new digit comes up from below
+      if (i < oldLength) {
+        glyphs[count++] = {field.text[i], (int16_t)(-shiftUp)};                // the old one leaves upward
+      }
+    } else {
+      glyphs[count++] = {text[i], 0};
+    }
+    drawCell(font, glyphs, count, xEnd, zoneY, zoneHeight, baseline, palette);
+    xEnd += advanceOf(font, text[i]);
   }
 
   moved = !sameLook || xEnd != field.xEnd;
@@ -398,6 +435,10 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
   field.size = size;
   field.tag = tag;
   field.valid = true;
+  if (progress >= DISPLAY_ROLL_DONE || !rolling) {   // a picture drawn as it is (a roll that is not possible is drawn as it is)
+    strncpy(field.text, text, sizeof(field.text) - 1);
+    field.text[sizeof(field.text) - 1] = 0;
+  }
   return xEnd;
 }
 
@@ -480,7 +521,7 @@ static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
 }
 
 // Volume in ml, with its tag (PRE, CAL...) when there is one. The tag is redrawn only if redrawTag.
-void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
+void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uint8_t progress) {
   // The tag already drawn is kept when only the number changes: the zone of the number stops where the
   // tag starts.
   const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
@@ -495,7 +536,7 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   bool moved;
   const int16_t xNumberEnd = drawNumber(volumeField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
                                         VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
-                                        VOLUME_X, VOLUME_BASELINE, moved);
+                                        VOLUME_X, VOLUME_BASELINE, moved, false, progress);
 
   if (moved) {
     // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone
@@ -547,7 +588,7 @@ void drawFlowLimit(uint16_t tenths, bool redrawTag) {
 }
 
 // Duration in seconds, with its tag (WAIT, FLUSH) when there is one.
-void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
+void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uint8_t progress) {
   // The tag already drawn is kept when only the number changes: the zone of the number stops where the
   // tag starts.
   const bool keepTag = (tag != PHASE_TAG_NONE) && !redrawTag;
@@ -564,7 +605,7 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
   bool moved;
   const int16_t xNumberEnd = drawNumber(durationField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
                                         DURATION_ZONE_X, DURATION_ZONE_Y, zoneWidth, DURATION_ZONE_HEIGHT,
-                                        DURATION_X, DURATION_BASELINE, moved);
+                                        DURATION_X, DURATION_BASELINE, moved, false, progress);
 
   if (moved) {
     // Large digits: the "s" is under the tag, in a part of the field that the zone above does not cover
