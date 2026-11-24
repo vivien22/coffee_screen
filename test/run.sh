@@ -22,6 +22,8 @@ for t in test/test_*.cpp; do
   case "$n" in test_flush|test_pre|test_machine) EXTRA="-DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
   # the volume does not roll in the machine (ROLL_VOLUME_MS is 0 in Config.h); test_roll tests the roll of its digits all the same
   case "$n" in test_roll) EXTRA="-DROLL_VOLUME_MS=160UL";; esac
+  # the tests that follow the cup volume number by number were written for a loss of 30 ml: the default of the machine is free to change
+  case "$n" in test_volume|test_pre|test_manual|test_sim_flow) EXTRA="$EXTRA -DDEFAULT_LOSS_ML=30.0f";; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
   C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp"
   case "$n" in

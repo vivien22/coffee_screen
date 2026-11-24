@@ -145,7 +145,9 @@
 //     measured loss = (In - Out) - real volume
 //     new loss = loss + CALIBRATION_GAIN * (measured loss - loss)        (kept between 0 and LOSS_MAX_ML)
 // An extraction that gave less than CALIBRATION_MIN_ML (stopped at once...) is not offered.
+#ifndef DEFAULT_LOSS_ML   // (the tests of the arithmetic of the extraction build with 30: test/run.sh)
 #define DEFAULT_LOSS_ML              50.0f     // used when the EEPROM has never been written
+#endif
 #define LOSS_MAX_ML                  200.0f
 
 // ---------- Flow limit of the main extraction (see coffee/FlowLimit.h) ----------
