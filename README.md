@@ -70,7 +70,7 @@ No-water detection (the pump stops and the screen says so), maximum duration of 
 
 | You do | The machine does |
 |---|---|
-| Turn the knob | changes the setting shown in large digits (volume, pre-infusion, wait, flush, temperature) |
+| Turn the knob | changes the setting shown in large digits (volume, pre-infusion, flow limit, wait, flush, temperature) |
 | Double push | validates it and selects the next one |
 | Press the start button | starts the extraction (AUTO or MANUAL); during it, ends it, then starts / stops the flush |
 | Short push of the knob | switches between AUTO and MANUAL, or clears the "no water" error |

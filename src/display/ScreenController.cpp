@@ -257,11 +257,9 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
     case PARAMETER_PREINFUSION:
       value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_ML;      dirtyField = DIRTY_VOLUME_NUMBER;
       break;
-#ifdef FLOW_LIMIT
     case PARAMETER_FLOW_LIMIT:
       value = &settings_.flowLimit;       maxValue = FLOW_LIMIT_MAX_TENTHS;   dirtyField = DIRTY_VOLUME_NUMBER;
       break;
-#endif
     case PARAMETER_PREINFUSION_WAIT:
       value = &settings_.preinfusionWait; maxValue = PREINFUSION_WAIT_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
       break;
@@ -281,12 +279,10 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
   }
 
   int16_t newValue = constrain(*value + delta, VALUE_MIN, maxValue);
-#ifdef FLOW_LIMIT
   // The flow limit is 0 (off) or from FLOW_LIMIT_MIN_TENTHS to the maximum: no value in between
   if (active_ == PARAMETER_FLOW_LIMIT && newValue > 0 && newValue < FLOW_LIMIT_MIN_TENTHS) {
     newValue = (delta > 0) ? FLOW_LIMIT_MIN_TENTHS : 0;
   }
-#endif
   if (newValue == *value) {
     return false;
   }
@@ -488,10 +484,8 @@ void ScreenController::render() {
     // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
     if (active_ == PARAMETER_PREINFUSION) {
       drawVolume(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
-#ifdef FLOW_LIMIT
     } else if (active_ == PARAMETER_FLOW_LIMIT) {
       drawFlowLimit(settings_.flowLimit, redrawTag);
-#endif
     } else if (active_ == PARAMETER_CALIBRATION) {
       drawVolume(calibrationValue_, TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
     } else {

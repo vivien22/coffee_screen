@@ -16,7 +16,7 @@ void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
 void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
 #define PUMP pins[4]
 #define VALVE pins[16]
@@ -76,9 +76,9 @@ int main(){
   EEPROM.mem[7]=200; s=st.load(); CHECK(s.flush==FLUSH_MAX_SECONDS);
   // ---- screen: parameter order and flush display
   ScreenController sc; Settings in={93,40,5,5,6}; sc.begin(in);
-  ActiveParameter seq[]={PARAMETER_PREINFUSION,PARAMETER_PREINFUSION_WAIT,PARAMETER_FLUSH,PARAMETER_TEMPERATURE,PARAMETER_VOLUME};
-  for(int i=0;i<5;i++){ sc.selectNextParameter(); CHECK(sc.activeParameter()==seq[i]); }
-  sc.selectNextParameter(); sc.selectNextParameter(); sc.selectNextParameter();   // pre, wait, flush
+  ActiveParameter seq[]={PARAMETER_PREINFUSION,PARAMETER_FLOW_LIMIT,PARAMETER_PREINFUSION_WAIT,PARAMETER_FLUSH,PARAMETER_TEMPERATURE,PARAMETER_VOLUME};
+  for(int i=0;i<6;i++){ sc.selectNextParameter(); CHECK(sc.activeParameter()==seq[i]); }
+  sc.selectNextParameter(); sc.selectNextParameter(); sc.selectNextParameter(); sc.selectNextParameter();   // pre, limit, wait, flush
   CHECK(sc.activeParameter()==PARAMETER_FLUSH);
   calls.clear(); sc.update(0); bool ok=false; for(auto&c:calls) if(c=="dur(6,1,3,1)") ok=true; CHECK(ok);   // 6 s, large, FLUSH tag, tag drawn
   CHECK(sc.adjustActiveParameter(3)); CHECK(sc.settings().flush==9 && sc.settings().preinfusionWait==5);

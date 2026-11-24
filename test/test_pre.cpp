@@ -15,7 +15,7 @@ void beginDisplay(){} void showDisplay(){} void beginWelcome(){} void endWelcome
 void drawTemperature(double v,TextSize s){} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawFlowLimit(uint16_t v,bool r){L("limit",v,r);} void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 #define PUMP pins[4]
 #define VALVE pins[16]
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
@@ -60,6 +60,17 @@ int main(){
     CHECK(sc.adjustActiveParameter(3)); calls.clear(); sc.update(2); CHECK(calls.size()==1 && calls[0]=="vol(13,1,1,0)");   // number only
     CHECK(sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusion==50 && !sc.adjustActiveParameter(1));
     CHECK(sc.settings().preinfusionWait==5 && sc.settings().volume==40);
+    // the flow limit comes right after PRE: 0 = none, then 0.5 to 8.0 ml/s by steps of 0.1 (no value in between), shown by drawFlowLimit
+    sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_FLOW_LIMIT);
+    calls.clear(); sc.update(500); CHECK(has("limit(0,1,0,0)"));                         // the whole field: tag drawn
+    CHECK(sc.settings().flowLimit==0 && !sc.adjustActiveParameter(-1));                   // already none
+    CHECK(sc.adjustActiveParameter(1) && sc.settings().flowLimit==FLOW_LIMIT_MIN_TENTHS); // from none to the lowest limit
+    calls.clear(); sc.update(501); CHECK(calls.size()==1 && calls[0]=="limit(5,0,0,0)");   // number only
+    CHECK(sc.adjustActiveParameter(3) && sc.settings().flowLimit==8);
+    CHECK(sc.adjustActiveParameter(-3) && sc.settings().flowLimit==5);
+    CHECK(sc.adjustActiveParameter(-1) && sc.settings().flowLimit==0);                    // below the lowest limit: none
+    CHECK(sc.adjustActiveParameter(100) && sc.settings().flowLimit==FLOW_LIMIT_MAX_TENTHS && !sc.adjustActiveParameter(1));
+    CHECK(sc.settings().preinfusion==50 && sc.settings().preinfusionWait==5 && sc.settings().volume==40);   // the others are not touched
     sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_PREINFUSION_WAIT);
     calls.clear(); sc.update(701); CHECK(has("dur(5,1,2,1)")); CHECK(has("vol(40,0,0,1)"));   // wait in the duration field; the volume field is back to the target, small
     CHECK(sc.adjustActiveParameter(4)); CHECK(sc.settings().preinfusionWait==9); CHECK(!sc.adjustActiveParameter(100)); CHECK(sc.settings().preinfusionWait==9);

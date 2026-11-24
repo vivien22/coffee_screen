@@ -22,9 +22,7 @@ enum ActiveParameter {
   PARAMETER_VOLUME,
   PARAMETER_CALIBRATION,        // AUTO mode, after an extraction: the real weight of the cup (g), corrects the loss
   PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
-#ifdef FLOW_LIMIT
-  PARAMETER_FLOW_LIMIT,         // AUTO, after the pre-infusion: flow limit of the extraction (ml/s, 0.1 steps), test
-#endif
+  PARAMETER_FLOW_LIMIT,         // AUTO, after the pre-infusion: flow limit of the extraction (ml/s, 0.1 steps), 0 = none
   PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
   PARAMETER_FLUSH,              // flush time after the extraction (s)
   PARAMETER_MANUAL_TIME,        // MANUAL mode: time of the extraction (s), 0 = until the second push

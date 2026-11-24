@@ -1,6 +1,6 @@
 // FlowLimit (test, Nano R4): the pump is a pattern of slots of one mains period; the limit of the flow is reached with the flow per
 // click MEASURED from the In sensor, never with the pressure. A simulated pump gives a flow per click that changes while the test
-// runs (the puck gives way), and the checks are on the flow it delivers. Built with -DFLOW_LIMIT=1 by test/run.sh.
+// runs (the puck gives way), and the checks are on the flow it delivers.
 #include <cstdio>
 #include <cmath>
 #include "src/Config.h"

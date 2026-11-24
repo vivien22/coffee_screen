@@ -27,7 +27,7 @@ void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welc
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r){L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r){L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawTemperatureError(){L("temperr");}
-void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
@@ -127,7 +127,7 @@ static void temperatureError(){
   sc.selectNextParameter(); calls.clear(); sc.update(2); CHECK(!has("temperr(0,0,0,0)"));
   sc.selectNextParameter(); calls.clear(); sc.update(2); CHECK(!has("temperr(0,0,0,0)"));
   // the setpoint is still shown while it is edited
-  for(int i=0;i<2;i++) sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_TEMPERATURE);
+  while(sc.activeParameter()!=PARAMETER_TEMPERATURE) sc.selectNextParameter(); CHECK(sc.activeParameter()==PARAMETER_TEMPERATURE);
   calls.clear(); sc.update(3); CHECK(!has("temperr(0,0,0,0)"));
   sc.selectNextParameter(); calls.clear(); sc.update(4); CHECK(has("temperr(0,0,0,0)"));     // back to the live value: still ERR
   sc.showLiveTemperature(5000,90.0); calls.clear(); sc.update(5000); CHECK(!has("temperr(0,0,0,0)") && !calls.empty());
@@ -183,9 +183,9 @@ static void manualTime(){
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
   // AUTO: the MANUAL time is skipped, the others are back
   m.handleShortPush(); CHECK(!m.screen_.settings().manual);
-  for(int i=0;i<5;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_MANUAL_TIME); }
+  for(int i=0;i<6;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_MANUAL_TIME); }
   CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
-  m.handleDoublePush(); m.handleDoublePush();            // pre-infusion, wait
+  m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // pre-infusion, limit, wait
   m.handleShortPush();                                // back to MANUAL: the volume is selected again
   CHECK(m.screen_.settings().manual && m.screen_.activeParameter()==PARAMETER_VOLUME);
   // the extraction: the time counts down from 7 to 0, then the pump stops by itself
@@ -230,7 +230,7 @@ static void autoSave(){
   // a start without change writes nothing
   m.handleStartButton(); CHECK(EEPROM.writes==w); m.extraction_.stop(EXTRACTION_FINISHED);
   // temperature: edited, applied and saved when the double push leaves it
-  m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // volume -> pre -> wait -> flush
+  m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // volume -> pre -> limit -> wait -> flush
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE); w=EEPROM.writes;
   m.screen_.adjustActiveParameter(-3); CHECK(savedTemperature()==DEFAULT_TEMPERATURE && EEPROM.writes==w);
   m.handleDoublePush(); CHECK(savedTemperature()==DEFAULT_TEMPERATURE-3 && EEPROM.writes==w+1);

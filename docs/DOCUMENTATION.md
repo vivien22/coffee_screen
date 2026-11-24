@@ -94,11 +94,22 @@ is lit while the heater is on. The parameter being edited is shown with **large 
 <td align="center"><img src="images/set-preinfusion.png" width="200"><br><b>PRE</b><br>pre-infusion volume</td>
 </tr>
 <tr>
+<td align="center"><img src="images/set-flow-limit.png" width="200"><br><b>LIMIT</b><br>flow limit of the extraction</td>
 <td align="center"><img src="images/set-wait.png" width="200"><br><b>WAIT</b><br>soak time</td>
 <td align="center"><img src="images/set-flush.png" width="200"><br><b>FLUSH</b><br>rinse time</td>
+</tr>
+<tr>
 <td align="center"><img src="images/set-temperature.png" width="200"><br><b>Temperature</b><br>water setpoint</td>
+<td></td>
+<td></td>
 </tr>
 </table>
+
+**LIMIT** (AUTO only, right after PRE) limits the flow of the pump during the main extraction, in ml/s with one decimal: `0.0` means no
+limit (the default), then 0.5 to 8.0. It does not apply to the pre-infusion nor to MANUAL. There is no pressure sensor: the flow of the
+pump is measured by the In sensor, the flow that one pulse of the mains gives is worked out from it every second or so, and the pump is
+given just enough pulses to keep the flow at the limit (one pulse per 20 ms at the most: the SSR switches on the zero crossings). While a
+limit applies the stop delay is not learned (see `CLAUDE.md`).
 
 ### MANUAL mode and errors
 

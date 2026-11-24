@@ -32,6 +32,7 @@ static Settings settings(bool manual = false) {
   s.preinfusionWait = 5;
   s.flush = 5;
   s.manualSeconds = 0;
+  s.flowLimit = 0;
   s.loss = DEFAULT_LOSS_ML;
   s.manual = manual;
   return s;
@@ -69,9 +70,10 @@ int main(int argc, char **argv) {
 
   // Settings: a double push selects the next parameter
   { ScreenController sc; ready(sc); sc.selectNextParameter(); redraw(sc); save("set-preinfusion"); }
-  { ScreenController sc; ready(sc); sc.selectNextParameter(); sc.selectNextParameter(); redraw(sc); save("set-wait"); }
-  { ScreenController sc; ready(sc); for (int i = 0; i < 3; i++) sc.selectNextParameter(); redraw(sc); save("set-flush"); }
-  { ScreenController sc; ready(sc); for (int i = 0; i < 4; i++) sc.selectNextParameter(); redraw(sc); save("set-temperature"); }
+  { ScreenController sc; ready(sc); sc.selectNextParameter(); sc.selectNextParameter(); sc.adjustActiveParameter(25); redraw(sc); save("set-flow-limit"); }
+  { ScreenController sc; ready(sc); for (int i = 0; i < 3; i++) sc.selectNextParameter(); redraw(sc); save("set-wait"); }
+  { ScreenController sc; ready(sc); for (int i = 0; i < 4; i++) sc.selectNextParameter(); redraw(sc); save("set-flush"); }
+  { ScreenController sc; ready(sc); for (int i = 0; i < 5; i++) sc.selectNextParameter(); redraw(sc); save("set-temperature"); }
   { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(38, 27); redraw(sc);
     sc.offerCalibration(38); sc.selectNextParameter(); redraw(sc); save("set-calibration"); }
   { ScreenController sc; ready(sc); sc.adjustActiveParameter(5); redraw(sc); save("set-volume"); }

@@ -1,5 +1,4 @@
 // FlowLimit.cpp: see FlowLimit.h
-#ifdef FLOW_LIMIT
 
 #include "FlowLimit.h"
 #include "../Config.h"
@@ -54,4 +53,3 @@ bool FlowLimit::tick(uint32_t now, float inMl) {
   return on_;
 }
 
-#endif  // FLOW_LIMIT

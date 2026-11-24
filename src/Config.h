@@ -148,8 +148,7 @@
 #define DEFAULT_LOSS_ML              30.0f     // used when the EEPROM has never been written
 #define LOSS_MAX_ML                  60.0f
 
-// ---------- Flow limit (test, Nano R4 only: -DFLOW_LIMIT=1 in platformio.ini, see coffee/FlowLimit.h) ----------
-#ifdef FLOW_LIMIT
+// ---------- Flow limit of the main extraction (see coffee/FlowLimit.h) ----------
 #define DEFAULT_FLOW_LIMIT_TENTHS         0      // default: 0 = no limit (0.0 ml/s on the screen), also when the EEPROM is blank
 #define FLOW_LIMIT_MIN_TENTHS             5      // 0.5 ml/s, the lowest limit: the no-flow safety needs 2 ml in 5 s
 #define FLOW_LIMIT_MAX_TENTHS             80     // 8.0 ml/s, the highest limit (the setting goes up in steps of 0.1 ml/s)
@@ -158,7 +157,7 @@
 #define FLOW_LIMIT_START_ML_PER_CLICK     0.20f  // flow per click before the first measure (ml)
 #define FLOW_LIMIT_GAIN                   0.3f   // weight of a new measure in the flow per click
 #define FLOW_LIMIT_MIN_CLICKS             5      // clicks in a window needed for a measure
-#endif
+
 #define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
 #define CALIBRATION_MIN_ML           10
 

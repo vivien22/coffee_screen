@@ -1,5 +1,5 @@
 // The stop delay is NOT learned while a flow limit applies (decision of the user, 2026-11-24, may change: see the REMINDER in
-// ExtractionController::finish() and CLAUDE.md). Without a limit the same extraction learns it. Built with -DFLOW_LIMIT=1.
+// ExtractionController::finish() and CLAUDE.md). Without a limit the same extraction learns it.
 // The water is simulated: 5 ml of In per second of ON pump, and a tail of 2.7 ml after the stop (as in test_anticipation).
 #include "src/Config.h"
 #include "src/coffee/ExtractionController.h"

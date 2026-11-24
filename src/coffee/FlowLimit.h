@@ -1,6 +1,6 @@
 /*
   FlowLimit: limits the flow of the pump during the main extraction (RUNNING), without a pressure sensor and without a PI.
-  Test version, Nano R4 only (built with -DFLOW_LIMIT=1, see platformio.ini). Nothing here is compiled without FLOW_LIMIT.
+  The limit is a setting of the user (menu LIMIT, after PRE); 0 means no limit.
 
   The pump is a vibration pump driven by the mains: the SSR only switches at the zero crossings, so time is cut in slots of
   one mains period (FLOW_LIMIT_SLOT_MS, 20 ms at 50 Hz). A slot is ON (one click of the pump) or OFF. The ON slots are spread
@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#ifdef FLOW_LIMIT
 
 #include <stdint.h>
 
@@ -41,4 +40,3 @@ class FlowLimit {
     bool on_ = false;
 };
 
-#endif  // FLOW_LIMIT
