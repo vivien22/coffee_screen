@@ -292,6 +292,37 @@ int main() {
     CHECK(sameIn(got, manualScreen, DROP));   // the letter is the M, at full brightness
   }
 
+  // 6. The row of the parameter that was selected (here the volume row, LIMIT -> WAIT) fades in much faster (FADE_IN_OLD_MS) than the row of
+  // the new parameter (the duration row, FADE_IN_MS)
+  {
+    Picture finalPicture;
+    {
+      ScreenController sc;
+      ready(sc);
+      for (int i = 0; i < 3; i++) {
+        sc.selectNextParameter();
+        run(sc, TOTAL + 100);
+      }
+      finalPicture = snapshot();
+    }
+    ScreenController sc;
+    ready(sc);
+    for (int i = 0; i < 2; i++) {
+      sc.selectNextParameter();
+      run(sc, TOTAL + 100);
+    }
+    sc.selectNextParameter();   // LIMIT -> WAIT
+    t++;
+    sc.update(t);               // the clock of the fade starts here
+    run(sc, FADE_OUT_MS + FADE_IN_OLD_MS + 60);
+    const Picture early = snapshot();
+    CHECK(sameIn(early, finalPicture, VOLUME_ROW));      // the old parameter is back
+    CHECK(!sameIn(early, finalPicture, DURATION_ROW));   // the new one is still coming up
+    run(sc, TOTAL + 100);
+    const Picture late = snapshot();
+    CHECK(sameIn(late, finalPicture, VOLUME_ROW) && sameIn(late, finalPicture, DURATION_ROW));
+  }
+
   if (fails == 0) printf("test_fade: ALL OK\n");
   return fails ? 1 : 0;
 }

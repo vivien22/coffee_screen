@@ -293,6 +293,9 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
     fade_[row].active = true;
     fade_[row].from = before[row];
     fade_[row].to = after;
+    if (!modeChange && row == rowOf(previous) && row != rowOf(next)) {
+      fade_[row].inMs = FADE_IN_OLD_MS;   // the row of the parameter that was selected comes back fast
+    }
     if (row == ROW_TEMPERATURE) {
       temperatureErrorShown_ = false;   // "ERR" is drawn again when the fades are over
     }
@@ -735,6 +738,16 @@ void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness
   setTextBrightness(255);
 }
 
+ScreenController::Row ScreenController::rowOf(ActiveParameter parameter) {
+  if (parameter == PARAMETER_TEMPERATURE) {
+    return ROW_TEMPERATURE;
+  }
+  if (parameter == PARAMETER_PREINFUSION_WAIT || parameter == PARAMETER_FLUSH || parameter == PARAMETER_MANUAL_TIME) {
+    return ROW_DURATION;
+  }
+  return ROW_VOLUME;   // the volume, the calibration, the pre-infusion, the flow limit
+}
+
 uint8_t ScreenController::dirtyOf(Row row) const {
   return row == ROW_TEMPERATURE ? DIRTY_TEMPERATURE : (row == ROW_VOLUME ? DIRTY_VOLUME : DIRTY_DURATION);
 }
@@ -778,7 +791,7 @@ void ScreenController::stepFades(uint32_t now) {
       continue;
     }
     const uint32_t elapsed = now - fade.start;
-    if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
+    if (elapsed >= FADE_OUT_MS + fade.inMs) {
       fade.active = false;
       if (row == ROW_MODE) {
         drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255);   // the letter of the mode, at full brightness
@@ -810,7 +823,7 @@ void ScreenController::stepFades(uint32_t now) {
       level = elapsed >= span ? 0 : (uint8_t)(255 - 255 * elapsed / span);
     } else {
       // the new row comes up, ease-out: fast first, slow at the end
-      const uint32_t remaining = 255 - (elapsed - FADE_OUT_MS) * 255 / FADE_IN_MS;
+      const uint32_t remaining = 255 - (elapsed - FADE_OUT_MS) * 255 / fade.inMs;
       level = (uint8_t)(255 - remaining * remaining * remaining / (255 * 255));
     }
     const int16_t step = (int16_t)level - (int16_t)fade.level;

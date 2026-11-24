@@ -255,6 +255,11 @@
 #ifndef FADE_IN_MS
 #define FADE_IN_MS               770UL
 #endif
+// The row of the parameter that was selected (its row goes back to its normal size) fades in much faster, in FADE_IN_OLD_MS: the eye follows
+// the new parameter. The new parameter keeps FADE_IN_MS. With one row for both (volume -> pre-infusion), FADE_IN_MS.
+#ifndef FADE_IN_OLD_MS
+#define FADE_IN_OLD_MS           80UL
+#endif
 #define FADE_FRAME_MS            30UL
 
 // ---------- Screen refresh ----------

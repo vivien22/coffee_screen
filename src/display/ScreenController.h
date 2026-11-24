@@ -216,6 +216,7 @@ class ScreenController {
       bool started = false;     // the start time is taken by the first update() after the change
       bool dimming = true;      // out phase (the old look) or in phase (the new one)
       uint8_t level = 255;      // brightness of the last frame drawn
+      uint16_t inMs = FADE_IN_MS;   // duration of the fade in of this row (FADE_IN_OLD_MS for the row of the parameter that was selected)
       RowLook from, to;
       uint32_t start = 0;
       uint32_t nextFrame = 0;
@@ -223,6 +224,7 @@ class ScreenController {
     Fade fade_[ROW_COUNT];
     RowLook lookOf(Row row, ActiveParameter active) const;
     void drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase = true);
+    static Row rowOf(ActiveParameter parameter);   // the row (volume, duration, temperature) that shows a parameter
     uint8_t dirtyOf(Row row) const;
     uint8_t fadingRows() const;
     void finishFades();      // the rows in a fade show their look as it is, at once
