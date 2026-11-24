@@ -216,6 +216,7 @@ class ScreenController {
       bool started = false;     // the start time is taken by the first update() after the change
       bool dimming = true;      // out phase (the old look) or in phase (the new one)
       uint8_t level = 255;      // brightness of the last frame drawn
+      uint16_t outMs = FADE_OUT_MS;   // duration of the fade out of this row (FADE_OUT_OLD_MS for the row of the parameter that was selected)
       uint16_t inMs = FADE_IN_MS;   // duration of the fade in of this row (FADE_IN_OLD_MS for the row of the parameter that was selected)
       RowLook from, to;
       uint32_t start = 0;

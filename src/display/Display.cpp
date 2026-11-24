@@ -97,6 +97,24 @@ struct IconBits {
   }
 };
 
+// The brightness of the texts (see setTextBrightness): the color of the text is moved toward COLOR_BG
+static uint8_t textBrightness = 255;
+
+void setTextBrightness(uint8_t level) {
+  textBrightness = level;
+}
+
+static uint16_t dimChannel(uint8_t shift, uint8_t mask, uint16_t foreground) {
+  const int16_t background = (COLOR_BG >> shift) & mask;
+  const int16_t text = (foreground >> shift) & mask;
+  return (uint16_t)(background + (text - background) * textBrightness / 255);
+}
+
+// A color moved toward COLOR_BG by the brightness (an icon at the brightness of a fade, see drawDropFrame)
+static uint16_t dimColor(uint16_t color) {
+  return (dimChannel(11, 0x1F, color) << 11) | (dimChannel(5, 0x3F, color) << 5) | dimChannel(0, 0x1F, color);
+}
+
 // Draw an icon stored as 2-bit opacity, compressed (PROGMEM), row by row. The data is a stream of tokens
 // (tools/compress_icons.cpp writes it from tools/icons_raw.h):
 // the first two bits are the level of the pixels of the token:
@@ -128,7 +146,8 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
       const uint8_t part = (run < width - column) ? run : (uint8_t)(width - column);   // up to the end of the row
       if (level) {
         tft.setAddrWindow(x + column, y + row, part, 1);
-        tft.writeColor(level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5)), part);
+        const uint16_t color = level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5));
+        tft.writeColor(textBrightness == 255 ? color : dimColor(color), part);
       }
       run -= part;
       column += part;
@@ -197,6 +216,13 @@ void drawDrop(bool visible, bool manual) {
   }
 }
 
+// The drop with its letter, drawn over what is there, at the brightness of setTextBrightness (a frame of the fade of a change of mode: the
+// pixels of the icon replace the previous frame, nothing is erased first)
+void drawDropFrame(bool manual) {
+  drawIcon(ICON_DROP_X, ICON_DROP_Y, ICON_DROP, ICON_DROP_WIDTH, ICON_DROP_HEIGHT);
+  drawModeLetter(manual);
+}
+
 // The letter of the mode alone, an opaque block (at the brightness of setTextBrightness): the frames of the fade of a change of mode
 void drawModeLetter(bool manual) {
   const char letter = manual ? '<' : '4';   // FontTag codes: '4' = A, '<' = M
@@ -210,6 +236,7 @@ void drawModeLetter(bool manual) {
 #else
 void drawDrop(bool, bool) {}
 void drawModeLetter(bool) {}
+void drawDropFrame(bool) {}
 void drawSteamIcon() {}
 void beginWelcome() {}
 void endWelcome() {}
@@ -242,13 +269,6 @@ static uint16_t blendChannel(uint8_t shift, uint8_t mask, uint16_t foreground, u
   return (uint16_t)(background + (text - background) * level / 3);
 }
 
-// The brightness of the texts (see setTextBrightness): the color of the text is moved toward COLOR_BG
-static uint8_t textBrightness = 255;
-
-void setTextBrightness(uint8_t level) {
-  textBrightness = level;
-}
-
 void forgetField(uint8_t field) {
   (field == 0 ? temperatureField : (field == 1 ? volumeField : durationField)).valid = false;
 }
@@ -257,12 +277,6 @@ void repaintField(uint8_t field) {
   NumberField &f = (field == 0 ? temperatureField : (field == 1 ? volumeField : durationField));
   f.valid = false;
   f.repaint = true;
-}
-
-static uint16_t dimChannel(uint8_t shift, uint8_t mask, uint16_t foreground) {
-  const int16_t background = (COLOR_BG >> shift) & mask;
-  const int16_t text = (foreground >> shift) & mask;
-  return (uint16_t)(background + (text - background) * textBrightness / 255);
 }
 
 static void makePalette(uint16_t foreground, uint16_t palette[4]) {

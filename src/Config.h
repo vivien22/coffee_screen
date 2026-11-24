@@ -255,8 +255,11 @@
 #ifndef FADE_IN_MS
 #define FADE_IN_MS               770UL
 #endif
-// The row of the parameter that was selected (its row goes back to its normal size) fades in much faster, in FADE_IN_OLD_MS: the eye follows
+// The row of the parameter that was selected (its row goes back to its normal size) fades out in FADE_OUT_OLD_MS and in in FADE_IN_OLD_MS, both much faster: the eye follows
 // the new parameter. The new parameter keeps FADE_IN_MS. With one row for both (volume -> pre-infusion), FADE_IN_MS.
+#ifndef FADE_OUT_OLD_MS
+#define FADE_OUT_OLD_MS          80UL    // and it fades out as fast
+#endif
 #ifndef FADE_IN_OLD_MS
 #define FADE_IN_OLD_MS           80UL
 #endif

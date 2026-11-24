@@ -234,20 +234,14 @@ int main() {
     CHECK(inkIn(got, TEMPERATURE_ROW) > 0);
   }
 
-  // 5. A change of mode (AUTO -> MANUAL): the letter of the drop and the rows whose content changes (the volume 40 -> 0) fade as at a change of
-  // parameter; the rest of the drop (the icon) and the temperature are not touched; the end is the screen of the new mode drawn as it is
+  // 5. A change of mode (AUTO -> MANUAL): the drop (its icon and its letter) and the rows whose content changes (the volume 40 -> 0) fade as at a
+  // change of parameter; the temperature is not touched; the end is the screen of the new mode drawn as it is
   {
     const Zone DROP = {ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT};
-    const Zone LETTER = {ICON_DROP_X + 5, ICON_DROP_Y + 18, 26, 21};   // the room of the A and of the M
-    Picture manualScreen, autoScreen, iconOnly;
+    Picture manualScreen, autoScreen, blank;
     {
-      // the drop without its letter: the letter drawn at brightness 0 is the background
-      beginDisplay();
-      drawDrop(true, false);
-      setTextBrightness(0);
-      drawModeLetter(false);
-      setTextBrightness(255);
-      iconOnly = snapshot();
+      beginDisplay();   // the screen filled with the background: the drop at brightness 0
+      blank = snapshot();
     }
     {
       ScreenController sc;
@@ -268,31 +262,23 @@ int main() {
     sc.showReady();   // what CoffeeMachine does just after
     t++;
     sc.update(t);     // the clock of the fade starts here
-    bool letterWasDark = false;
-    bool iconStill = true, temperatureStill = true;
+    bool dropWasDark = false;
+    bool temperatureStill = true;
     for (uint32_t i = 0; i < TOTAL + 100; i++) {
       t++;
       sc.update(t);
       const Picture now = snapshot();
       temperatureStill = temperatureStill && sameIn(now, autoScreen, TEMPERATURE_ROW);
-      // the drop outside of the letter does not change
-      for (int y = DROP.y; y < DROP.y + DROP.h; y++) {
-        for (int x = DROP.x; x < DROP.x + DROP.w; x++) {
-          const bool inLetter = x >= LETTER.x && x < LETTER.x + LETTER.w && y >= LETTER.y && y < LETTER.y + LETTER.h;
-          if (!inLetter && now[y * 240 + x] != autoScreen[y * 240 + x]) iconStill = false;
-        }
-      }
-      letterWasDark = letterWasDark || sameIn(now, iconOnly, LETTER);
+      dropWasDark = dropWasDark || sameIn(now, blank, DROP);
     }
     const Picture got = snapshot();
-    CHECK(iconStill);
     CHECK(temperatureStill);
-    CHECK(letterWasDark);   // the letter went dark on the way
+    CHECK(dropWasDark);   // the drop went dark on the way
     CHECK(sameIn(got, manualScreen, VOLUME_ROW) && sameIn(got, manualScreen, DURATION_ROW) && sameIn(got, manualScreen, TEMPERATURE_ROW));
-    CHECK(sameIn(got, manualScreen, DROP));   // the letter is the M, at full brightness
+    CHECK(sameIn(got, manualScreen, DROP));   // the drop with the M, at full brightness
   }
 
-  // 6. The row of the parameter that was selected (here the volume row, LIMIT -> WAIT) fades in much faster (FADE_IN_OLD_MS) than the row of
+  // 6. The row of the parameter that was selected (here the volume row, LIMIT -> WAIT) fades out and in much faster (FADE_OUT_OLD_MS, FADE_IN_OLD_MS) than the row of
   // the new parameter (the duration row, FADE_IN_MS)
   {
     Picture finalPicture;
@@ -314,7 +300,7 @@ int main() {
     sc.selectNextParameter();   // LIMIT -> WAIT
     t++;
     sc.update(t);               // the clock of the fade starts here
-    run(sc, FADE_OUT_MS + FADE_IN_OLD_MS + 60);
+    run(sc, FADE_OUT_OLD_MS + FADE_IN_OLD_MS + 60);
     const Picture early = snapshot();
     CHECK(sameIn(early, finalPicture, VOLUME_ROW));      // the old parameter is back
     CHECK(!sameIn(early, finalPicture, DURATION_ROW));   // the new one is still coming up
