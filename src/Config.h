@@ -257,6 +257,11 @@
 #endif
 // The row of the parameter that was selected (its row goes back to its normal size) fades out in FADE_OUT_OLD_MS and in in FADE_IN_OLD_MS, both much faster: the eye follows
 // the new parameter. The new parameter keeps FADE_IN_MS. With one row for both (volume -> pre-infusion), FADE_IN_MS.
+// A parameter of another row is selected (temperature, volume or duration: not a sub-parameter of the same row, such as the pre-infusion
+// after the volume): the row that gets the selection fades out in FADE_OUT_NEW_ROW_MS only, very short, and fades in in FADE_IN_MS.
+#ifndef FADE_OUT_NEW_ROW_MS
+#define FADE_OUT_NEW_ROW_MS      40UL
+#endif
 #ifndef FADE_OUT_OLD_MS
 #define FADE_OUT_OLD_MS          80UL    // and it fades out as fast
 #endif

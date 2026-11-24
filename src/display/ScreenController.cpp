@@ -293,6 +293,9 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
     fade_[row].active = true;
     fade_[row].from = before[row];
     fade_[row].to = after;
+    if (!modeChange && row == rowOf(next) && row != rowOf(previous)) {
+      fade_[row].outMs = FADE_OUT_NEW_ROW_MS;   // the row that gets the selection goes out very fast, and comes up slowly
+    }
     if (!modeChange && row == rowOf(previous) && row != rowOf(next)) {
       fade_[row].outMs = FADE_OUT_OLD_MS;   // the row of the parameter that was selected goes out and comes back fast
       fade_[row].inMs = FADE_IN_OLD_MS;

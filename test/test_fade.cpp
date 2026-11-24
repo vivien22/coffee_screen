@@ -304,6 +304,10 @@ int main() {
     const Picture early = snapshot();
     CHECK(sameIn(early, finalPicture, VOLUME_ROW));      // the old parameter is back
     CHECK(!sameIn(early, finalPicture, DURATION_ROW));   // the new one is still coming up
+    // The new row went out in FADE_OUT_NEW_ROW_MS only: 330 ms after the start it is already well lit (with the fade out of a sub-parameter,
+    // FADE_OUT_MS, it would be at a third of its brightness)
+    run(sc, 330 - (FADE_OUT_OLD_MS + FADE_IN_OLD_MS + 60));
+    CHECK(brightestIn(snapshot(), DURATION_ROW) * 10 >= brightestIn(finalPicture, DURATION_ROW) * 6);
     run(sc, TOTAL + 100);
     const Picture late = snapshot();
     CHECK(sameIn(late, finalPicture, VOLUME_ROW) && sameIn(late, finalPicture, DURATION_ROW));
