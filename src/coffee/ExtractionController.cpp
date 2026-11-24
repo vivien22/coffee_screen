@@ -346,10 +346,16 @@ uint16_t ExtractionController::secondsLeft(uint32_t phaseDurationMs, uint32_t no
   return (uint16_t)((phaseDurationMs - phaseElapsedMs + 999UL) / 1000UL);
 }
 
-// Flow of the water entering the boiler, used by the heater as feedforward.
+// Flow of the water that has to be heated, used by the heater as feedforward: In - Out, never below 0. In is the flow of the
+// pump; the part that goes back through the OPV valve (Out) does not go through the boiler, so it takes no heat. With In alone
+// the heater was given up to 40 % too much power in a long extraction (the OPV opens when the puck gives way: 67 ml of 172 ml on
+// 2026-11-24) and the temperature went over the setpoint. The flow sensors return mL/min.
 float ExtractionController::inflowMlPerSec() {
-  // The flow sensor returns mL/min
-  return isActive() ? flow_.getInflowRate() / 60.0f : 0.0f;
+  if (!isActive()) {
+    return 0.0f;
+  }
+  const float net = flow_.getInflowRate() - flow_.getOutflowRate();
+  return (net > 0.0f ? net : 0.0f) / 60.0f;
 }
 
 // In - Out is the water that stays in the system; the part that does not end in the cup is removed.

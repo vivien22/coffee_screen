@@ -145,7 +145,8 @@ class ExtractionController {
     // 0 in the other states. The screen shows it instead of the volume during the pre-infusion.
     uint16_t preinfusionMlLeft() const { return preinfusionMlLeft_; }
 
-    // Flow of the water entering the boiler (the water to heat), 0 when no extraction is in progress
+    // Flow of the water to heat (ml/s): In - Out, the water that returns through the OPV valve is not heated; never below 0;
+    // 0 when no extraction is in progress. The heater uses it as feedforward.
     float inflowMlPerSec();
 
     // Water that does not end in the cup (puck, backflush), see Config.h: the setting of the user,

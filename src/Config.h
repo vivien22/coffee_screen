@@ -107,7 +107,7 @@
 #define PID_KI               0.3   // measured on the boiler (tuning/README.md on pid-tuning): no permanent offset
 #define PID_KD               500.0
 
-// The water that enters the boiler (inflow sensor) is cold. Heating that
+// The water that goes through the boiler (In - Out of the flow sensors: what the OPV valve sends back is not heated) is cold. Heating that
 // water from WATER_INLET_TEMPERATURE to the setpoint takes
 //     power [W] = flow [ml/s] x 4.186 J/(g.K) x (setpoint - inlet temperature) [K]    (1 ml = 1 g)
 // The heater is switched on for the matching part of the PID window as soon as the water

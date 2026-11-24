@@ -152,9 +152,14 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   the boiler answers with a delay of 10 s or more, which matters for the PID and the feedforward, and pre-infusion
   changes the disturbance. The probe reads about 5 °C above the water at the grouphead (`TEMPERATURE_OFFSET`); the
   user measures the grouphead water himself to adjust it.
-- Flow sensors: In = water entering the boiler (used by the feedforward); Out = water returning through the OPV
+- Flow sensors: In = the flow of the pump; Out = water returning through the OPV
   valve (an uncontrolled overpressure valve). Cup volume = In - Out - loss: about 24 ml stay in the puck and 5-6 ml
   leave at the backflush when the valve opens (`DEFAULT_LOSS_ML`). Pre-infusion is controlled by volume.
+- The heater feedforward uses the flow In - Out (`ExtractionController::inflowMlPerSec()`, since 2026-11-24, asked by the user after an
+  overshoot of the temperature on a long extraction): the water that goes back through the OPV is not heated. On the journal entry
+  #5 of the R4, 67 ml of 172 ml went back, 39 %, so In alone gave about 430 W too much for 46 s. This assumes that the OPV sends the
+  water back BEFORE the boiler; NOT confirmed by a temperature log yet (to do: record the probe temperature and the heater power
+  on a long extraction). If the overshoot stays, the other cause is the heat stored in the boiler body (the probe is outside).
 - Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
   sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ
   (pin A2; there is no option any more to run without it: the options `FLOW_OUT_SENSOR`, with an estimated Out volume, and `FLOW_SIMULATOR` were removed on 2026-11-21 at the user's request). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
