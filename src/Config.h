@@ -145,8 +145,8 @@
 //     measured loss = (In - Out) - real volume
 //     new loss = loss + CALIBRATION_GAIN * (measured loss - loss)        (kept between 0 and LOSS_MAX_ML)
 // An extraction that gave less than CALIBRATION_MIN_ML (stopped at once...) is not offered.
-#define DEFAULT_LOSS_ML              30.0f     // used when the EEPROM has never been written
-#define LOSS_MAX_ML                  60.0f
+#define DEFAULT_LOSS_ML              50.0f     // used when the EEPROM has never been written
+#define LOSS_MAX_ML                  200.0f
 
 // ---------- Flow limit of the main extraction (see coffee/FlowLimit.h) ----------
 #define DEFAULT_FLOW_LIMIT_TENTHS         0      // default: 0 = no limit (0.0 ml/s on the screen), also when the EEPROM is blank
@@ -158,7 +158,7 @@
 #define FLOW_LIMIT_GAIN                   0.3f   // weight of a new measure in the flow per click
 #define FLOW_LIMIT_MIN_CLICKS             5      // clicks in a window needed for a measure
 
-#define CALIBRATION_GAIN             0.5f      // 1 = a weighing replaces the loss, 0.5 = the mean of both
+#define CALIBRATION_GAIN             0.75f     // 1 = a weighing replaces the loss, 0.75 = converges faster
 #define CALIBRATION_MIN_ML           10
 
 // Stop before the target. When the pump stops the water goes on for a moment (the pulses not yet counted, the water in

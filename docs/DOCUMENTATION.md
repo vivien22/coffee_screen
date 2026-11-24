@@ -344,7 +344,7 @@ the machine corrects by itself:
 3. a double push validates, and goes back to the volume (the rest of the cycle is skipped).
 
 ```
-new loss = loss + 0.5 × (measured loss − loss)        kept between 0 and 60 ml, saved in the EEPROM
+new loss = loss + 0.5 × (measured loss − loss)        kept between 0 and 200 ml, saved in the EEPROM
 ```
 
 CAL is offered only after an AUTO extraction that ended normally and gave at least 10 ml. If you do not
