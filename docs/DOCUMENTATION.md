@@ -218,7 +218,13 @@ says nothing by itself, and reading writes nothing: nothing has to be flashed. W
 pio device monitor                     # (or any serial monitor, 115200 baud), then type j
 ```
 
-The answer is `JOURNAL`, one line per extraction, the last one first, then `END`:
+**The simplest way: double-click `tools/read_journal.bat`** (or open `tools/journal_viewer.html` in Chrome or Edge). The page reads the USB serial
+port itself (Web Serial API), sends `j`, and draws the journal: a summary, the water of each extraction, the duration and the temperatures,
+a table, and the text the machine sent. The first time it asks which port is the machine (then it remembers: the next time the journal is read
+as soon as the page opens). It closes the port after the answer, so nothing stays blocked; close the serial monitors before. The button
+**Example** shows made up extractions without a machine.
+
+The answer of the machine is `JOURNAL`, one line per extraction, the last one first, then `END`:
 
 ```
 #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 cal 10 | delay 0.37 | 88 -> 91 C

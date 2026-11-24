@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal of the extractions</title>
+<!--
+  journal_viewer.html: reads the journal of the machine over the USB serial line and draws it. One page, no install, no network.
+  Double-click it (Chrome or Edge: the Web Serial API is needed; tools/read_journal.bat opens it in one of them).
+
+  The machine answers the letter j with "JOURNAL", one line per extraction (the last one first) and "END" (src/drivers/SerialConsole.cpp).
+  This page opens the port, sends j, reads up to END, and closes the port again, so that no other program is blocked.
+  It never writes anything to the machine but that letter. Close the serial monitors (PlatformIO, Arduino IDE) first: a port has one user.
+
+  #demo shows a made up example; #test runs a self test of the parser (the title says ALL OK).
+-->
+<style>
+:root {
+  --bg: #f4f3ef; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #dcdad2; --accent: #1f6f78; --on-accent: #ffffff;
+  --cup: #1f8a70; --loss: #d08a2c; --out: #5b7fa6; --warn: #b3412f; --track: #ebe9e2;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --panel: #20201e; --ink: #ecebe6; --muted: #a09f98; --line: #3a3a36; --accent: #4fb3bd; --on-accent: #101010;
+    --cup: #46b896; --loss: #e0a24d; --out: #86a8cf; --warn: #e07a66; --track: #2c2c29; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+h1 { margin: 0; font-size: 18px; }
+.status { color: var(--muted); font-size: 13px; }
+.spacer { flex: 1; }
+button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { max-width: 1100px; margin: 0 auto; padding: 18px 20px 40px; display: grid; gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.card h2 { margin: 0 0 8px; font-size: 15px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.k { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.v { font-size: 22px; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { text-align: right; padding: 6px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.msg { color: var(--warn); }
+.note { font-size: 13px; color: var(--muted); }
+svg text { fill: var(--muted); font: 11px system-ui, sans-serif; }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+#log { font: 12px ui-monospace, Consolas, monospace; white-space: pre-wrap; color: var(--muted); max-height: 160px; overflow: auto; margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Journal of the extractions</h1>
+  <span class="status" id="status">not read yet</span>
+  <span class="spacer"></span>
+  <button id="read" class="primary">Read the journal</button>
+  <button id="choose" title="Choose the port of the machine (asked once, then remembered)">Choose the port</button>
+  <button id="demo">Example</button>
+</header>
+<main>
+  <div class="card msg" id="nosupport" hidden>This browser cannot read a serial port. Open this page in <b>Chrome</b> or <b>Edge</b>.</div>
+  <div class="card msg" id="error" hidden></div>
+  <section class="cards" id="summary"></section>
+  <section class="card" id="chart-water" hidden>
+    <h2>Where the water went</h2>
+    <div class="legend"><span><i style="background:var(--cup)"></i>in the cup</span><span><i style="background:var(--loss)"></i>loss (CAL)</span><span><i style="background:var(--out)"></i>back by the OPV (Out)</span><span>black tick: the target</span></div>
+    <div class="scroll" id="water"></div>
+  </section>
+  <section class="card" id="chart-more" hidden>
+    <h2>Duration and temperature</h2>
+    <div class="scroll" id="more"></div>
+  </section>
+  <section class="card" id="table-card" hidden>
+    <h2>Every extraction</h2>
+    <div class="scroll"><table><thead><tr>
+      <th>#</th><th>End</th><th>Target</th><th>Pre</th><th>Wait</th><th>Duration</th><th>In</th><th>Out</th><th>Net</th><th>Loss</th><th>Cup</th><th>CAL</th><th>Delay</th><th>Heat</th>
+    </tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+  <section class="card"><h2>What the machine said</h2><pre id="log">nothing yet</pre></section>
+  <p class="note">The page sends the letter j and nothing else; it closes the port after the answer. If it cannot open the port, close the serial monitors first.</p>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const END_LABEL = { TARGET: "target reached", USER: "stopped (button)", NO_WATER: "no water", MAX_TIME: "maximum time", TIMER: "timer" };
+const END_SHORT = { TARGET: "target", USER: "button", NO_WATER: "no water", MAX_TIME: "max time", TIMER: "timer" };
+const PHASE_LABEL = { PRE: "pre-infusion", WAIT: "wait", RUN: "extraction" };
+const LINE = /#(\d+)\s+(\w+)\s+ended in (\w+)\s+tgt (\d+) pre (\d+) wait (\d+)\s*\|\s*(\d+) s\s*\|\s*in ([\d.]+) out ([\d.]+) net (-?[\d.]+) loss ([\d.]+) cup (\d+)(?: cal (\d+))?\s*\|\s*delay ([\d.]+)\s*\|\s*(\d+) -> (\d+) C/;
+
+// ---- the text of the machine -> the extractions (the last one first, as sent)
+function parse(text) {
+  const entries = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const m = LINE.exec(raw);
+    if (!m) continue;
+    entries.push({ n: +m[1], reason: m[2], phase: m[3], target: +m[4], pre: +m[5], wait: +m[6], dur: +m[7], inn: +m[8], out: +m[9], net: +m[10],
+                   loss: +m[11], cup: +m[12], cal: m[13] ? +m[13] : 0, delay: +m[14], t0: +m[15], t1: +m[16] });
+  }
+  return entries;
+}
+
+// ---- drawing
+const f1 = (v) => v.toFixed(1);
+function niceMax(v) { const steps = [10, 20, 25, 50, 100, 150, 200, 250, 300, 500]; return steps.find((s) => s >= v) || Math.ceil(v / 100) * 100; }
+
+function waterChart(entries) {
+  const list = entries.slice().reverse();                      // the oldest on the left
+  const colW = 44, left = 38, top = 10, plotH = 200, h = top + plotH + 44;
+  const w = left + list.length * colW + 10;
+  const totals = list.map((e) => e.cup + Math.max(0, e.net - e.cup) + e.out);
+  const max = niceMax(Math.max(10, ...totals, ...list.map((e) => e.target)) * 1.05);
+  const y = (v) => top + plotH - (v / max) * plotH;
+  let s = `<svg role="img" aria-label="Water of each extraction" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  for (let i = 0; i <= 4; i++) {
+    const v = (max / 4) * i;
+    s += `<line class="grid" x1="${left}" x2="${w - 6}" y1="${y(v)}" y2="${y(v)}"/><text x="${left - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`;
+  }
+  list.forEach((e, i) => {
+    const x = left + i * colW + 8, bw = colW - 16;
+    const cup = e.cup, loss = Math.max(0, e.net - e.cup), out = e.out;
+    let base = 0;
+    for (const [v, color, name] of [[cup, "var(--cup)", "cup"], [loss, "var(--loss)", "loss"], [out, "var(--out)", "out"]]) {
+      if (v > 0) s += `<rect x="${x}" y="${y(base + v)}" width="${bw}" height="${(v / max) * plotH}" rx="2" fill="${color}"><title>#${e.n}: ${name} ${f1(v)} ml</title></rect>`;
+      base += v;
+    }
+    s += `<line x1="${x - 3}" x2="${x + bw + 3}" y1="${y(e.target)}" y2="${y(e.target)}" stroke="var(--ink)" stroke-width="2"><title>#${e.n}: target ${e.target} ml</title></line>`;
+    s += `<text x="${x + bw / 2}" y="${top + plotH + 14}" text-anchor="middle">#${e.n}</text>`;
+    s += `<text x="${x + bw / 2}" y="${top + plotH + 27}" text-anchor="middle">${END_SHORT[e.reason] || e.reason}</text>`;
+    s += `<text x="${x + bw / 2}" y="${top + plotH + 40}" text-anchor="middle">${(e.phase || "").toLowerCase()}</text>`;
+  });
+  return s + "</svg>";
+}
+
+function moreChart(entries) {
+  const list = entries.slice().reverse();
+  const colW = 44, left = 38, w = left + list.length * colW + 10;
+  const durTop = 8, durH = 70, tempTop = durTop + durH + 46, tempH = 70, h = tempTop + tempH + 26;
+  const maxDur = Math.max(10, ...list.map((e) => e.dur)), temps = list.flatMap((e) => [e.t0, e.t1]);
+  const tMin = Math.floor(Math.min(...temps) / 10) * 10, tMax = Math.max(tMin + 10, Math.ceil(Math.max(...temps) / 10) * 10);
+  const yd = (v) => durTop + durH - (v / maxDur) * durH, yt = (v) => tempTop + tempH - ((v - tMin) / (tMax - tMin)) * tempH;
+  let s = `<svg role="img" aria-label="Duration and temperatures" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  s += `<text x="${left - 6}" y="${durTop + 4}" text-anchor="end">${maxDur}s</text><text x="${left - 6}" y="${durTop + durH + 4}" text-anchor="end">0</text>`;
+  s += `<line class="grid" x1="${left}" x2="${w - 6}" y1="${durTop + durH}" y2="${durTop + durH}"/>`;
+  s += `<text x="${left - 6}" y="${tempTop + 4}" text-anchor="end">${tMax}</text><text x="${left - 6}" y="${tempTop + tempH + 4}" text-anchor="end">${tMin}</text>`;
+  s += `<line class="grid" x1="${left}" x2="${w - 6}" y1="${tempTop + tempH}" y2="${tempTop + tempH}"/>`;
+  s += `<text x="${left}" y="${durTop + durH + 16}">duration (s)</text><text x="${left}" y="${tempTop - 8}">temperature at the start (open) and at the end (filled), °C</text>`;
+  list.forEach((e, i) => {
+    const x = left + i * colW + colW / 2;
+    s += `<rect x="${x - 10}" y="${yd(e.dur)}" width="20" height="${(e.dur / maxDur) * durH}" rx="2" fill="var(--accent)"><title>#${e.n}: ${e.dur} s</title></rect>`;
+    s += `<line x1="${x}" x2="${x}" y1="${yt(e.t0)}" y2="${yt(e.t1)}" stroke="var(--muted)" stroke-width="1.5"/>`;
+    s += `<circle cx="${x}" cy="${yt(e.t0)}" r="4" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"><title>#${e.n}: ${e.t0} °C at the start</title></circle>`;
+    s += `<circle cx="${x}" cy="${yt(e.t1)}" r="4" fill="var(--ink)"><title>#${e.n}: ${e.t1} °C at the end</title></circle>`;
+    s += `<text x="${x}" y="${tempTop + tempH + 16}" text-anchor="middle">#${e.n}</text>`;
+  });
+  return s + "</svg>";
+}
+
+function show(entries) {
+  const have = entries.length > 0;
+  for (const id of ["chart-water", "chart-more", "table-card"]) $(id).hidden = !have;
+  const full = entries.filter((e) => e.reason === "TARGET");
+  const last = entries[0];
+  const cards = [["Extractions", have ? String(entries.length) : "0"]];
+  if (have) {
+    cards.push(["Last one", `${last.cup} ml, ${last.dur} s`]);
+    cards.push(["Target reached", `${full.length} of ${entries.length}`]);
+    cards.push(["Loss (CAL)", `${f1(last.loss)} ml`]);
+    cards.push(["Stop delay", `${last.delay.toFixed(2)} s`]);
+  }
+  $("summary").innerHTML = cards.map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  if (!have) return;
+  $("water").innerHTML = waterChart(entries);
+  $("more").innerHTML = moreChart(entries);
+  $("rows").innerHTML = entries.map((e) => `<tr><td>#${e.n}</td><td>${END_LABEL[e.reason] || e.reason}, ${PHASE_LABEL[e.phase] || e.phase}</td><td>${e.target}</td><td>${e.pre}</td><td>${e.wait}</td>` +
+    `<td>${e.dur} s</td><td>${f1(e.inn)}</td><td>${f1(e.out)}</td><td>${f1(e.net)}</td><td>${f1(e.loss)}</td><td><b>${e.cup}</b></td><td>${e.cal || ""}</td><td>${e.delay.toFixed(2)}</td><td>${e.t0} → ${e.t1} °C</td></tr>`).join("");
+}
+
+function setStatus(text) { $("status").textContent = text; }
+function showError(text) { $("error").hidden = !text; $("error").textContent = text || ""; }
+
+// ---- the serial line
+const HAS_SERIAL = "serial" in navigator;
+let port = null;
+
+async function readJournal(p) {
+  await p.open({ baudRate: 115200 });
+  let reader = null, writer = null, text = "";
+  try {
+    try { await p.setSignals({ dataTerminalReady: true, requestToSend: false }); } catch (e) { /* not needed everywhere */ }
+    await new Promise((r) => setTimeout(r, 300));
+    writer = p.writable.getWriter();
+    await writer.write(new TextEncoder().encode("j\n"));
+    writer.releaseLock(); writer = null;
+    reader = p.readable.getReader();
+    const decoder = new TextDecoder();
+    const stop = Date.now() + 8000;
+    while (Date.now() < stop && !/\bEND\b/.test(text)) {
+      const timer = new Promise((r) => setTimeout(() => r({ timeout: true }), 1500));
+      const got = await Promise.race([reader.read(), timer]);
+      if (got.timeout) { if (text) break; else continue; }
+      if (got.done) break;
+      text += decoder.decode(got.value, { stream: true });
+    }
+  } finally {
+    try { if (reader) { await reader.cancel(); reader.releaseLock(); } } catch (e) { /* closing anyway */ }
+    try { if (writer) writer.releaseLock(); } catch (e) { /* closing anyway */ }
+    try { await p.close(); } catch (e) { /* closed */ }
+  }
+  return text;
+}
+
+async function run() {
+  showError("");
+  if (!port) { setStatus("choose the port first"); return; }
+  $("read").disabled = true;
+  setStatus("reading...");
+  try {
+    const text = await readJournal(port);
+    $("log").textContent = text.replace(/\r/g, "") || "(no answer)";
+    if (!/\bEND\b/.test(text)) {
+      setStatus("no answer");
+      showError("The machine did not answer. Is it the machine on this port (not the programmer or another board), and does it run the version with the serial console?");
+    } else {
+      const entries = parse(text);
+      show(entries);
+      setStatus(`read at ${new Date().toLocaleTimeString()}: ${entries.length} extraction${entries.length === 1 ? "" : "s"}`);
+    }
+  } catch (e) {
+    setStatus("cannot read");
+    showError("Cannot open the port: " + e.message + ". Close the other programs that use it (serial monitor of PlatformIO or the Arduino IDE), then try again.");
+  } finally {
+    $("read").disabled = false;
+  }
+}
+
+async function choose() {
+  try { port = await navigator.serial.requestPort(); } catch (e) { return false; }   // closed by the user
+  return true;
+}
+
+$("read").addEventListener("click", async () => { if (!port && !(await choose())) return; run(); });
+$("choose").addEventListener("click", async () => { if (await choose()) run(); });
+
+// ---- an example, and the self test
+const EXAMPLE = `JOURNAL
+#5 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 46 s | in 171.6 out 66.9 net 104.7 loss 45.8 cup 59 cal 45 | delay 0.39 | 90 -> 90 C
+#4 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.3 cup 59 cal 42 | delay 0.39 | 90 -> 84 C
+#3 USER  ended in PRE  tgt 60 pre 5 wait 5 | 0 s | in 1.4 out 0.0 net 1.4 loss 30.0 cup 0 | delay 0.39 | 18 -> 18 C
+#2 USER  ended in RUN  tgt 60 pre 5 wait 5 | 29 s | in 78.2 out 1.0 net 77.2 loss 30.0 cup 47 | delay 0.39 | 25 -> 30 C
+#1 USER  ended in PRE  tgt 40 pre 40 wait 5 | 0 s | in 1.0 out 0.0 net 1.0 loss 30.0 cup 0 | delay 0.40 | 46 -> 49 C
+#0 USER  ended in PRE  tgt 40 pre 40 wait 5 | 2 s | in 0.0 out 0.0 net 0.0 loss 30.0 cup 0 | delay 0.40 | 47 -> 47 C
+END
+`;
+
+function loadExample() {
+  $("log").textContent = EXAMPLE;
+  show(parse(EXAMPLE));
+  setStatus("example (not read from the machine)");
+}
+$("demo").addEventListener("click", loadExample);
+
+function selfTest() {
+  const fails = [];
+  const e = parse(EXAMPLE + "garbage line\n#9 broken\n");
+  if (e.length !== 6) fails.push("count " + e.length);
+  if (e[0].n !== 5 || e[0].cup !== 59 || e[0].cal !== 45 || Math.abs(e[0].loss - 45.8) > 1e-9) fails.push("first entry");
+  if (e[5].cal !== 0 || e[5].phase !== "PRE") fails.push("last entry");
+  const neg = parse("#7 NO_WATER  ended in WAIT  tgt 60 pre 40 wait 5 | 12 s | in 10.0 out 25.0 net -15.0 loss 0.0 cup 0 | delay 0.37 | 60 -> 65 C");
+  if (neg.length !== 1 || neg[0].net !== -15) fails.push("negative net");
+  show(e);
+  if (!$("water").innerHTML.includes("<svg") || !$("more").innerHTML.includes("<svg")) fails.push("charts");
+  if ($("rows").children.length !== 6) fails.push("table rows");
+  show([]);
+  if (!$("chart-water").hidden) fails.push("empty state");
+  document.title = fails.length ? "FAIL " + fails.join(" ; ") : "ALL OK";
+}
+
+// ---- start: nothing to do but wait for a click, unless the port of the machine is already allowed (then the journal is read at once)
+if (!HAS_SERIAL) {
+  $("nosupport").hidden = false; $("read").disabled = true; $("choose").disabled = true;
+  setStatus("no serial port in this browser");
+}
+if (location.hash === "#test") selfTest();
+else if (location.hash === "#demo") loadExample();
+else if (HAS_SERIAL) {
+  navigator.serial.getPorts().then((ports) => {
+    if (ports.length === 1) { port = ports[0]; run(); }   // allowed before: no question asked
+    else setStatus(ports.length ? "several ports are allowed: use Choose the port" : "click Read the journal and choose the port of the machine");
+  }).catch(() => setStatus("click Read the journal"));
+}
+</script>
+</body>
+</html>
