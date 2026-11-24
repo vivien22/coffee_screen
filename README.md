@@ -87,6 +87,8 @@ No-water detection (the pump stops and the screen says so), maximum duration of 
 </table>
 
 > These pictures are not mock-ups: they are drawn by the real display code, on a computer (`./tools/render_screens.sh`).
+> The text is anti-aliased (Poppins Bold), and the screen fades smoothly when you change the parameter or the mode
+> ([Fonts and transitions](docs/DOCUMENTATION.md#fonts-and-transitions)).
 
 ---
 
@@ -134,7 +136,8 @@ The firmware drives a heater, a pump and a valve, so it is tested like software 
   computer with stubs of the Arduino libraries: `./test/run.sh`. Critical tests are checked by mutation: breaking the code
   must make them fail.
 - **Pixel tests**: the screen code is run against a faithful copy of the Adafruit GFX font engine, its texts are counted pixel
-  by pixel against the real library, and the pictures above are generated from it.
+  by pixel against the real library, and the pictures above are generated from it. The animations (rolling seconds, fades)
+  are tested frame by frame, and with random pushes against a full redraw.
 - **Continuous integration**: every push runs the tests, builds the firmware for the R4, checks the memory use,
   and runs cppcheck.
 
