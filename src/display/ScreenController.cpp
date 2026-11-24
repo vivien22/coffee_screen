@@ -841,7 +841,9 @@ void ScreenController::stepFades(uint32_t now) {
     } else {
       // the new row comes up, ease-out: fast first, slow at the end
       const uint32_t remaining = 255 - (elapsed - FADE_OUT_MS) * 255 / FADE_IN_MS;
-      level = (uint8_t)(255 - remaining * remaining * remaining / (255 * 255));
+      const uint32_t eased = 255 - remaining * remaining * remaining / (255 * 255);   // 0 to 255
+      const uint32_t start = 255 * FADE_IN_START_PERCENT / 100;
+      level = (uint8_t)(start + eased * (255 - start) / 255);
     }
     const int16_t step = (int16_t)level - (int16_t)fade.level;
     if (dimming == fade.dimming && step < 8 && step > -8 && level != 0) {

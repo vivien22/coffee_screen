@@ -257,6 +257,11 @@
 #ifndef FADE_IN_MS
 #define FADE_IN_MS               550UL
 #endif
+// The fade out goes down to 0 % of the brightness; the fade in starts from FADE_IN_START_PERCENT of it (the new look appears at once, already
+// visible, then comes up to 100 %).
+#ifndef FADE_IN_START_PERCENT
+#define FADE_IN_START_PERCENT    20UL
+#endif
 #define FADE_FRAME_MS            30UL
 
 // ---------- Screen refresh ----------
