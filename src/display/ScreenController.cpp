@@ -289,16 +289,21 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
       dirty_ |= dirtyOf((Row)row);
       continue;
     }
+    if (!modeChange && row == rowOf(previous) && row != rowOf(next)) {
+      // The row of the parameter that was selected goes back to its normal size at once, without a fade: the eye follows the new parameter
+      dirty_ |= dirtyOf((Row)row);
+      if (row == ROW_TEMPERATURE) {
+        temperatureErrorShown_ = false;
+      }
+      continue;
+    }
     fade_[row] = Fade();
     fade_[row].active = true;
     fade_[row].from = before[row];
     fade_[row].to = after;
     if (!modeChange && row == rowOf(next) && row != rowOf(previous)) {
-      fade_[row].outMs = FADE_OUT_NEW_ROW_MS;   // the row that gets the selection goes out very fast, and comes up slowly
-    }
-    if (!modeChange && row == rowOf(previous) && row != rowOf(next)) {
-      fade_[row].outMs = FADE_OUT_OLD_MS;   // the row of the parameter that was selected goes out and comes back fast
-      fade_[row].inMs = FADE_IN_OLD_MS;
+      fade_[row].outMs = FADE_OUT_NEW_ROW_MS;   // the row that gets the selection: out and in, shorter than for a sub-parameter
+      fade_[row].inMs = FADE_IN_NEW_ROW_MS;
     }
     if (row == ROW_TEMPERATURE) {
       temperatureErrorShown_ = false;   // "ERR" is drawn again when the fades are over
