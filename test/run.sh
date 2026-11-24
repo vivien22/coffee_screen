@@ -18,6 +18,10 @@ for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)
   case "$n" in test_sim_*) d=real;; *) d=mock;; esac
   EXTRA=""
+  # the tests of the logic of the screen look at what is drawn after each update(): no rolling digits and no fades there (test_roll and test_fade have them)
+  case "$n" in test_flush|test_pre|test_machine) EXTRA="-DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
+  # the volume does not roll in the machine (ROLL_VOLUME_MS is 0 in Config.h); test_roll tests the roll of its digits all the same
+  case "$n" in test_roll) EXTRA="-DROLL_VOLUME_MS=160UL";; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
   C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp"
   case "$n" in
@@ -28,6 +32,7 @@ for t in test/test_*.cpp; do
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
+    test_roll|test_fade|test_fade_random|test_fade_machine) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp";;
     test_machine) C="$C $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/settings/JournalFormat.cpp";;
     test_serial_console) C="$B/$d/src/settings/Journal.cpp $B/$d/src/settings/JournalFormat.cpp $B/$d/src/drivers/SerialConsole.cpp";;
   esac

@@ -135,9 +135,9 @@ class ScreenController {
       DIRTY_ALL_VALUES  = DIRTY_VOLUME | DIRTY_TEMPERATURE | DIRTY_DURATION
     };
 
-    void render();
+    void render(uint32_t now);
     void redrawScreen();                        // the real screen (or the steaming one) in full
-    void activate(ActiveParameter next);        // select a parameter and show it
+    void activate(ActiveParameter next, bool animate = false, bool modeChange = false);   // select a parameter and show it (animate: the rows fade, see FADE_OUT_MS)
     bool availableInMode(ActiveParameter p) const;
     bool calibrationAvailable_ = false;
     int16_t calibrationValue_ = 0;   // the cup weight entered (starts at the estimate)
@@ -181,6 +181,54 @@ class ScreenController {
     bool heaterKnown_ = false;
 
     uint8_t dirty_ = DIRTY_NONE;
+
+    // Rolling digits (see ROLL_VOLUME_MS in Config.h): the number of the volume or of the duration that changes during an extraction
+    // rolls from the old one to the new one. The frames are drawn by update(), at most every ROLL_FRAME_MS.
+    struct Roll {
+      bool requested = false;     // a new number came: render() starts the roll
+      bool active = false;        // the frames are being drawn
+      bool finishFirst = false;   // a new number came during the roll: the number of that roll is drawn as it is, then the new roll starts
+      int16_t finishValue = 0;    // that number
+      uint32_t start = 0;
+      uint32_t nextFrame = 0;
+    };
+    Roll volumeRoll_, durationRoll_;
+    uint32_t lastNow_ = 0;      // the time of the last update(): the rolls started by a redraw outside of update() use it
+    void drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress);
+    void drawDurationValue(int16_t value, bool redrawTag, uint8_t progress);
+    void stepRolls(uint32_t now);
+
+    // Change of parameter (see FADE_OUT_MS in Config.h): the rows whose look changes fade out, then the new ones fade in.
+    // ROW_MODE is not a row of numbers: it is the letter of the mode (A / M) in the drop, which fades with the rows at a change of mode.
+    enum Row : uint8_t { ROW_TEMPERATURE, ROW_VOLUME, ROW_DURATION, ROW_MODE, ROW_COUNT };
+    enum LookKind : uint8_t { LOOK_VALUE, LOOK_ERROR, LOOK_PREINFUSION, LOOK_FLOW_LIMIT, LOOK_CALIBRATION, LOOK_WAIT, LOOK_FLUSH, LOOK_MANUAL };
+    // What a row shows: kind of the content, size of the digits, tag and number. Two rows with the same kind, size and tag differ only by the number.
+    struct RowLook {
+      uint8_t kind = LOOK_VALUE;
+      uint8_t size = TEXT_SIZE_SMALL;
+      uint8_t tag = PHASE_TAG_NONE;
+      double value = 0.0;
+      bool sameShape(const RowLook &other) const { return kind == other.kind && size == other.size && tag == other.tag; }
+      bool operator==(const RowLook &other) const { return sameShape(other) && value == other.value; }
+    };
+    struct Fade {
+      bool active = false;
+      bool started = false;     // the start time is taken by the first update() after the change
+      bool dimming = true;      // out phase (the old look) or in phase (the new one)
+      bool drawn = false;       // a frame of the fade has been drawn: the next one can be drawn over it without erasing
+      uint8_t level = 255;      // brightness of the last frame drawn
+      RowLook from, to;
+      uint32_t start = 0;
+      uint32_t nextFrame = 0;
+    };
+    Fade fade_[ROW_COUNT];
+    RowLook lookOf(Row row, ActiveParameter active) const;
+    void drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase = true);
+    static Row rowOf(ActiveParameter parameter);   // the row (volume, duration, temperature) that shows a parameter
+    uint8_t dirtyOf(Row row) const;
+    uint8_t fadingRows() const;
+    void finishFades();      // the rows in a fade show their look as it is, at once
+    void stepFades(uint32_t now);
 
     // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.

@@ -229,6 +229,41 @@
 // (about 1.2 KB of flash, its use in the standby included) is then not in the flash. Needs DISPLAY_ICONS.
 #define WELCOME_MS               2000UL
 
+// ---------- Rolling digits ----------
+// During an extraction the digits of the volume and of the duration that change roll: the old one leaves upward while the new one comes
+// up from below, in ROLL_VOLUME_MS (the volume goes up by about 5 ml/s) and ROLL_DURATION_MS (the seconds); ease-out. A frame is drawn
+// at most every ROLL_FRAME_MS (the main loop goes on meanwhile). 0 as a duration: the digits are replaced at once (the tests of the logic
+// of the screen, which look at what is drawn after each update(), are built with 0: test/run.sh).
+// The volume does not roll (asked by the user, 2026-11-24): its digits are replaced at once; only the seconds roll.
+#ifndef ROLL_VOLUME_MS
+#define ROLL_VOLUME_MS           0UL
+#endif
+#ifndef ROLL_DURATION_MS
+#define ROLL_DURATION_MS         260UL
+#endif
+#define ROLL_FRAME_MS            30UL
+
+// ---------- Change of parameter and of mode ----------
+// A double push selects the next parameter, a short push changes the mode: the row (temperature, volume or duration) whose look changes (size of
+// the digits, tag, unit), and the drop at a change of mode, fade out in FADE_OUT_MS (the text goes from 100 % to 0 % of its brightness), then the
+// new look fades in in FADE_IN_MS (0 % to 100 %, ease-out), each at its own size and place: no zoom, the old and the new looks are never drawn
+// together. The same two durations for all the fades. The rows that do not change are not touched. When the selection goes to another row
+// (temperature, volume or duration, not a sub-parameter of the same row), the row of the parameter that was selected goes back to its normal size
+// at once, without a fade. A frame is drawn at most every FADE_FRAME_MS. 0 and 0: the rows change at once (the tests of the logic of the screen
+// are built so: test/run.sh).
+#ifndef FADE_OUT_MS
+#define FADE_OUT_MS              60UL
+#endif
+#ifndef FADE_IN_MS
+#define FADE_IN_MS               550UL
+#endif
+// The fade out goes down to 0 % of the brightness; the fade in starts from FADE_IN_START_PERCENT of it (the new look appears at once, already
+// visible, then comes up to 100 %).
+#ifndef FADE_IN_START_PERCENT
+#define FADE_IN_START_PERCENT    20UL
+#endif
+#define FADE_FRAME_MS            30UL
+
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
 #define FLUSH_BLINK_MS           600UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING
