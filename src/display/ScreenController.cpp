@@ -48,6 +48,9 @@ void ScreenController::show() {
 void ScreenController::enterStandby() {
 #if WELCOME_MS > 0
   standbyShown_ = true;
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    fade_[row] = Fade();   // the picture replaces what was fading
+  }
   showStandbyPicture();
 #endif
 }
@@ -79,6 +82,9 @@ void ScreenController::redrawScreen() {
   temperatureKey_ = -1;             // the live temperature is drawn again at once
   volumeRoll_ = Roll();             // the fields are drawn as they are: no roll goes on
   durationRoll_ = Roll();
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    fade_[row] = Fade();            // nor fade
+  }
   render(lastNow_);
 }
 
@@ -148,6 +154,7 @@ void ScreenController::update(uint32_t now) {
     }
   }
 
+  stepFades(now);
   render(now);
   stepRolls(now);
 }
@@ -218,12 +225,19 @@ void ScreenController::selectNextParameter() {
   do {
     next = (ActiveParameter)((next + 1) % PARAMETER_COUNT);
   } while (!availableInMode(next));
-  activate(next);
+  activate(next, true);
 }
 
 // Selects a parameter and sets what its field shows: the setpoint while the temperature is edited, the target
 // volume when the volume is selected, the live temperature again when the temperature is left.
-void ScreenController::activate(ActiveParameter next) {
+void ScreenController::activate(ActiveParameter next, bool animate) {
+  // What the rows show now. A row that was fading shows its final look at once: the next change starts from it.
+  RowLook before[ROW_COUNT];
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    before[row] = lookOf((Row)row, active_);
+  }
+  finishFades();
+
   const ActiveParameter previous = active_;
   active_ = next;
 
@@ -241,11 +255,34 @@ void ScreenController::activate(ActiveParameter next) {
     durationShown_ = settings_.manualSeconds;    // the time just set is the one that stays shown
   }
 
-  dirty_ |= DIRTY_ALL_VALUES;           // the size of the digits changes
+  if (!animate || FADE_OUT_MS + FADE_IN_MS == 0 || steaming_) {
+    dirty_ |= DIRTY_ALL_VALUES;         // the size of the digits changes
+    return;
+  }
+
+  // The rows that do not change are not touched, the ones that only change their number are drawn again, the others fade
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    const RowLook after = lookOf((Row)row, active_);
+    if (after == before[row]) {
+      continue;
+    }
+    if (after.sameShape(before[row])) {
+      dirty_ |= dirtyOf((Row)row);
+      continue;
+    }
+    fade_[row] = Fade();
+    fade_[row].active = true;
+    fade_[row].from = before[row];
+    fade_[row].to = after;
+    if (row == ROW_TEMPERATURE) {
+      temperatureErrorShown_ = false;   // "ERR" is drawn again when the fades are over
+    }
+  }
 }
 
 // Changes the selected parameter by delta, kept between its limits. Returns true if the value changed.
 bool ScreenController::adjustActiveParameter(int16_t delta) {
+  finishFades();   // a value is set on a row that shows its final look
   if (settings_.manual && active_ == PARAMETER_VOLUME) {
     return false;   // MANUAL mode: the volume is not a target, the field shows 0
   }
@@ -467,7 +504,8 @@ void ScreenController::render(uint32_t now) {
     return;
   }
 
-  const uint8_t dirty = dirty_;
+  // The rows in a fade are drawn by stepFades(), and again as they are when it is over
+  const uint8_t dirty = dirty_ & ~fadingRows();
   dirty_ = DIRTY_NONE;
 
   if (steaming_) {   // the temperature alone
@@ -602,5 +640,142 @@ void ScreenController::stepRolls(uint32_t now) {
       durationRoll_.nextFrame = now + ROLL_FRAME_MS;
       drawDurationValue(durationShown_, false, rollProgress(elapsed, ROLL_DURATION_MS));
     }
+  }
+}
+
+// ------------------------------------------------------------
+// Change of parameter: the rows fade out, then in
+
+// What a row shows when the parameter 'active' is selected (see render())
+ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter active) const {
+  RowLook look;
+  if (row == ROW_TEMPERATURE) {
+    if (temperatureError_ && active != PARAMETER_TEMPERATURE) {
+      look.kind = LOOK_ERROR;
+    } else {
+      look.size = active == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL;
+      look.value = temperatureShown_;
+    }
+  } else if (row == ROW_VOLUME) {
+    if (active == PARAMETER_PREINFUSION) {
+      look.kind = LOOK_PREINFUSION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION; look.value = settings_.preinfusion;
+    } else if (active == PARAMETER_FLOW_LIMIT) {
+      look.kind = LOOK_FLOW_LIMIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_LIMIT; look.value = settings_.flowLimit;
+    } else if (active == PARAMETER_CALIBRATION) {
+      look.kind = LOOK_CALIBRATION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_CALIBRATION; look.value = calibrationValue_;
+    } else {
+      look.size = active == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL; look.tag = volumeTagShown_; look.value = volumeShown_;
+    }
+  } else {
+    if (active == PARAMETER_PREINFUSION_WAIT) {
+      look.kind = LOOK_WAIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION_WAIT; look.value = settings_.preinfusionWait;
+    } else if (active == PARAMETER_FLUSH) {
+      look.kind = LOOK_FLUSH; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_FLUSH; look.value = settings_.flush;
+    } else if (active == PARAMETER_MANUAL_TIME) {
+      look.kind = LOOK_MANUAL; look.size = TEXT_SIZE_LARGE; look.value = settings_.manualSeconds;
+    } else {
+      look.tag = durationTagShown_; look.value = durationShown_;
+    }
+  }
+  return look;
+}
+
+// Draws a row as the look says, whole (its zone is erased), with its text at the brightness given
+void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness) {
+  forgetField(row);   // the whole row is drawn: the pixels on the screen are at another brightness
+  setTextBrightness(brightness);
+  if (row == ROW_TEMPERATURE) {
+    if (look.kind == LOOK_ERROR) {
+      drawTemperatureError();
+    } else {
+      drawTemperature(look.value, (TextSize)look.size);
+    }
+  } else if (row == ROW_VOLUME) {
+    if (look.kind == LOOK_FLOW_LIMIT) {
+      drawFlowLimit((uint16_t)look.value, true);
+    } else {
+      drawVolume((uint16_t)look.value, (TextSize)look.size, (PhaseTag)look.tag, true);
+    }
+  } else {
+    drawDuration((uint16_t)look.value, (TextSize)look.size, (PhaseTag)look.tag, true);
+  }
+  setTextBrightness(255);
+}
+
+uint8_t ScreenController::dirtyOf(Row row) const {
+  return row == ROW_TEMPERATURE ? DIRTY_TEMPERATURE : (row == ROW_VOLUME ? DIRTY_VOLUME : DIRTY_DURATION);
+}
+
+// The dirty flags of the rows that are in a fade
+uint8_t ScreenController::fadingRows() const {
+  uint8_t flags = DIRTY_NONE;
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    if (fade_[row].active) {
+      flags |= (row == ROW_TEMPERATURE) ? DIRTY_TEMPERATURE : (row == ROW_VOLUME ? (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)
+                                                                               : (DIRTY_DURATION | DIRTY_DURATION_NUMBER));
+    }
+  }
+  return flags;
+}
+
+// The rows in a fade show what they show now (the final look), as it is
+void ScreenController::finishFades() {
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    if (fade_[row].active) {
+      fade_[row].active = false;
+      drawLook((Row)row, lookOf((Row)row, active_), 255);
+      if (row == ROW_TEMPERATURE) {
+        temperatureErrorShown_ = false;
+      }
+    }
+  }
+}
+
+// Draws the next frame of each fade in progress, when it is due; at the end of a fade the row is drawn as it is.
+void ScreenController::stepFades(uint32_t now) {
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    Fade &fade = fade_[row];
+    if (!fade.active) {
+      continue;
+    }
+    if (!fade.started) {
+      fade.started = true;
+      fade.start = now;
+      fade.nextFrame = now + FADE_FRAME_MS;
+      continue;
+    }
+    const uint32_t elapsed = now - fade.start;
+    if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
+      fade.active = false;
+      forgetField(row);              // the row as it is, whole, at full brightness
+      dirty_ |= dirtyOf((Row)row);
+      if (row == ROW_TEMPERATURE) {
+        temperatureErrorShown_ = false;
+      }
+      continue;
+    }
+    if ((int32_t)(now - fade.nextFrame) < 0) {
+      continue;
+    }
+    fade.nextFrame = now + FADE_FRAME_MS;
+
+    const bool dimming = elapsed < FADE_OUT_MS;
+    uint8_t level;
+    if (dimming) {
+      // the old row goes dark, and is dark (0) for the last frame of its phase
+      const uint32_t span = FADE_OUT_MS > FADE_FRAME_MS ? FADE_OUT_MS - FADE_FRAME_MS : 1;
+      level = elapsed >= span ? 0 : (uint8_t)(255 - 255 * elapsed / span);
+    } else {
+      // the new row comes up, ease-out: fast first, slow at the end
+      const uint32_t remaining = 255 - (elapsed - FADE_OUT_MS) * 255 / FADE_IN_MS;
+      level = (uint8_t)(255 - remaining * remaining * remaining / (255 * 255));
+    }
+    const int16_t step = (int16_t)level - (int16_t)fade.level;
+    if (dimming == fade.dimming && step < 8 && step > -8 && level != 0) {
+      continue;   // hardly different from the last frame: nothing is drawn
+    }
+    fade.dimming = dimming;
+    fade.level = level;
+    drawLook((Row)row, dimming ? fade.from : fade.to, level);
   }
 }

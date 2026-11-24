@@ -235,7 +235,27 @@ static uint16_t blendChannel(uint8_t shift, uint8_t mask, uint16_t foreground, u
   return (uint16_t)(background + (text - background) * level / 3);
 }
 
+// The brightness of the texts (see setTextBrightness): the color of the text is moved toward COLOR_BG
+static uint8_t textBrightness = 255;
+
+void setTextBrightness(uint8_t level) {
+  textBrightness = level;
+}
+
+void forgetField(uint8_t field) {
+  (field == 0 ? temperatureField : (field == 1 ? volumeField : durationField)).valid = false;
+}
+
+static uint16_t dimChannel(uint8_t shift, uint8_t mask, uint16_t foreground) {
+  const int16_t background = (COLOR_BG >> shift) & mask;
+  const int16_t text = (foreground >> shift) & mask;
+  return (uint16_t)(background + (text - background) * textBrightness / 255);
+}
+
 static void makePalette(uint16_t foreground, uint16_t palette[4]) {
+  if (textBrightness != 255) {
+    foreground = (dimChannel(11, 0x1F, foreground) << 11) | (dimChannel(5, 0x3F, foreground) << 5) | dimChannel(0, 0x1F, foreground);
+  }
   for (uint8_t level = 0; level < 4; level++) {
     palette[level] = (blendChannel(11, 0x1F, foreground, level) << 11) | (blendChannel(5, 0x3F, foreground, level) << 5) |
                      blendChannel(0, 0x1F, foreground, level);

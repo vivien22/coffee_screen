@@ -22,6 +22,14 @@
 // to the new one, DISPLAY_ROLL_DONE draws the new number as it is (see drawNumber in Display.cpp).
 #define DISPLAY_ROLL_DONE 255
 
+// The brightness of the texts drawn from now on (0 to 255, 255 = their color): the colors of the text are blended with COLOR_BG. The icons
+// are not texts. Set it back to 255 after a faded drawing (see ScreenController, change of parameter).
+void setTextBrightness(uint8_t level);
+
+// The next drawing of a number field (0 = temperature, 1 = volume, 2 = duration) is complete: its zone, its number, its unit and its tag are drawn,
+// even if the field already shows the same look. Used by the faded rows: what is on the screen is at another brightness.
+void forgetField(uint8_t field);
+
 // Size of the digits of a value
 enum TextSize {
   TEXT_SIZE_SMALL,

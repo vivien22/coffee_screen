@@ -137,7 +137,7 @@ class ScreenController {
 
     void render(uint32_t now);
     void redrawScreen();                        // the real screen (or the steaming one) in full
-    void activate(ActiveParameter next);        // select a parameter and show it
+    void activate(ActiveParameter next, bool animate = false);   // select a parameter and show it (animate: the rows fade, see FADE_OUT_MS)
     bool availableInMode(ActiveParameter p) const;
     bool calibrationAvailable_ = false;
     int16_t calibrationValue_ = 0;   // the cup weight entered (starts at the estimate)
@@ -197,6 +197,35 @@ class ScreenController {
     void drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress);
     void drawDurationValue(int16_t value, bool redrawTag, uint8_t progress);
     void stepRolls(uint32_t now);
+
+    // Change of parameter (see FADE_OUT_MS in Config.h): the rows whose look changes fade out, then the new ones fade in.
+    enum Row : uint8_t { ROW_TEMPERATURE, ROW_VOLUME, ROW_DURATION, ROW_COUNT };
+    enum LookKind : uint8_t { LOOK_VALUE, LOOK_ERROR, LOOK_PREINFUSION, LOOK_FLOW_LIMIT, LOOK_CALIBRATION, LOOK_WAIT, LOOK_FLUSH, LOOK_MANUAL };
+    // What a row shows: kind of the content, size of the digits, tag and number. Two rows with the same kind, size and tag differ only by the number.
+    struct RowLook {
+      uint8_t kind = LOOK_VALUE;
+      uint8_t size = TEXT_SIZE_SMALL;
+      uint8_t tag = PHASE_TAG_NONE;
+      double value = 0.0;
+      bool sameShape(const RowLook &other) const { return kind == other.kind && size == other.size && tag == other.tag; }
+      bool operator==(const RowLook &other) const { return sameShape(other) && value == other.value; }
+    };
+    struct Fade {
+      bool active = false;
+      bool started = false;     // the start time is taken by the first update() after the change
+      bool dimming = true;      // out phase (the old look) or in phase (the new one)
+      uint8_t level = 255;      // brightness of the last frame drawn
+      RowLook from, to;
+      uint32_t start = 0;
+      uint32_t nextFrame = 0;
+    };
+    Fade fade_[ROW_COUNT];
+    RowLook lookOf(Row row, ActiveParameter active) const;
+    void drawLook(Row row, const RowLook &look, uint8_t brightness);
+    uint8_t dirtyOf(Row row) const;
+    uint8_t fadingRows() const;
+    void finishFades();      // the rows in a fade show their look as it is, at once
+    void stepFades(uint32_t now);
 
     // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.
