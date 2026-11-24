@@ -414,7 +414,8 @@ static void putText(const GFXfont *font, int16_t x, int16_t baseline, uint16_t c
 // drawn as it is, so the frames of a roll always start from the same old number.
 static int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag tag, bool force,
                           int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
-                          int16_t x, int16_t baseline, bool &moved, bool threeLarge = false, uint8_t progress = DISPLAY_ROLL_DONE) {
+                          int16_t x, int16_t baseline, bool &moved, bool threeLarge = false, uint8_t progress = DISPLAY_ROLL_DONE,
+                          bool rollOnes = true) {
   // Three digits do not fit in large digits next to the other fields (the cells are wide): a long value is shown in small
   // digits (the steaming temperature has the whole screen)
   if (strlen(text) > 2 && !threeLarge) {
@@ -439,7 +440,8 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
   for (uint8_t i = 0; i < length; i++) {
     CellGlyph glyphs[2];
     uint8_t count = 0;
-    if (rolling && (length != oldLength || text[i] != field.text[i])) {
+    // rollOnes false: the last digit (the ones) is replaced at once, only the tens (and the hundreds) roll
+    if (rolling && (rollOnes || i + 1 < length) && (length != oldLength || text[i] != field.text[i])) {
       glyphs[count++] = {text[i], (int16_t)(zoneHeight - shiftUp)};            // the new digit comes up from below
       if (i < oldLength) {
         glyphs[count++] = {field.text[i], (int16_t)(-shiftUp)};                // the old one leaves upward
@@ -567,7 +569,7 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uin
   bool moved;
   const int16_t xNumberEnd = drawNumber(volumeField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
                                         VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
-                                        VOLUME_X, VOLUME_BASELINE, moved, false, progress);
+                                        VOLUME_X, VOLUME_BASELINE, moved, false, progress, false);   // the volume rolls on its tens only
 
   if (moved) {
     // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone

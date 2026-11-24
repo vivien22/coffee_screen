@@ -234,9 +234,9 @@
 // up from below, in ROLL_VOLUME_MS (the volume goes up by about 5 ml/s) and ROLL_DURATION_MS (the seconds); ease-out. A frame is drawn
 // at most every ROLL_FRAME_MS (the main loop goes on meanwhile). 0 as a duration: the digits are replaced at once (the tests of the logic
 // of the screen, which look at what is drawn after each update(), are built with 0: test/run.sh).
-// The volume does not roll (asked by the user, 2026-11-24): its digits are replaced at once; only the seconds roll.
+// The volume rolls on its tens only (asked by the user, 2026-11-24): its ones are replaced at once.
 #ifndef ROLL_VOLUME_MS
-#define ROLL_VOLUME_MS           0UL
+#define ROLL_VOLUME_MS           160UL
 #endif
 #ifndef ROLL_DURATION_MS
 #define ROLL_DURATION_MS         260UL

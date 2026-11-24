@@ -473,9 +473,10 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
       volumeRoll_.finishFirst = true;
       volumeRoll_.finishValue = volumeShown_;
     }
+    const bool tensChange = (int16_t)volumeValue / 10 != volumeShown_ / 10;   // only the tens roll: the ones are replaced at once
     volumeShown_ = (int16_t)volumeValue;
     dirty_ |= DIRTY_VOLUME_NUMBER;
-    volumeRoll_.requested = true;
+    volumeRoll_.requested = tensChange;
   }
   if (durationTag != durationTagShown_) {
     durationShown_ = (int16_t)durationValue;
