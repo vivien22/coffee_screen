@@ -752,7 +752,13 @@ void ScreenController::stepFades(uint32_t now) {
     const uint32_t elapsed = now - fade.start;
     if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
       fade.active = false;
-      forgetField(row);              // the row as it is, whole, at full brightness
+      // The row as it is, whole, at full brightness. Drawn over the last frame, without erasing, when it is the look of that frame (an erase
+      // followed by the drawing would blink at the very end of the fade); erased first when something changed meanwhile.
+      if (lookOf((Row)row, active_) == fade.to) {
+        repaintField(row);
+      } else {
+        forgetField(row);
+      }
       dirty_ |= dirtyOf((Row)row);
       if (row == ROW_TEMPERATURE) {
         temperatureErrorShown_ = false;
