@@ -106,12 +106,12 @@ int main() {
     { const Picture got = snapshot(); const Picture ref = asItIs(26, 19); CHECK(got == ref); if (got != ref) whereDiffer(got, ref); }   // the reference is drawn after: it uses the same frame buffer
   }
 
-  // 2. A roll (of the tens: 29 -> 30) has frames, about one every ROLL_FRAME_MS, and they are neither the old picture nor the new one
+  // 2. A roll has frames, about one every ROLL_FRAME_MS, and they are neither the old picture nor the new one
   {
     ScreenController sc;
-    startedAt(sc, 29, 18);
+    startedAt(sc, 25, 18);
     const Picture before = snapshot();
-    sc.showExtractionProgress(30, 18);
+    sc.showExtractionProgress(26, 18);
     t++;
     sc.update(t);
     CHECK(sameIn(snapshot(), before, VOLUME_ZONE_X, VOLUME_ZONE_Y, 240, VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT));   // the old number until the first frame
@@ -122,22 +122,17 @@ int main() {
     printf("roll of the volume: %d pictures in %lu ms\n", changes, (unsigned long)ROLL_VOLUME_MS);
     CHECK(changes >= 3 && changes <= (int)(ROLL_VOLUME_MS / ROLL_FRAME_MS) + 3);
     const Picture last = snapshot();
-    const Picture after = asItIs(30, 18);
+    const Picture after = asItIs(26, 18);
     CHECK(last == after);
     CHECK(!sameIn(frame, after, VOLUME_ZONE_X, VOLUME_ZONE_Y, 240, VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT));
   }
 
-  // 3. The volume rolls on its tens only: a change of the ones (25 -> 26) is on the screen at the first update(), as drawn as it is, and the
-  // tens do not move
+  // 3. The digits that do not change do not move (25 -> 26: the tens)
   {
     ScreenController sc;
     startedAt(sc, 25, 18);
     const Picture before = snapshot();
     sc.showExtractionProgress(26, 18);
-    t++;
-    sc.update(t);
-    { const Picture got = snapshot(); const Picture ref = asItIs(26, 18); CHECK(got == ref); if (got != ref) whereDiffer(got, ref); }
-    sc.showExtractionProgress(27, 18);
     t++;
     sc.update(t);
     bool tensStill = true;
@@ -161,14 +156,14 @@ int main() {
   // 5. A new number during a roll ends the roll in progress, then the new one rolls
   {
     ScreenController sc;
-    startedAt(sc, 28, 18);
-    sc.showExtractionProgress(29, 18);
+    startedAt(sc, 25, 18);
+    sc.showExtractionProgress(26, 18);
     run(sc, 60);
-    sc.showExtractionProgress(30, 18);   // the tens roll
+    sc.showExtractionProgress(27, 18);
     run(sc, 20);
-    sc.showExtractionProgress(31, 18);
+    sc.showExtractionProgress(28, 18);
     run(sc, 1000);
-    { const Picture got = snapshot(); const Picture ref = asItIs(31, 18); CHECK(got == ref); if (got != ref) whereDiffer(got, ref); }   // the reference is drawn after: it uses the same frame buffer
+    { const Picture got = snapshot(); const Picture ref = asItIs(28, 18); CHECK(got == ref); if (got != ref) whereDiffer(got, ref); }   // the reference is drawn after: it uses the same frame buffer
   }
 
   // 6. The duration rolls in ROLL_DURATION_MS, the volume is not touched
