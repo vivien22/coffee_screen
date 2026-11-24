@@ -20,7 +20,7 @@
 #define ICON_DROP_X                   38
 #define ICON_DROP_Y                   99
 // Mode letter in the drop (A = AUTO, M = MANUAL): 15 px capital in the tag font and color, centered in the drop by its own width
-#define MODE_LETTER_DY                36    // from ICON_DROP_Y to its baseline
+#define MODE_LETTER_DY                35    // from ICON_DROP_Y to its baseline (one pixel up: the letter sits in the middle of the round part of the drop)
 #define ICON_CLOCK_X                  56   // ink x 56 -> 94: compromise between the original place (x 65) and the axis of the thermometer (x 46)
 #define ICON_CLOCK_Y                  167
 // The welcome picture of the start-up: in the middle of the screen
