@@ -271,6 +271,10 @@ const uint8_t FontUnitBitmaps[] PROGMEM = {
   0x1F, 0xF0, 0x3F, 0xF0, 0x3F, 0xE0, 0x0F, 0xFE, 0x1F, 0xFC, 0x7F, 0xFF,
   0xF7, 0xFF, 0x8F, 0xFC, 0x0F, 0xC0,
   0x1C, 0x3F, 0x98, 0xD8, 0x3C, 0x1E, 0x0D, 0x8C, 0xFE, 0x1C, 0x00, 0x38, 0xFB, 0xFF, 0xFF, 0xEF, 0x8E, 0x00,
+#ifdef FLOW_LIMIT
+  // '6' = slash of "ml/s" (7 x 17, 2 px wide, hand drawn: the font file is not in the repository)
+  0x06, 0x0C, 0x30, 0x60, 0xC3, 0x06, 0x0C, 0x30, 0x60, 0xC1, 0x86, 0x0C, 0x18, 0x60, 0xC0,
+#endif
 };
 
 // The units use the consecutive codes '0'..'3' instead of their ASCII codes (C, l, m, s), so the
@@ -284,9 +288,16 @@ const GFXglyph FontUnitGlyphs[] PROGMEM = {
   { 144, 14, 17, 16, 1, -17 }, // 0x33 '3' = s
   { 174, 9, 9, 10, -4, -4 }, // 0x34 '4' = degree sign, centered on the cursor (ring of 2 px, radius 4)
   { 185, 7, 7, 8, -3, -3 }, // 0x35 '5' = heater dot, centered on the cursor (disc of radius 3)
+#ifdef FLOW_LIMIT
+  { 192, 7, 17, 9, 0, -17 }, // 0x36 '6' = slash of "ml/s"
+#endif
 };
 
+#ifdef FLOW_LIMIT
+const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x30, 0x36, 42};
+#else
 const GFXfont FontUnit PROGMEM = {(uint8_t *)FontUnitBitmaps, (GFXglyph *)FontUnitGlyphs, 0x30, 0x35, 42};
+#endif
 
 // Phase tag of the duration ("PRE", "WAIT", "FLUSH"), mode letters, "ERR": 15 px capitals, only the 14 letters needed.
 // The letters use the consecutive codes '0'..';' instead of their ASCII codes, so the glyph

@@ -47,6 +47,9 @@
 #include "../Config.h"
 #include "../drivers/FlowSensor.h"
 #include "../settings/Journal.h"   // EndReason
+#ifdef FLOW_LIMIT
+#include "FlowLimit.h"             // the flow limit of RUNNING (test, Nano R4)
+#endif
 
 // The phases PREINFUSION..MANUAL are described by the phase table of ExtractionController.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.
@@ -152,6 +155,11 @@ class ExtractionController {
     // given by the machine. Used to estimate the volume in the cup.
     void setLossMl(float ml) { lossMl_ = ml; }
 
+#ifdef FLOW_LIMIT
+    // Flow limit of the main extraction (RUNNING only), ml/s; 0 = no limit. Given before start(). See coffee/FlowLimit.h.
+    void setFlowLimit(float mlPerS) { flowLimitMlPerS_ = mlPerS; }
+#endif
+
     // The delay (seconds of flow) by which the pump is stopped before the target, see STOP_DELAY_* in Config.h. The machine
      // gives the saved one at the start-up and saves the new one when stopDelayLearned() says it changed.
     void setStopDelaySeconds(float seconds) { stopDelayS_ = seconds; }
@@ -224,6 +232,11 @@ class ExtractionController {
     float finalOutMl_;
     float flowCheckMl_;         // volume In at the last progress seen (no-flow safety)
     uint32_t flowCheckAt_;      // time of that progress
+
+#ifdef FLOW_LIMIT
+    FlowLimit flowLimit_;       // the pump as slots while the limit applies (RUNNING)
+    float flowLimitMlPerS_ = 0.0f;
+#endif
 
     // The stop before the target
     float stopDelayS_;          // seconds of flow the pump is stopped before the target (learned)

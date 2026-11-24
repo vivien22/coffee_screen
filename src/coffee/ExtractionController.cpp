@@ -258,6 +258,12 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
     return;   // FLUSH_WAIT only waits for startFlush()
   }
 
+#ifdef FLOW_LIMIT
+  if (state_ == EXTRACTION_RUNNING && flowLimitMlPerS_ > 0.0f) {
+    setPump(flowLimit_.tick(now, flow_.getVolumeIn()));   // the pump is a pattern of slots: the limit (see coffee/FlowLimit.h)
+  }
+#endif
+
   uint8_t flags = flagsOf(state_);
   const uint32_t elapsedSeconds = (uint32_t)(now - startedAt_) / 1000UL;
 
@@ -432,6 +438,11 @@ void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
 
   if (flags & PHASE_PUMP) {
     setValve(valveOpen);
+#ifdef FLOW_LIMIT
+    if (phase == EXTRACTION_RUNNING && flowLimitMlPerS_ > 0.0f) {
+      flowLimit_.begin(flowLimitMlPerS_, now, flow_.getVolumeIn());
+    }
+#endif
     setPump(true);
   } else {
     setPump(false);

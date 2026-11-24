@@ -18,6 +18,9 @@ struct Settings {
   float loss;                // ml, water that does not end in the cup (puck, backflush), see Config.h
   bool manual;               // MANUAL mode (the pump runs between two pushes), false = AUTO
   int16_t steamingTemperature;   // degrees C (SteamingTemp: the setpoint of the steaming mode)
+#ifdef FLOW_LIMIT
+  int16_t flowLimit;             // tenths of ml/s, the flow limit of the main extraction, 0 = off (see coffee/FlowLimit.h)
+#endif
 };
 
 class SettingsStore {

@@ -18,6 +18,7 @@ for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)
   case "$n" in test_sim_*) d=real;; *) d=mock;; esac
   EXTRA=""
+  case "$n" in test_flow_limit) EXTRA="-DFLOW_LIMIT=1";; esac   # the flow limit (Nano R4 only) is built in for its test
   # sources linked with the test (the test provides the stubs of what it does not link)
   C="$B/$d/src/coffee/ExtractionController.cpp"
   case "$n" in
@@ -30,6 +31,7 @@ for t in test/test_*.cpp; do
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
     test_machine) C="$C $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp";;
   esac
+  case "$n" in test_flow_limit) C="$C $B/$d/src/coffee/FlowLimit.cpp";; esac
   g++ -std=c++11 -w $EXTRA -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \
       $C -o "$B/$n" 2>"$B/$n.log" || { echo "$n: BUILD FAILED"; head -5 "$B/$n.log"; status=1; continue; }
   # the status of the test itself (not the one of "tail"): a failing test fails the script
