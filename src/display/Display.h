@@ -80,6 +80,9 @@ void drawIcons();
 // Does nothing if DISPLAY_ICONS is not defined.
 void drawDrop(bool visible, bool manual);
 
+// Only the letter of the mode in the drop (the drop must be drawn): at the brightness of setTextBrightness().
+void drawModeLetter(bool manual);
+
 // Steaming mode: the screen is cleared (everything gone, the fields are drawn again in full afterwards), then only the
 // temperature is drawn, in large digits in the middle of the screen. error: "ERR" instead (probe fault).
 void clearScreen();

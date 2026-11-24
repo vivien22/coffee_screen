@@ -193,17 +193,23 @@ void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
     drawIcon(ICON_DROP_X, ICON_DROP_Y, ICON_DROP, ICON_DROP_WIDTH, ICON_DROP_HEIGHT);
-    const char letter = manual ? '<' : '4';   // FontTag codes: '4' = A, '<' = M
-    const GFXglyph *glyph = glyphOf(FONT_TAG, letter);
-    const int16_t letterWidth = pgm_read_byte(&glyph->width);
-    const int16_t letterLeft = ICON_DROP_X + (ICON_DROP_WIDTH - letterWidth) / 2;
-    const char text[2] = {letter, 0};
-    putText(FONT_TAG, letterLeft - (int8_t)pgm_read_byte(&glyph->xOffset), ICON_DROP_Y + MODE_LETTER_DY, COLOR_TAG,
-            reinterpret_cast<Text>(text));
+    drawModeLetter(manual);
   }
+}
+
+// The letter of the mode alone, an opaque block (at the brightness of setTextBrightness): the frames of the fade of a change of mode
+void drawModeLetter(bool manual) {
+  const char letter = manual ? '<' : '4';   // FontTag codes: '4' = A, '<' = M
+  const GFXglyph *glyph = glyphOf(FONT_TAG, letter);
+  const int16_t letterWidth = pgm_read_byte(&glyph->width);
+  const int16_t letterLeft = ICON_DROP_X + (ICON_DROP_WIDTH - letterWidth) / 2;
+  const char text[2] = {letter, 0};
+  putText(FONT_TAG, letterLeft - (int8_t)pgm_read_byte(&glyph->xOffset), ICON_DROP_Y + MODE_LETTER_DY, COLOR_TAG,
+          reinterpret_cast<Text>(text));
 }
 #else
 void drawDrop(bool, bool) {}
+void drawModeLetter(bool) {}
 void drawSteamIcon() {}
 void beginWelcome() {}
 void endWelcome() {}

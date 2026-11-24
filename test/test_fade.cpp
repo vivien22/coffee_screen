@@ -234,6 +234,64 @@ int main() {
     CHECK(inkIn(got, TEMPERATURE_ROW) > 0);
   }
 
+  // 5. A change of mode (AUTO -> MANUAL): the letter of the drop and the rows whose content changes (the volume 40 -> 0) fade as at a change of
+  // parameter; the rest of the drop (the icon) and the temperature are not touched; the end is the screen of the new mode drawn as it is
+  {
+    const Zone DROP = {ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT};
+    const Zone LETTER = {ICON_DROP_X + 5, ICON_DROP_Y + 18, 26, 21};   // the room of the A and of the M
+    Picture manualScreen, autoScreen, iconOnly;
+    {
+      // the drop without its letter: the letter drawn at brightness 0 is the background
+      beginDisplay();
+      drawDrop(true, false);
+      setTextBrightness(0);
+      drawModeLetter(false);
+      setTextBrightness(255);
+      iconOnly = snapshot();
+    }
+    {
+      ScreenController sc;
+      Settings s = settings();
+      s.manual = true;
+      sc.begin(s);
+      sc.finishWelcome();
+      sc.showLiveTemperature(0, 92.4);
+      sc.showHeaterState(true);
+      t += 2000;
+      sc.update(t);
+      manualScreen = snapshot();
+    }
+    ScreenController sc;
+    ready(sc);
+    autoScreen = snapshot();
+    sc.toggleMode();
+    sc.showReady();   // what CoffeeMachine does just after
+    t++;
+    sc.update(t);     // the clock of the fade starts here
+    bool letterWasDark = false;
+    bool iconStill = true, temperatureStill = true;
+    for (uint32_t i = 0; i < TOTAL + 100; i++) {
+      t++;
+      sc.update(t);
+      const Picture now = snapshot();
+      temperatureStill = temperatureStill && sameIn(now, autoScreen, TEMPERATURE_ROW);
+      // the drop outside of the letter does not change
+      for (int y = DROP.y; y < DROP.y + DROP.h; y++) {
+        for (int x = DROP.x; x < DROP.x + DROP.w; x++) {
+          const bool inLetter = x >= LETTER.x && x < LETTER.x + LETTER.w && y >= LETTER.y && y < LETTER.y + LETTER.h;
+          if (!inLetter && now[y * 240 + x] != autoScreen[y * 240 + x]) iconStill = false;
+        }
+      }
+      letterWasDark = letterWasDark || sameIn(now, iconOnly, LETTER);
+    }
+    const Picture got = snapshot();
+    CHECK(iconStill);
+    CHECK(temperatureStill);
+    CHECK(letterWasDark);   // the letter went dark on the way
+    CHECK(sameIn(got, manualScreen, VOLUME_ROW) && sameIn(got, manualScreen, DURATION_ROW) && sameIn(got, manualScreen, TEMPERATURE_ROW));
+    CHECK(sameIn(got, manualScreen, DROP));   // the letter is the M, at full brightness
+  }
+
   if (fails == 0) printf("test_fade: ALL OK\n");
   return fails ? 1 : 0;
 }

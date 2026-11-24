@@ -179,9 +179,21 @@ void ScreenController::showNoWater(bool error) {
 
 // AUTO <-> MANUAL: the letter in the drop changes and the volume is selected again.
 void ScreenController::toggleMode() {
+  // The rows whose content changes and the letter of the drop fade, as at a change of parameter (see FADE_OUT_MS in Config.h)
+  const bool animate = dropVisible_ && !steaming_ && FADE_OUT_MS + FADE_IN_MS > 0;
+  finishFades();   // a letter that was fading shows its final look: the next change starts from it
+  const bool wasManual = settings_.manual;
   settings_.manual = !settings_.manual;
-  drawDrop(dropVisible_, settings_.manual);
-  activate(PARAMETER_VOLUME);   // the selected parameter may not exist in the new mode
+  if (!animate) {
+    drawDrop(dropVisible_, settings_.manual);
+  }
+  activate(PARAMETER_VOLUME, animate, animate);   // the selected parameter may not exist in the new mode
+  if (animate) {
+    fade_[ROW_MODE] = Fade();
+    fade_[ROW_MODE].active = true;
+    fade_[ROW_MODE].from.value = wasManual ? 1.0 : 0.0;
+    fade_[ROW_MODE].to.value = settings_.manual ? 1.0 : 0.0;
+  }
 }
 
 // The parameters that exist in the current mode: the pre-infusion, the wait and the flush are AUTO
@@ -230,7 +242,7 @@ void ScreenController::selectNextParameter() {
 
 // Selects a parameter and sets what its field shows: the setpoint while the temperature is edited, the target
 // volume when the volume is selected, the live temperature again when the temperature is left.
-void ScreenController::activate(ActiveParameter next, bool animate) {
+void ScreenController::activate(ActiveParameter next, bool animate, bool modeChange) {
   // What the rows show now. A row that was fading shows its final look at once: the next change starts from it.
   RowLook before[ROW_COUNT];
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
@@ -260,13 +272,20 @@ void ScreenController::activate(ActiveParameter next, bool animate) {
     return;
   }
 
+  if (modeChange) {
+    // The rows as they are when the machine is ready in the new mode (showReady() does the same, just after): the fades go to them
+    durationShown_ = readyDuration();
+    volumeTagShown_ = PHASE_TAG_NONE;
+    durationTagShown_ = PHASE_TAG_NONE;
+  }
+
   // The rows that do not change are not touched, the ones that only change their number are drawn again, the others fade
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
     const RowLook after = lookOf((Row)row, active_);
     if (after == before[row]) {
       continue;
     }
-    if (after.sameShape(before[row])) {
+    if (after.sameShape(before[row]) && !modeChange) {   // at a change of mode a new number fades too
       dirty_ |= dirtyOf((Row)row);
       continue;
     }
@@ -650,7 +669,9 @@ void ScreenController::stepRolls(uint32_t now) {
 // What a row shows when the parameter 'active' is selected (see render())
 ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter active) const {
   RowLook look;
-  if (row == ROW_TEMPERATURE) {
+  if (row == ROW_MODE) {
+    look.value = settings_.manual ? 1.0 : 0.0;   // the letter: A (0) or M (1)
+  } else if (row == ROW_TEMPERATURE) {
     if (temperatureError_ && active != PARAMETER_TEMPERATURE) {
       look.kind = LOOK_ERROR;
     } else {
@@ -684,6 +705,12 @@ ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter acti
 // Draws a row as the look says, whole, with its text at the brightness given. Its zone is erased first, unless erase is false (the next
 // frame of a fade with the same look: the text is drawn over the last frame).
 void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase) {
+  if (row == ROW_MODE) {   // only the letter: it is an opaque block, nothing is erased first
+    setTextBrightness(brightness);
+    drawModeLetter(look.value != 0.0);
+    setTextBrightness(255);
+    return;
+  }
   if (erase) {
     forgetField(row);   // the whole row is drawn: the pixels on the screen are at another brightness
   } else {
@@ -716,7 +743,7 @@ uint8_t ScreenController::dirtyOf(Row row) const {
 uint8_t ScreenController::fadingRows() const {
   uint8_t flags = DIRTY_NONE;
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
-    if (fade_[row].active) {
+    if (fade_[row].active && row != ROW_MODE) {
       flags |= (row == ROW_TEMPERATURE) ? DIRTY_TEMPERATURE : (row == ROW_VOLUME ? (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)
                                                                                : (DIRTY_DURATION | DIRTY_DURATION_NUMBER));
     }
@@ -753,6 +780,10 @@ void ScreenController::stepFades(uint32_t now) {
     const uint32_t elapsed = now - fade.start;
     if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
       fade.active = false;
+      if (row == ROW_MODE) {
+        drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255);   // the letter of the mode, at full brightness
+        continue;
+      }
       // The row as it is, whole, at full brightness. Drawn over the last frame, without erasing, when it is the look of that frame (an erase
       // followed by the drawing would blink at the very end of the fade); erased first when something changed meanwhile.
       if (lookOf((Row)row, active_) == fade.to) {
