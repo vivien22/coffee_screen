@@ -647,6 +647,9 @@ void ScreenController::drawDurationValue(int16_t value, bool redrawTag, uint8_t 
 
 // The progress (0 to DISPLAY_ROLL_DONE - 1) of a roll that has lasted elapsed ms of duration: ease-out, fast first, slow at the end
 static uint8_t rollProgress(uint32_t elapsed, uint32_t duration) {
+  if (duration == 0) {
+    return DISPLAY_ROLL_DONE - 1;   // no roll (ROLL_VOLUME_MS is 0): never reached, it only keeps the division safe
+  }
   const uint32_t remaining = DISPLAY_ROLL_DONE - elapsed * DISPLAY_ROLL_DONE / duration;   // 255 at the start, 0 at the end
   const uint32_t cubed = remaining * remaining * remaining / (DISPLAY_ROLL_DONE * DISPLAY_ROLL_DONE);
   return (uint8_t)(DISPLAY_ROLL_DONE - cubed);
