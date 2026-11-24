@@ -260,7 +260,7 @@
 // selection is the only one that fades: out in FADE_OUT_NEW_ROW_MS, in in FADE_IN_NEW_ROW_MS (shorter than FADE_OUT_MS and FADE_IN_MS, which are
 // the fades of the sub-parameters).
 #ifndef FADE_OUT_NEW_ROW_MS
-#define FADE_OUT_NEW_ROW_MS      120UL
+#define FADE_OUT_NEW_ROW_MS      60UL
 #endif
 #ifndef FADE_IN_NEW_ROW_MS
 #define FADE_IN_NEW_ROW_MS       450UL
