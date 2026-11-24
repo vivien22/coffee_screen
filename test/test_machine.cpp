@@ -570,7 +570,7 @@ static void journal(){
   for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the main phase
   CHECK(j.read(0,e) && e.reason==END_USER && e.phase==EXTRACTION_RUNNING && e.preinfusion==10 && e.sequence==6 && j.read(6,e) && !j.read(7,e));
-  // 7. the ring keeps the last 62: more extractions (quick ones) than it holds, the oldest ones go
+  // 7. the ring keeps the last JOURNAL_COUNT (50): more extractions (quick ones) than it holds, the oldest ones go
   for(int n=0;n<110;n++){
     m.handleStartButton(); for(int i=0;i<15;i++){ t+=100; m.update(); }
     m.handleStartButton(); for(int i=0;i<30;i++){ t+=100; m.update(); }   // stopped in the pre-infusion

@@ -4,7 +4,7 @@
 #include <EEPROM.h>
 #include <string.h>
 
-static const int JOURNAL_ADDRESS = 24;   // 24 + 1 + 62 entries of 16 bytes = 1017: inside the first 1024 bytes of the EEPROM
+static const int JOURNAL_ADDRESS = 24;   // the settings are at 0..21; the layout of the whole EEPROM is in Journal.h
 static const int ENTRY_SIZE = (int)sizeof(JournalEntry);
 
 static int slotAddress(uint8_t slot) {

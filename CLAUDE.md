@@ -20,7 +20,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   free; A0 unused). A GPIO gives 8 mA at most.
 - Kept from the R3 time because they work (they can be simplified, nothing requires it): every text is drawn by `putText()` (do not
   call `tft.print()` / `setFont` / `setCursor`), the icons are stored compressed, `F()` and `pgm_read_*` (no-ops on the R4, the tests
-  rely on them), the journal of 62 entries of 16 bytes.
+  rely on them), the journal of 50 entries of 16 bytes (since 2026-11-24, to make room for the flow curves).
 
 ## Steaming mode (long push of the encoder)
 - Asked by the user 2026-11-19: the long push enters / leaves a steaming mode (`CoffeeMachine::toggleSteaming()`, only when no extraction is
@@ -31,7 +31,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
 
 ## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
-- `src/settings/Journal.{h,cpp}`: a ring of 62 entries of 16 bytes in the EEPROM from address 24 (993 bytes of the first 1024 of the EEPROM; 66 entries became 62 when `cal` was added, as the user allowed; the
+- `src/settings/Journal.{h,cpp}`: a ring of 50 entries of 16 bytes in the EEPROM from address 24 (25..824; 66 entries became 62 when `cal` was added and 50 on 2026-11-24 for the flow curves, as the user allowed; the
   settings are at 0..19): `JournalEntry` = reason + phase (4 bits each), target, pre-infusion, wait, duration, In and Out in tenths of ml
   (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
   `CoffeeMachine::validateCalibration()` through `Journal::setLastCal()`, only when the weight was changed, else 0). The
@@ -47,11 +47,11 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `test/stubs/Arduino.h` keeps `out` and gives `in`) and `journal()` of `test_machine`.
 - Flow curves (branch journal-flow-curves, asked by the user 2026-11-24 to see the flow In / Out and the volume Out in time): `coffee/FlowRecorder.{h,cpp}` takes one
   sample every `CURVE_SAMPLE_MS` = 500 ms (the water through In and Out since the previous sample, tenths of ml, uint8) from the start of an AUTO extraction until
-  `writeJournal()`; the journal keeps the last `CURVE_COUNT` = 14 curves in a ring of slots of 482 bytes from EEPROM address 1024 (8 KB data flash of the R4;
-  `Journal::beginCurve / stepCurve / readCurve`, written 32 bytes per loop pass: the header blanked first and written last, never a wait on the flash; `curvesFit()`
+  `writeJournal()`; the journal keeps the last `CURVE_COUNT` = 20 curves of at most `CURVE_SAMPLES` = 180 samples (90 s, user choice) in a ring of slots of 362 bytes from EEPROM address 825, right after the entries (8 KB data flash of the R4; map in `Journal.h`: 24 next slot, 25..824 entries, 825 next curve slot, 826..8065 curves, 8066..8191 free;
+  `Journal::beginCurve / stepCurve / readCurve`, written 24 bytes per loop pass (`CURVE_BYTES` must be a multiple of `CURVE_CHUNK`: static_assert): the header blanked first and written last, never a wait on the flash; `curvesFit()`
   keeps a smaller EEPROM safe). The sequence number links a curve to its entry. `j` prints `CURVE #n 500 ms N | in ... | out ...` lines after the entries (`formatCurveLine`),
   `journal_viewer.html` draws them (flow In / Out, volume Out, hover, smoothing); `journal_view.py` ignores them. Tests: `test_flow_recorder`, `test_journal`,
-  `test_serial_console`, `journal()` of `test_machine` (the stub EEPROM is now 8 KB). `journal_clear` does not touch the curves (they are checked by their header).
+  `test_serial_console`, `journal()` of `test_machine` (the stub EEPROM is now 8 KB). After this layout change run `pio run -e journal_clear -t upload` once (it now erases 24..8191, settings kept) before flashing the machine.
 - `tools/journal_view.py` (Python, standard library only) parses the text of the console (file, `--port` with pyserial, or `--demo`) and writes one
   HTML page with inline SVG charts (water stacked: cup / loss / Out, target tick, end reason glyphs; duration; temperatures; table). Asked by the
   user 2026-11-22. It has no automated test: check it by eye with `--demo` and a Chrome screenshot (`chrome --headless --screenshot`).

@@ -1,4 +1,4 @@
-// The journal of the last extractions (Journal.cpp): a ring of JOURNAL_COUNT (62) entries of 16 bytes in the EEPROM, the last one first.
+// The journal of the last extractions (Journal.cpp): a ring of JOURNAL_COUNT (50) entries of 16 bytes in the EEPROM, the last one first.
 #include <cstdio>
 #include <cstring>
 #include "EEPROM.h"
@@ -14,7 +14,7 @@ static JournalEntry entry(uint8_t reason, uint16_t in) {
 
 int main() {
   Journal j; JournalEntry e;
-  CHECK(sizeof(JournalEntry) == 16 && JOURNAL_COUNT == 62);
+  CHECK(sizeof(JournalEntry) == 16 && JOURNAL_COUNT == 50);
   // a blank EEPROM: nothing in the journal
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
   CHECK(!j.read(0, e) && !j.read(5, e) && !j.read(JOURNAL_COUNT, e));
@@ -57,7 +57,8 @@ int main() {
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
   uint8_t samples[CURVE_BYTES], back[CURVE_BYTES]; uint16_t n; uint8_t sequence;
   CHECK(!j.readCurve(0, sequence, back, n) && !j.readCurve(CURVE_COUNT, sequence, back, n));   // a blank EEPROM: none
-  CHECK(CURVE_ADDRESS >= 24 + 1 + JOURNAL_COUNT * (int)sizeof(JournalEntry));                  // after the entries
+  CHECK(CURVE_ADDRESS == 24 + 1 + JOURNAL_COUNT * (int)sizeof(JournalEntry));                  // right after the entries
+  CHECK(CURVE_ADDRESS == 825 && CURVE_COUNT == 20 && CURVE_SLOT_SIZE == 362);                 // the map of Journal.h
   CHECK(CURVE_ADDRESS + 1 + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192);                            // inside the 8 KB of the R4
   CHECK(CURVE_BYTES % CURVE_CHUNK == 0);
   auto fill = [&](uint8_t seed, uint16_t count) { for (uint16_t i = 0; i < 2 * count; i++) samples[i] = (uint8_t)(seed + i); };

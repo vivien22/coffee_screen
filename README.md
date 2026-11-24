@@ -55,8 +55,8 @@ Built and used every day on an **Ascaso Steel Uno Pro**: it controls the boiler 
 - **A welcome picture** at start-up and in standby.
 
 ### Journal
-The last 62 AUTO extractions are kept in the EEPROM: how each one ended (target reached, stopped by the button, no water...), the water
-counted by the two sensors, the loss, the settings used and, if you weighed the cup in CAL, its weight. For the last 14 of them the flow of the water
+The last 50 AUTO extractions are kept in the EEPROM: how each one ended (target reached, stopped by the button, no water...), the water
+counted by the two sensors, the loss, the settings used and, if you weighed the cup in CAL, its weight. For the last 20 of them the flow of the water
 through the In and the Out sensor is recorded every half second too. The machine prints all of it on its USB line, to understand a cup that went wrong
 ([The journal](docs/DOCUMENTATION.md#the-journal-of-the-last-extractions)), and `tools/journal_viewer.html` draws the charts, with the curves of the flow In,
 the flow Out and the volume Out.

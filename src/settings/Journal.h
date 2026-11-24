@@ -1,17 +1,20 @@
 /*
-  Journal: the last JOURNAL_COUNT (62) AUTO extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
+  Journal: the last JOURNAL_COUNT (50) AUTO extractions, kept in the EEPROM (a ring: the oldest one is overwritten). One entry per
   extraction, written when its values are final: how it ended and why, the volumes counted by the flow sensors, the final volume,
   the loss, the delay of the stop, the temperatures and the settings it used. The weight of the cup entered in the CAL parameter
   is added to the entry afterwards (setLastCal), only if it was changed: otherwise the field stays 0. The MANUAL extractions are not kept. It is read
   over the USB serial line: the machine answers the letter j (drivers/SerialConsole.cpp). Nothing else in the machine shows or uses it.
 
-  EEPROM layout, from address JOURNAL_ADDRESS (Journal.cpp): [next slot: 1 byte][JOURNAL_COUNT entries of 16 bytes]: 993 bytes of the
-  the first 1024 bytes of the EEPROM, after the settings (addresses 0..19). A blank (0xFF) or unknown slot is empty.
-
-  The curves (the flow In and Out of an extraction, see coffee/FlowRecorder.h) are kept apart, for the last CURVE_COUNT (14) extractions,
-  from address CURVE_ADDRESS (1024, the data flash of the R4 holds 8 KB): [next slot: 1 byte][CURVE_COUNT slots of 2 + 2 x CURVE_SAMPLES
-  bytes: the sequence number of the entry, the number of samples, the samples]. A curve belongs to the entry with the same sequence number.
-  It is written in small pieces (stepCurve) so that the loop of the machine never waits for the flash.
+  EEPROM layout (the data flash of the R4 holds 8192 bytes), from the settings (addresses 0..21):
+    24                    next slot of the journal (1 byte)                    JOURNAL_ADDRESS (Journal.cpp)
+    25 .. 824             JOURNAL_COUNT (50) entries of 16 bytes
+    825                   next slot of the curves (1 byte)                     CURVE_ADDRESS
+    826 .. 8065           CURVE_COUNT (20) slots of 2 + 2 x CURVE_SAMPLES (362) bytes: the sequence number of the entry, the number of
+                          samples, the samples (In, Out of each, tenths of ml)
+    8066 .. 8191          free
+  A blank (0xFF) or unknown slot is empty. The curves (the flow In and Out of an extraction, see coffee/FlowRecorder.h) are kept for the
+  last CURVE_COUNT extractions; a curve belongs to the entry with the same sequence number. A curve is written in small pieces (stepCurve)
+  so that the loop of the machine never waits for the flash.
 */
 
 #pragma once
@@ -47,12 +50,14 @@ struct __attribute__((packed)) JournalEntry {
   uint8_t cal;           // the cup weight (g = ml) entered in CAL and validated, 0 = not entered
 };
 
-static const uint8_t JOURNAL_COUNT = 62;
-static const uint8_t CURVE_COUNT = 14;
+static const uint8_t JOURNAL_COUNT = 50;
+static const uint8_t CURVE_COUNT = 20;
 static const uint16_t CURVE_BYTES = 2 * CURVE_SAMPLES;         // In and Out of each sample (tenths of ml)
 static const uint16_t CURVE_SLOT_SIZE = 2 + CURVE_BYTES;       // sequence, number of samples, samples
-static const uint16_t CURVE_ADDRESS = 1024;
-static const uint8_t CURVE_CHUNK = 32;                          // bytes written by one step (CURVE_BYTES is a multiple of it)
+static const uint16_t CURVE_ADDRESS = 24 + 1 + JOURNAL_COUNT * 16;   // just after the entries of the journal (16 bytes each)
+static const uint8_t CURVE_CHUNK = 24;                          // bytes written by one step (CURVE_BYTES is a multiple of it)
+static_assert(CURVE_ADDRESS + 1 + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192, "the journal and the curves must fit in the 8 KB of the EEPROM");
+static_assert(CURVE_BYTES % CURVE_CHUNK == 0, "the last piece of a curve must stay in its slot");
 
 class Journal {
   public:

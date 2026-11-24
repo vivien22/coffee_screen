@@ -222,7 +222,7 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 
 ### The journal of the last extractions
 
-The machine keeps in its EEPROM a **journal of the last 62 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
+The machine keeps in its EEPROM a **journal of the last 50 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
 extractions are not kept; an AUTO extraction is, whichever phase it ended in (pre-infusion included). It is there to understand an
 extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the machine shows
 or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the water that still
@@ -262,10 +262,10 @@ The answer of the machine is `JOURNAL`, one line per extraction, the last one fi
 
 (`cal` only appears when a weight was entered.)
 
-**The flow curves.** For the last 14 AUTO extractions the machine also keeps how the water flowed: every half second (`CURVE_SAMPLE_MS`,
+**The flow curves.** For the last 20 AUTO extractions the machine also keeps how the water flowed: every half second (`CURVE_SAMPLE_MS`,
 twice the period of the flow sensors) it records the water that went through the In sensor and through the Out sensor during that half
 second, in tenths of ml, from the push until the entry is written (the pre-infusion, the wait, the extraction and the water that comes
-after the stop; at most `CURVE_SAMPLES` = 240 samples = 120 s). They are in the answer of `j`, after the entries, one line per curve
+after the stop; at most `CURVE_SAMPLES` = 180 samples = 90 s: a longer extraction is recorded up to 90 s). They are in the answer of `j`, after the entries, one line per curve
 (the number is the one of its entry; the values are tenths of ml per sample):
 
 ```
@@ -277,9 +277,9 @@ that came out** (ml) under it, on the same time axis, with a dashed line where t
 values when the mouse is on a chart, and a switch to smooth the flows over 1.5 s (a sample is good to 0.2 ml/s: the pulses of the In
 sensor are 0.08 ml each). `tools/journal_view.py` ignores these lines.
 
-The curves are in the EEPROM from address 1024 (the data flash of the R4 holds 8 KB): a ring of 14 slots of 482 bytes (the number of the
-entry, the number of samples, the samples), 6.8 KB with its position. A curve is written by the passes of the main loop that follow the
-journal entry, 32 bytes at a time, so that the machine never waits for the flash; the header of its slot is blanked first and written last,
+The curves are in the EEPROM right after the entries of the journal (the data flash of the R4 holds 8 KB): a ring of 20 slots of 362 bytes
+(the number of the entry, the number of samples, the samples). A curve is written by the passes of the main loop that follow the
+journal entry, 24 bytes at a time, so that the machine never waits for the flash; the header of its slot is blanked first and written last,
 so a power cut leaves no half curve. The samples are kept in RAM during the extraction (480 bytes, `FlowRecorder`).
 
 **A graphical view.** `tools/journal_view.py` turns that text into one HTML page (no dependency, no network, light and dark themes): the water
@@ -298,10 +298,22 @@ It writes `journal.html` (`-o` to change the name); open it in a browser.
 
 *The picture is the example (made up extractions), not a real machine.*
 
-An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 62 entries take 993 bytes of the 1024 of the
-EEPROM (address 24 to 1016; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
-end of an extraction (16 bytes, and one more byte when CAL is validated; with its curve 500 bytes at most), far from its limit of 100 000
-writes per byte (a slot of the curves is written once every 14 extractions).
+An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml). The map of the EEPROM (8192 bytes; the layout is in
+`src/settings/Journal.h`):
+
+| Addresses | Content |
+|---|---|
+| 0 .. 21 | the settings (marker, temperature, volume, pre-infusion, wait, flush, mode, MANUAL time, loss, stop delay, steaming temperature, flow limit); 22 and 23 are free |
+| 24 | the next slot of the journal |
+| 25 .. 824 | the 50 entries of the journal (16 bytes each) |
+| 825 | the next slot of the curves |
+| 826 .. 8065 | the 20 curves (362 bytes each: the number of the entry, the number of samples, then 180 samples of In and Out at most) |
+| 8066 .. 8191 | free (126 bytes) |
+
+After a change of this map, erase the old journal once with `pio run -e journal_clear -t upload` (then flash the machine again): the old
+entries and curves would be misread. The EEPROM is written only at the
+end of an extraction (16 bytes, and one more byte when CAL is validated; with its curve 380 bytes at most), far from its limit of 100 000
+writes per byte (a slot of the curves is written once every 20 extractions).
 
 ### What is saved, and when
 
