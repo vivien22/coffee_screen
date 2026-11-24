@@ -51,7 +51,7 @@ PARAMS = dict(
     chamfer=0.4,        # 45 degree chamfer on the outer edge and on the window
 
     # Part B (plate)
-    plate=1.0,          # thickness of B = how far the PCB sits behind the panel
+    plate=1.5,          # thickness of B = how far the PCB sits behind the panel (the tab of the glass passes behind the panel)
     D_plate=48.0,       # outer diameter of B
     fit=0.05,           # radial clearance between the ring of A and the bore of B
     D_peg=1.8,          # pegs in the PCB holes (2.0)
@@ -60,13 +60,14 @@ PARAMS = dict(
     pin_depth=1.05,     # depth of that slot; what is left insulates the pins from the steel
     slot_half=1.15,     # half height of that slot
     pips=0,             # number of small dots that tell the variants apart (on the PCB side, outside the PCB)
-    pip_side=0,         # where the dots are: 0 = bottom, 1 = left
+    pip_side=1,         # where the dots are: 0 = bottom, 1 = left (v3: the bottom of B is open for the tab)
     res=0.1,            # mesh step of B
 
-    # Added in v3 (0 = off)
-    tab_half=0.0,       # half width of the room for the bottom tab of the glass (0 = no room)
+    # Added in v3 (0 = off, as in v2)
+    tab_half=8.8,       # half width of the room for the bottom tab of the glass (drawing: 16.2 wide, down to 20.9
+                        # below the centre, past the edge of the hole: it would hit the steel), plus some margin
     tab_y=-15.0,        # that room starts this far below the centre
-    key_ab=0,           # 1: tooth of B (top) in a slot of the ring of A, so B only fits one way
+    key_ab=1,           # 1: tooth of B (top) in a slot of the ring of A, so B only fits one way
     kab_w=2.0,          # width of that tooth
     kab_in=19.0,        # inner radius of that tooth
 )

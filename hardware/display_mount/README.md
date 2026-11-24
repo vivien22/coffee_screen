@@ -8,6 +8,10 @@ Two printed parts hold the round GC9A01 screen (board ZJY128S0800TG01) in the 40
   of the glass, a ring that goes through the hole, and a key in the notch of the panel (A cannot turn, the notch is hidden).
 - **B, the plate**, goes behind the panel: a 48 mm ring with four pegs in the four holes of the PCB (30 x 30 mm square).
   The PCB is pushed on the pegs, then held by a drop of glue or by melting the tip of the pegs with the soldering iron.
+  B is open at the bottom: the glass of the screen has a tab there (the bonding of its flex cable) that goes down to
+  20.9 mm below the centre, past the edge of the hole.
+- **A/B key**: a tooth at the top of the bore of B goes into a slot of the ring of A, so B only fits one way. A is set
+  by its key in the notch of the panel, so panel, collar, plate and screen are all lined up.
 
 The panel is clamped between the flange of A and the plate B; the ring of A fits into the bore of B.
 
@@ -24,10 +28,10 @@ The plate holds:
 | Part | Dots on B | Use |
 |---|---|---|
 | 2 x collar A | | final mount (FFC cable on the J2 connector, no pin header) |
-| plate B1 | 1 | reference: clearance 0.05 mm with the ring of A, pegs 1.8 mm |
+| plate B1 | 1 (left side) | reference: clearance 0.05 mm with the ring of A, pegs 1.8 mm |
 | plate B2 / B3 | 2 / 3 | tighter (0) / looser (0.10 mm) on the ring of A |
 | plate B4 / B5 | 4 / 5 | pegs 1.7 / 1.9 mm |
-| collar A + plate B6 | 6 | temporary mount with the pin header: B is 2.3 mm thick with a blind slot for the 2 mm tips of the pins (0.25 mm of plastic left in front of the steel, no short circuit) |
+| collar A + plate B6 | 6 | temporary mount with the pin header: B is 2.3 mm thick with a blind slot for the 2 mm tips of the pins (0.25 mm of plastic left in front of the steel, no short circuit); the glass is 2.6 mm behind the front face |
 
 Keep the B that fits best and drop the others.
 
@@ -36,7 +40,10 @@ Keep the B that fits best and drop the others.
 - Panel: 1.0 mm steel, hole 40.3 mm, notch about 2.1 mm wide and 1.8 mm below the edge of the hole (measured).
 - Screen (manufacturer's drawing): backlight 35.6 mm, active area 32.4 mm, glass + LCD 1.5 mm in front of the PCB,
   PCB 1.2 mm, holes 2.0 mm on a 30 x 30 mm square centred on the screen, pin row 21.2 mm above the centre.
-- Final mount: the glass is 1.3 mm behind the front face, the PCB 2.8 mm.
+- Bottom tab of the glass (drawing): 16.2 mm wide where it leaves the circle, 13.2 mm at its end, 20.9 mm below the
+  centre. The room left for it is 17.6 mm wide from 15 mm below the centre, behind the panel only.
+- Final mount: B is 1.5 mm thick so that the tab passes just behind the panel; the glass is 1.8 mm behind the front
+  face, the PCB 3.3 mm.
 
 ## Printing
 
@@ -46,4 +53,7 @@ textured plate it is grained. B prints with the panel side down, pegs up.
 
 ## Versions
 
-- **v2**: the version that was printed (this one).
+- **v2**: the version that was printed (commit "Display mount v2 (the printed version)"). It missed the bottom tab of
+  the glass (it would hit the steel) and had no key between A and B.
+- **v3**: room for the bottom tab of the glass (the screen moves 0.5 mm back, B is 1.5 mm thick), A/B key, dots of B
+  on the left side. Not printed yet (this version).
