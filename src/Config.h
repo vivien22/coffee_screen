@@ -255,7 +255,7 @@
 #define FADE_OUT_MS              60UL
 #endif
 #ifndef FADE_IN_MS
-#define FADE_IN_MS               450UL
+#define FADE_IN_MS               550UL
 #endif
 #define FADE_FRAME_MS            30UL
 
