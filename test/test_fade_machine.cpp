@@ -164,6 +164,33 @@ int main() {
     }
   }
   CHECK(bad == 0);
+
+  // The flush that counts down from a number of two digits to one (27 s, then 5 s): the "s" moves left and the old one, partly under the tag
+  // FLUSH (x 158 to 165), must not stay. The tag is fixed here (not blinking): the picture is compared with a complete redraw.
+  {
+    ScreenController sc;
+    ready(sc);
+    sc.showExtractionStarted();
+    sc.showExtractionProgress(resultMl, 27);
+    run(sc, 1000);
+    sc.showFlush(resultMl, 27, false);
+    run(sc, 1000);
+    sc.showFlush(resultMl, 5, false);
+    run(sc, SETTLE);
+    const Picture got = snapshot();
+    sc.enterStandby();
+    sc.leaveStandby();
+    run(sc, SETTLE);
+    const Picture whole = snapshot();
+    int different = 0;
+    for (int y = DURATION_ZONE_Y; y < DURATION_ZONE_Y + DURATION_ZONE_HEIGHT; y++) {
+      for (int x = 0; x < 240; x++) {
+        if (got[y * 240 + x] != whole[y * 240 + x]) different++;
+      }
+    }
+    CHECK(different == 0);
+  }
+
   if (fails == 0) printf("test_fade_machine: ALL OK\n");
   return fails ? 1 : 0;
 }

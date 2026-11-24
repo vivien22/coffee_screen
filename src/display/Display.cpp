@@ -651,17 +651,15 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, u
   char text[6];
   itoa(value, text, 10);
 
-  const bool wasLarge = durationField.valid && durationField.size == TEXT_SIZE_LARGE;
-
   bool moved;
   const int16_t xNumberEnd = drawNumber(durationField, text, size, tag, tag != PHASE_TAG_NONE && redrawTag,
                                         DURATION_ZONE_X, DURATION_ZONE_Y, zoneWidth, DURATION_ZONE_HEIGHT,
                                         DURATION_X, DURATION_BASELINE, moved, false, progress);
 
   if (moved) {
-    // Large digits: the "s" is under the tag, in a part of the field that the zone above does not cover
-    // (also when it was drawn there by the previous large value).
-    if (keepTag && (size == TEXT_SIZE_LARGE || wasLarge)) {
+    // The "s" (or the old one) can be under the tag, in a part of the field that the zone above does not cover: with large digits, and with
+    // small ones too (the "s" of a number of two digits reaches x 169, the tag starts at x 163)
+    if (keepTag) {
       tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE + 1,
                    DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X,
                    DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
