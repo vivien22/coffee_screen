@@ -40,9 +40,12 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `ExtractionController::endedBy()` keeps the FIRST reason (target, user, no water, max time) with the phase;
   `CoffeeMachine::writeJournal()` writes the entry when `endReason()` is set and `settlePending()` is over (the water after the stop is
   counted), once; the start temperature is taken in `startExtraction()`.
-- Read it with `pio run -e journal_dump -t upload` (`tools/journal_dump.cpp`), the serial line, then flash the machine again.
-  The bootloader (Optiboot) cannot read the EEPROM. Tests: `test_journal` and `journal()` of `test_machine`.
-- `tools/journal_view.py` (Python, standard library only) parses the text of `journal_dump` (file, `--port` with pyserial, or `--demo`) and writes one
+- Read it WITHOUT flashing: the machine answers the letter `j` on its USB serial line (115200 baud) with `JOURNAL`, one line per
+  extraction (the last first) and `END` (`src/drivers/SerialConsole.{h,cpp}`, the line is made by `src/settings/JournalFormat.cpp`,
+  integers only, same format as before). It says nothing by itself and writes nothing. `tools/journal_view.py --port COM12` asks and
+  draws. The old sketch `tools/journal_dump.cpp` is gone. Tests: `test_journal`, `test_serial_console` (the stub `Serial` of
+  `test/stubs/Arduino.h` keeps `out` and gives `in`) and `journal()` of `test_machine`.
+- `tools/journal_view.py` (Python, standard library only) parses the text of the console (file, `--port` with pyserial, or `--demo`) and writes one
   HTML page with inline SVG charts (water stacked: cup / loss / Out, target tick, end reason glyphs; duration; temperatures; table). Asked by the
   user 2026-11-22. It has no automated test: check it by eye with `--demo` and a Chrome screenshot (`chrome --headless --screenshot`).
 

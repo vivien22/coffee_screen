@@ -3,8 +3,7 @@
   extraction, written when its values are final: how it ended and why, the volumes counted by the flow sensors, the final volume,
   the loss, the delay of the stop, the temperatures and the settings it used. The weight of the cup entered in the CAL parameter
   is added to the entry afterwards (setLastCal), only if it was changed: otherwise the field stays 0. The MANUAL extractions are not kept. It is read
-  with the journal_dump environment (see platformio.ini), which prints the entries over the serial line: nothing in the machine
-  itself shows or uses it.
+  over the USB serial line: the machine answers the letter j (drivers/SerialConsole.cpp). Nothing else in the machine shows or uses it.
 
   EEPROM layout, from address JOURNAL_ADDRESS (Journal.cpp): [next slot: 1 byte][JOURNAL_COUNT entries of 16 bytes]: 993 bytes of the
   the first 1024 bytes of the EEPROM, after the settings (addresses 0..19). A blank (0xFF) or unknown slot is empty.

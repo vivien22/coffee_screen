@@ -211,16 +211,14 @@ comes is then counted), so a power cut in the middle loses that extraction only.
 | delay | the delay of the stop before the target used (seconds of flow) |
 | temperatures | the temperature shown at the start of the extraction and when the entry was written (a few seconds after the end), °C |
 
-**Reading it.** The journal cannot be read through the bootloader, so a tiny sketch prints it over the serial line (115200 baud) and
-does nothing else (it writes nothing). Flash it, read the serial line, then flash the machine again (the EEPROM is kept):
+**Reading it.** The machine answers the letter `j` on its USB serial line (115200 baud) with the journal, one line per extraction. It
+says nothing by itself, and reading writes nothing: nothing has to be flashed. With any serial monitor, type `j` (and Enter):
 
 ```
-pio run -e journal_dump -t upload      # the sketch of tools/journal_dump.cpp
-pio device monitor                     # (or any serial monitor, 115200 baud, reset the board to see it again)
-pio run -t upload                      # the machine again
+pio device monitor                     # (or any serial monitor, 115200 baud), then type j
 ```
 
-It prints one line per extraction, the last one first:
+The answer is `JOURNAL`, one line per extraction, the last one first, then `END`:
 
 ```
 #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 cal 10 | delay 0.37 | 88 -> 91 C
@@ -233,8 +231,8 @@ of each extraction (the volume in the cup, the loss and the Out water, with a ti
 button, no water, maximum duration), the duration, the temperatures, and a table. Hover a bar for the details.
 
 ```
-python tools/journal_view.py dump.txt      # the text printed by the journal_dump sketch, saved from a serial monitor
-python tools/journal_view.py --port COM8   # or read the board itself (pip install pyserial; the sketch must be running)
+python tools/journal_view.py dump.txt      # the text printed by the machine, saved from a serial monitor
+python tools/journal_view.py --port COM12  # or ask the machine itself (pip install pyserial; close the other serial monitors)
 python tools/journal_view.py --demo        # an example with made up extractions
 ```
 

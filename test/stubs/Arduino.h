@@ -4,9 +4,9 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string>
 typedef uint8_t byte;
 #define PROGMEM
-#define ARDUINO_STUB 1   // the tests on the PC (Display.cpp: F() is a plain pointer here)
 #define ARDUINO_STUB 1   // the tests on the PC (Display.cpp: F() is a plain pointer here)
 #define HIGH 1
 #define LOW 0
@@ -30,7 +30,15 @@ const char *stubFlashString(const char *literal);
 unsigned long millis(); void delay(unsigned long);
 void pinMode(uint8_t,uint8_t); void digitalWrite(uint8_t,uint8_t); int digitalRead(uint8_t);
 void noInterrupts(); void interrupts();
-struct SerialT { template<class T> void print(T){} template<class T,class U> void print(T,U){} template<class T> void println(T){} template<class T,class U> void println(T,U){} void begin(long){} };
+struct SerialT {
+  template<class T> void print(T){} template<class T,class U> void print(T,U){} template<class T> void println(T){} template<class T,class U> void println(T,U){} void begin(long){}
+  // Text sent with print / println of a "const char *" is kept in out, and what a test puts in "in" is what read() gives (the serial console)
+  std::string in, out;
+  void print(const char *s) { out += s; }
+  void println(const char *s) { out += s; out += "\n"; }
+  int available() { return (int)in.size(); }
+  int read() { if (in.empty()) return -1; const int c = (unsigned char)in[0]; in.erase(0, 1); return c; }
+};
 extern SerialT Serial;
 // The state of this stand-in (ArduinoStubs.cpp), driven by the tests
 extern unsigned long stubNow;   // what millis() returns

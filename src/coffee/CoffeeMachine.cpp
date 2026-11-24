@@ -17,6 +17,8 @@ CoffeeMachine::CoffeeMachine() :
 // Start order matters: the outputs (heater, pump, valve) are switched off first, then the saved settings are loaded
 // and every module is started with them.
 void CoffeeMachine::begin() {
+  console_.begin();
+
   // Outputs first: heater, pump and valve off.
   heater_.begin();
   extraction_.begin();
@@ -59,6 +61,8 @@ void CoffeeMachine::begin() {
 //   3. temperature and heater (heater off during standby)
 //   4. what the screen shows, then the drawing of what changed
 void CoffeeMachine::update() {
+  console_.update(journal_);   // answers a command of the serial line (reads only)
+
   // ----- 1. User actions -----
   // The encoder is polled on every pass: its debounce / click state machine needs it.
   // Done before reading the clock: an action may start an extraction, whose start time

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """journal_view: a graphical view of the journal of the last extractions (one HTML page, no dependency, no network).
 
-The journal is read by the journal_dump sketch (tools/journal_dump.cpp), which prints one line per extraction on the serial line.
-This script turns those lines into a page with three charts and a table:
+The machine prints the journal on its USB serial line when it receives the letter j (src/drivers/SerialConsole.cpp): one line per
+extraction. This script turns those lines into a page with three charts and a table:
 
   1. where the water went, for each extraction: the volume in the cup, the loss (CAL) and the water that came back by the Out
      sensor (the three add up to the water counted by In); a tick marks the target volume; under the bars, how it ended;
@@ -10,9 +10,9 @@ This script turns those lines into a page with three charts and a table:
   3. the temperature at the start and at the end.
 
 Usage:
-  python tools/journal_view.py dump.txt                 # the text printed by journal_dump (saved from a serial monitor)
-  python tools/journal_view.py --port COM8              # reads the board itself (needs pyserial: pip install pyserial); the
-                                                        # board must run the journal_dump sketch (pio run -e journal_dump -t upload)
+  python tools/journal_view.py dump.txt                 # the text printed by the machine (saved from a serial monitor)
+  python tools/journal_view.py --port COM12             # asks the machine itself (needs pyserial: pip install pyserial); the
+                                                        # machine keeps running, nothing is flashed
   python tools/journal_view.py dump.txt -o page.html    # another name for the page (default: journal.html)
   python tools/journal_view.py --demo                   # an example with made up extractions
 
@@ -62,13 +62,17 @@ def read_port(port):
         import time
     except ImportError:
         sys.exit("--port needs pyserial: pip install pyserial")
-    s = serial.Serial(port, 115200, timeout=2)
-    s.dtr = False
-    time.sleep(0.1)
-    s.dtr = True   # reset: the sketch prints at start
-    text, end = "", time.time() + 15
+    s = serial.Serial(port, 115200, timeout=1)
+    s.dtr = True   # the board only talks to a host that has opened the port
+    time.sleep(0.3)
+    s.reset_input_buffer()
+    s.write(b"j\n")   # the command of the serial console: the machine answers with the journal
+    text, end = "", time.time() + 10
     while time.time() < end and "END" not in text:
         text += s.read(400).decode(errors="replace")
+    s.close()
+    if "END" not in text:
+        sys.exit("No answer from %s: is it the machine (not another program) on this port, and is the port closed in the other tools?" % port)
     return text
 
 
@@ -289,7 +293,7 @@ document.querySelectorAll('.bar').forEach(function (g) {
 
 def build(entries, source):
     if not entries:
-        content = '<section><p class="empty">No extraction in the text: is it the output of the journal_dump sketch?</p></section>'
+        content = '<section><p class="empty">No extraction in the text: is it the answer of the machine to the command j?</p></section>'
         return PAGE.replace("@SUB@", html.escape(source)).replace("@CONTENT@", content)
     c1, c2, c3 = chart_body(entries)
     reasons = "".join('<span><span class="chip %s">%s</span> %s</span>' % (t, html.escape(g), html.escape(l)) for l, g, t in
@@ -321,8 +325,8 @@ def table_rows(entries):
 
 def main():
     ap = argparse.ArgumentParser(description="A graphical view (one HTML page) of the journal of the last extractions")
-    ap.add_argument("input", nargs="?", help="the text printed by the journal_dump sketch ('-' for the standard input)")
-    ap.add_argument("--port", help="a serial port to read the journal from (the journal_dump sketch must be running)")
+    ap.add_argument("input", nargs="?", help="the text printed by the machine ('-' for the standard input)")
+    ap.add_argument("--port", help="a serial port to read the journal from: the machine answers the command j")
     ap.add_argument("--demo", action="store_true", help="an example with made up extractions")
     ap.add_argument("-o", "--output", default="journal.html", help="the page to write (default journal.html)")
     a = ap.parse_args()

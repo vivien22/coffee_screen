@@ -1,0 +1,85 @@
+// The serial console (SerialConsole.cpp) and the text of a journal entry (JournalFormat.cpp): the command j prints the journal in the
+// format that tools/journal_view.py reads, and nothing else is printed. The stub Serial keeps what is sent to it (Serial.out) and
+// gives what a test puts in Serial.in.
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include "EEPROM.h"
+#include "src/settings/Journal.h"
+#include "src/settings/JournalFormat.h"
+#include "src/drivers/SerialConsole.h"
+#include "TestSupport.h"
+
+static JournalEntry entry(uint8_t reason, uint8_t phase, uint8_t pre, uint8_t duration, uint16_t in, uint16_t out, uint8_t loss4,
+                          uint8_t cup, uint8_t cal, uint8_t delay100, uint8_t t0, uint8_t t1) {
+  JournalEntry e; memset(&e, 0, sizeof(e));
+  e.reason = reason; e.phase = phase; e.target = 60; e.preinfusion = pre; e.wait = 5; e.duration = duration;
+  e.inTenths = in; e.outTenths = out; e.loss4 = loss4; e.cup = cup; e.cal = cal; e.delay100 = delay100; e.tempStart = t0; e.tempEnd = t1;
+  return e;
+}
+
+static std::string line(const JournalEntry &e) {
+  char buffer[160];
+  formatJournalEntry(e, buffer, sizeof(buffer));
+  return buffer;
+}
+
+int main() {
+  // ---- the text of one entry: the numbers of the extraction #4 of the R4 (loss 149 quarters = 37.25 ml, shown 37.3)
+  CHECK(line(entry(END_TARGET, 3, 40, 40, 1504, 541, 149, 59, 42, 39, 90, 84)) ==
+        "#0 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.3 cup 59 cal 42 | delay 0.39 | 90 -> 84 C");
+  // no CAL: no "cal" in the line; a stop during the pre-infusion; a loss of exactly 30 ml; the delay keeps two digits
+  CHECK(line(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 5, 18, 18)) ==
+        "#0 USER  ended in PRE  tgt 60 pre 5 wait 5 | 0 s | in 1.4 out 0.0 net 1.4 loss 30.0 cup 0 | delay 0.05 | 18 -> 18 C");
+  // more water out than in (noise of the sensors): a negative net; a wait phase; the other end reasons; an unknown one
+  CHECK(line(entry(END_NO_WATER, 2, 40, 12, 100, 250, 0, 0, 0, 37, 60, 65)).find("net -15.0 loss 0.0") != std::string::npos);
+  CHECK(line(entry(END_NO_WATER, 2, 40, 12, 100, 250, 0, 0, 0, 37, 60, 65)).find("NO_WATER  ended in WAIT") != std::string::npos);
+  CHECK(line(entry(END_MAX_TIME, 3, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0)).find("MAX_TIME  ended in RUN") != std::string::npos);
+  CHECK(line(entry(END_TIMER, 3, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0)).find("TIMER  ended in RUN") != std::string::npos);
+  CHECK(line(entry(9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)).find("? ") != std::string::npos);   // an unknown reason and phase: "?"
+  // the largest values still fit in the buffer of 160 bytes, and a small buffer cuts the line without overrunning
+  {
+    JournalEntry big = entry(END_NO_WATER, 2, 255, 255, 65535, 65535, 255, 255, 255, 255, 255, 255);
+    big.target = 255; big.wait = 255; big.sequence = 255;
+    char buffer[160];
+    CHECK(formatJournalEntry(big, buffer, sizeof(buffer)) < sizeof(buffer) - 1);
+    char small[20];
+    const size_t n = formatJournalEntry(big, small, sizeof(small));
+    CHECK(n == sizeof(small) - 1 && strlen(small) == n);
+  }
+
+  // ---- the console: nothing is said unless the command j is received
+  Journal j;
+  memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
+  SerialConsole console;
+  Serial.in.clear(); Serial.out.clear();
+  console.update(j);
+  CHECK(Serial.out.empty());
+  Serial.in = "x\r\n 42";
+  console.update(j);
+  CHECK(Serial.out.empty() && Serial.in.empty());      // other characters are read and ignored
+
+  // an empty journal
+  Serial.in = "j";
+  console.update(j);
+  CHECK(Serial.out == "JOURNAL\n(no extraction in the journal)\nEND\n");
+
+  // two entries, the last one first; the capital letter and a newline work too; two commands give two answers
+  j.add(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 39, 18, 18));
+  j.add(entry(END_TARGET, 3, 40, 40, 1504, 541, 149, 59, 42, 39, 90, 84));
+  Serial.out.clear();
+  Serial.in = "J\n";
+  console.update(j);
+  const std::string once = "JOURNAL\n"
+    "#1 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.3 cup 59 cal 42 | delay 0.39 | 90 -> 84 C\n"
+    "#0 USER  ended in PRE  tgt 60 pre 5 wait 5 | 0 s | in 1.4 out 0.0 net 1.4 loss 30.0 cup 0 | delay 0.39 | 18 -> 18 C\n"
+    "END\n";
+  CHECK(Serial.out == once);
+  Serial.out.clear();
+  Serial.in = "jj";
+  console.update(j);
+  CHECK(Serial.out == once + once);
+
+  if (fails == 0) printf("test_serial_console: ALL OK\n");
+  return fails ? 1 : 0;
+}
