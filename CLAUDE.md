@@ -10,8 +10,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here. `pio run`
   builds the machine (env `nano_r4`, platform renesas-ra), `pio run -t upload` flashes it. If the upload cannot find the board, a double
   push on RESET puts it in its bootloader. The USB serial loses what is printed before a monitor has opened the port.
-- There is no flash budget any more (the AVR build flags, `link_flags.py` and the 30720 B limit went with the R3). Last measured (2026-11-24, anti-aliased fonts): 90 KB of 256 KB (34.4 %),
-  4.3 KB of RAM. `./tools/check_flash.sh` builds, shows the size and fails over 24000 B of RAM (a stack overflow
+- There is no flash budget any more (the AVR build flags, `link_flags.py` and the 30720 B limit went with the R3). Last measured (2026-11-24, 16-level icons, flow curves): 92 KB of 256 KB (35.1 %),
+  6.8 KB of RAM. `./tools/check_flash.sh` builds, shows the size and fails over 24000 B of RAM (a stack overflow
   corrupts the memory without any message); the CI runs it on every push.
 - What is board specific lives in `src/platform/`: `Platform.h` / `PlatformRenesas.cpp` (the external interrupts of the flow pulses, the
   watchdog `WATCHDOG_MS`). `src/platform/nano_r4/wiring_private.h` is an empty stand-in that Adafruit_GC9A01A needs. Keep the board
@@ -76,6 +76,9 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   It also holds the welcome picture (96 x 96, shown `WELCOME_MS` = 2 s at start-up): to change it, convert a PNG with
   `tools/png_to_icon.ps1` (Windows PowerShell, the palette maps each color to a level 0..3, see its header), paste the
   result in `icons_raw.h` and run the script. `test_welcome` checks that the decoder draws the pictures exactly.
+  Since 2026-11-24 `icons_raw.h` holds 4-bit pixels (levels 0..15, 15ths of the icon color): the thermometer, drop and clock were smoothed
+  from the old 4-level ones (contour rebuilt at 16 times the resolution); the steam and the welcome picture use only 0, 5, 10, 15 (and
+  `png_to_icon.ps1` writes that 4-bit format too). The token format is described in `tools/compress_icons.cpp` and read by `drawIcon()`.
 
 ## Git rules
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed

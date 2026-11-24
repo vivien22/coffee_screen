@@ -1,4 +1,4 @@
-# png_to_icon.ps1: turns a PNG into a 2-bit icon (4 levels of opacity of the icon color) for tools/icons_raw.h.
+# png_to_icon.ps1: turns a PNG into an icon of 4 levels of opacity of the icon color (written as 4-bit pixels: 0, 5, 10, 15) for tools/icons_raw.h.
 # Windows PowerShell (System.Drawing); the result is text, so the build needs nothing of this.
 #
 #   .\tools\png_to_icon.ps1 -Path picture.png -Name WELCOME -Size 96 -Palette "8A4B38=0.34,CCD6DE=0.67,F5F9FA=1" -Preview preview.png
@@ -92,18 +92,18 @@ if ($Preview) {
   $bitmap.Save($Preview, [System.Drawing.Imaging.ImageFormat]::Png)
 }
 
-# the 2-bit data, four pixels per byte, the first pixel in the high bits
+# the 4-bit data (the format of icons_raw.h), two pixels per byte, the first pixel in the high bits; the levels 0..3 become 0, 5, 10, 15
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine("#define ICON_${Name}_WIDTH $Size")
 [void]$sb.AppendLine("#define ICON_${Name}_HEIGHT $Size")
 [void]$sb.Append("const uint8_t ICON_$Name[] PROGMEM = {")
-$count = [int][Math]::Ceiling($Size * $Size / 4.0)
+$count = [int][Math]::Ceiling($Size * $Size / 2.0)
 for ($i = 0; $i -lt $count; $i++) {
   $byte = 0
-  for ($k = 0; $k -lt 4; $k++) {
-    $p = $i * 4 + $k
-    $level = if ($p -lt $levels.Length) { $levels[$p] } else { 0 }
-    $byte = $byte -bor ($level -shl (6 - 2 * $k))
+  for ($k = 0; $k -lt 2; $k++) {
+    $p = $i * 2 + $k
+    $level = if ($p -lt $levels.Length) { $levels[$p] * 5 } else { 0 }
+    $byte = $byte -bor ($level -shl (4 - 4 * $k))
   }
   if ($i % 12 -eq 0) { [void]$sb.Append("`n  ") } else { [void]$sb.Append(" ") }
   [void]$sb.Append(("0x{0:X2}," -f $byte))

@@ -18,10 +18,10 @@
 uint16_t frameBuffer[240 * 240];
 
 
-// The color of a level: COLOR_ICON over COLOR_BG, 5/15, 10/15, 15/15 (the blend of Display.cpp)
+// The color of a level (0..15): COLOR_ICON over COLOR_BG, level/15 (the blend of Display.cpp)
 static uint16_t colorOf(int level) {
   if (level == 0) return COLOR_BG;
-  const int opacity = level == 3 ? 15 : (level == 2 ? 10 : 5);
+  const int opacity = level;
   auto channel = [&](int shift, int mask) {
     const int bg = (COLOR_BG >> shift) & mask, icon = (COLOR_ICON >> shift) & mask;
     return bg + (icon - bg) * opacity / 15;
@@ -33,7 +33,7 @@ static uint16_t colorOf(int level) {
 static int differences(const uint16_t *screen, const uint8_t *raw, int x0, int y0, int width, int height) {
   int different = 0;
   for (int i = 0; i < width * height; i++) {
-    const int level = (raw[i >> 2] >> (6 - 2 * (i & 3))) & 3;
+    const int level = (raw[i >> 1] >> (4 - 4 * (i & 1))) & 15;
     if (screen[(y0 + i / width) * 240 + x0 + i % width] != colorOf(level)) different++;
   }
   return different;

@@ -148,6 +148,11 @@ The screen moves a little when something changes, and never blinks:
 A fade is drawn at most every `FADE_FRAME_MS` = 30 ms and the main loop goes on meanwhile (the encoder, the heater and the
 safeties are never waiting for the screen). Setting the durations to 0 gives instant changes.
 
+### Icons
+
+The thermometer, the drop and the clock are **16-level** masks (4 bits per pixel, `tools/icons_raw.h`, stored compressed in
+`IconsData.h`): their edges are as smooth as the text. The steam and the welcome picture keep their 4 levels.
+
 ---
 
 ## 🎛 Using the machine

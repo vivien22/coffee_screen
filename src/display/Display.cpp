@@ -115,14 +115,14 @@ static uint16_t dimColor(uint16_t color) {
   return (dimChannel(11, 0x1F, color) << 11) | (dimChannel(5, 0x3F, color) << 5) | dimChannel(0, 0x1F, color);
 }
 
-// Draw an icon stored as 2-bit opacity, compressed (PROGMEM), row by row. The data is a stream of tokens
+// Draw an icon stored as 4-bit opacity (16 levels), compressed (PROGMEM), row by row. The data is a stream of tokens
 // (tools/compress_icons.cpp writes it from tools/icons_raw.h):
-// the first two bits are the level of the pixels of the token:
-//     00 nnnnn   nnnnn + 1 pixels of level 0       01   one pixel of level 1       10   one pixel of level 2
-//     11 nnnn    nnnn + 1 pixels of level 3
-//     00 11111 v mmmmmm   the escape (nnnnn = 31): mmmmmm + 1 pixels of level 1 (v = 0) or 2 (v = 1), for large areas
-// Level 0 (background) is not drawn: the screen is already filled with COLOR_BG.
-// Levels 1, 2, 3 are 5/15, 10/15, 15/15 of the icon color.
+// the first two bits are the kind of the token:
+//     00 nnnnn           nnnnn + 1 pixels of level 0 (the background)
+//     11 nnnn            nnnn + 1 pixels of level 15 (the full color)
+//     01 llll            one pixel of level llll (an edge pixel)
+//     10 llll mmmmmm     mmmmmm + 1 pixels of level llll (the large areas of the welcome picture)
+// Level 0 (background) is not drawn: the screen is already filled with COLOR_BG. Level l is l/15 of the icon color.
 //
 // A run is drawn as one burst of one color (a window of one row, then the pixels), not pixel by pixel: setting
 // a window costs more than a pixel, so the runs of the icons and of the welcome picture are drawn several times
@@ -133,20 +133,20 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
 
   tft.startWrite();
   while (row < height) {
-    uint8_t level = bits.get(2);
-    uint8_t run = (level == 0 || level == 3) ? bits.get(level == 3 ? 4 : 5) + 1 : 1;
-#if WELCOME_MS > 0
-    if (level == 0 && run == 32) {   // the escape: a run of level 1 or 2 (only the welcome picture has such areas)
-      level = 1 + bits.get(1);
-      run = bits.get(6) + 1;
+    const uint8_t kind = bits.get(2);
+    uint8_t level = 0, run = 1;
+    if (kind == 0) run = bits.get(5) + 1;
+    else if (kind == 3) { level = 15; run = bits.get(4) + 1; }
+    else {
+      level = bits.get(4);
+      if (kind == 2) run = bits.get(6) + 1;
     }
-#endif
 
     while (run) {
       const uint8_t part = (run < width - column) ? run : (uint8_t)(width - column);   // up to the end of the row
       if (level) {
         tft.setAddrWindow(x + column, y + row, part, 1);
-        const uint16_t color = level == 3 ? BLEND_COLOR(15) : (level == 2 ? BLEND_COLOR(10) : BLEND_COLOR(5));
+        const uint16_t color = BLEND_COLOR(level);
         tft.writeColor(textBrightness == 255 ? color : dimColor(color), part);
       }
       run -= part;
