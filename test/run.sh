@@ -27,6 +27,7 @@ for t in test/test_*.cpp; do
   # sources linked with the test (the test provides the stubs of what it does not link)
   C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp"
   case "$n" in
+    test_flow_recorder) C="$B/$d/src/coffee/FlowRecorder.cpp";;
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp";;
     test_anticipation) C="$C $B/$d/src/settings/Settings.cpp";;
     test_journal) C="$B/$d/src/settings/Journal.cpp";;
@@ -35,7 +36,7 @@ for t in test/test_*.cpp; do
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
     test_roll|test_fade|test_fade_random|test_fade_machine) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp";;
-    test_machine) C="$C $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/settings/JournalFormat.cpp";;
+    test_machine) C="$C $B/$d/src/coffee/FlowRecorder.cpp $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/settings/JournalFormat.cpp";;
     test_serial_console) C="$B/$d/src/settings/Journal.cpp $B/$d/src/settings/JournalFormat.cpp $B/$d/src/drivers/SerialConsole.cpp";;
   esac
   g++ -std=c++11 -w $EXTRA -I"$B/$d" -Itest/stubs "$t" test/stubs/ArduinoStubs.cpp \

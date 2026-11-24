@@ -114,6 +114,10 @@ void CoffeeMachine::update() {
 // Section 2 of update(): the extraction (phases, volume, safeties) and what follows from it.
 void CoffeeMachine::updateExtraction(uint32_t now) {
   extraction_.update(now, screen_.settings().volume);
+  recorder_.update(now, extraction_.liveInMl(), extraction_.liveOutMl());   // does nothing unless an AUTO extraction is being recorded
+  if (journal_.curvePending()) {
+    journal_.stepCurve();   // the curve of the last extraction goes to the EEPROM, a piece at a time
+  }
 
   // The delay of the stop before the target was learned: kept for the next extractions
   if (extraction_.stopDelayLearned()) {
@@ -160,7 +164,9 @@ void CoffeeMachine::writeJournal() {
   entry.tempStart = journalTempStart_;
   entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
   entry.cal = 0;   // set later if the cup weight is entered in CAL
-  journal_.add(entry);
+  const uint8_t sequence = journal_.add(entry);
+  recorder_.stop();
+  journal_.beginCurve(sequence, recorder_.samples(), recorder_.count());   // written by the next passes of updateExtraction()
 }
 
 // The weight entered in CAL is validated: written in the journal (last entry = the extraction CAL was offered for) only if it was
@@ -361,6 +367,10 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
   screen_.showExtractionStarted();
   journalTempStart_ = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);   // for the journal
   journalPending_ = extraction_.isActive() && !settings.manual;   // the journal gets this extraction (AUTO only) when its values are final
+  if (journalPending_) {
+    journal_.flushCurve();       // the previous curve is in the EEPROM before its buffer is used again
+    recorder_.begin(pressTime);  // the flow In and Out is recorded until the journal gets the extraction
+  }
 }
 
 // The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the

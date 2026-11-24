@@ -17,6 +17,7 @@
 #include "../drivers/FlowSensor.h"
 #include "../settings/Settings.h"
 #include "../settings/Journal.h"
+#include "FlowRecorder.h"
 #include "../drivers/SerialConsole.h"
 #include "../heating/TemperatureSensor.h"
 #include "../heating/HeaterController.h"
@@ -57,6 +58,7 @@ class CoffeeMachine {
     CJMCU111 encoder_;
     SettingsStore store_;
     Journal journal_;
+    FlowRecorder recorder_;   // the curve of the flow In and Out of the extraction, written in the journal with its entry
     SerialConsole console_;   // the commands of the USB serial line (j = the journal)
     TemperatureSensor temperature_;
     HeaterController heater_;

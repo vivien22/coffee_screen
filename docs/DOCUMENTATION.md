@@ -250,7 +250,7 @@ pio device monitor                     # (or any serial monitor, 115200 baud), t
 
 **The simplest way: double-click `tools/read_journal.bat`** (or open `tools/journal_viewer.html` in Chrome or Edge). The page reads the USB serial
 port itself (Web Serial API), sends `j`, and draws the journal: a summary, the water of each extraction, the duration and the temperatures,
-a table, and the text the machine sent. The first time it asks which port is the machine (then it remembers: the next time the journal is read
+the **flow curves** (below), a table, and the text the machine sent. The first time it asks which port is the machine (then it remembers: the next time the journal is read
 as soon as the page opens). It closes the port after the answer, so nothing stays blocked; close the serial monitors before. The button
 **Example** shows made up extractions without a machine.
 
@@ -261,6 +261,26 @@ The answer of the machine is `JOURNAL`, one line per extraction, the last one fi
 ```
 
 (`cal` only appears when a weight was entered.)
+
+**The flow curves.** For the last 14 AUTO extractions the machine also keeps how the water flowed: every half second (`CURVE_SAMPLE_MS`,
+twice the period of the flow sensors) it records the water that went through the In sensor and through the Out sensor during that half
+second, in tenths of ml, from the push until the entry is written (the pre-infusion, the wait, the extraction and the water that comes
+after the stop; at most `CURVE_SAMPLES` = 240 samples = 120 s). They are in the answer of `j`, after the entries, one line per curve
+(the number is the one of its entry; the values are tenths of ml per sample):
+
+```
+CURVE #12 500 ms 84 | in 0,5,14,20,... | out 0,0,0,2,...
+```
+
+The viewer draws one extraction at a time (choose it in the list): the **flow In** and the **flow Out** (ml/s) in one chart, the **volume
+that came out** (ml) under it, on the same time axis, with a dashed line where the extraction ended (the stop of the pump), a box with the
+values when the mouse is on a chart, and a switch to smooth the flows over 1.5 s (a sample is good to 0.2 ml/s: the pulses of the In
+sensor are 0.08 ml each). `tools/journal_view.py` ignores these lines.
+
+The curves are in the EEPROM from address 1024 (the data flash of the R4 holds 8 KB): a ring of 14 slots of 482 bytes (the number of the
+entry, the number of samples, the samples), 6.8 KB with its position. A curve is written by the passes of the main loop that follow the
+journal entry, 32 bytes at a time, so that the machine never waits for the flash; the header of its slot is blanked first and written last,
+so a power cut leaves no half curve. The samples are kept in RAM during the extraction (480 bytes, `FlowRecorder`).
 
 **A graphical view.** `tools/journal_view.py` turns that text into one HTML page (no dependency, no network, light and dark themes): the water
 of each extraction (the volume in the cup, the loss and the Out water, with a tick for the target, and how each one ended: target reached,
@@ -280,7 +300,8 @@ It writes `journal.html` (`-o` to change the name); open it in a browser.
 
 An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml), so the 62 entries take 993 bytes of the 1024 of the
 EEPROM (address 24 to 1016; the settings are at 0..19). The layout is in `src/settings/Journal.h`. The EEPROM is written only at the
-end of an extraction (16 bytes, and one more byte when CAL is validated), far from its limit of 100 000 writes per byte.
+end of an extraction (16 bytes, and one more byte when CAL is validated; with its curve 500 bytes at most), far from its limit of 100 000
+writes per byte (a slot of the curves is written once every 14 extractions).
 
 ### What is saved, and when
 
@@ -291,7 +312,7 @@ byte by byte, only for the bytes that differ, to spare its life):
 - at the start of an extraction,
 - at a change of mode,
 - at each turn of the encoder in the steaming mode (SteamingTemp),
-- at the end of each extraction: its line in the [journal](#the-journal-of-the-last-extractions).
+- at the end of each extraction: its line and its flow curve in the [journal](#the-journal-of-the-last-extractions).
 
 The EEPROM layout is in `src/settings/Settings.cpp`.
 
@@ -645,11 +666,13 @@ src/
   coffee/
     CoffeeMachine          the application: owns every module, handles the encoder actions
     ExtractionController   extraction state machine, pump / valve relays, safeties, cup volume
+    FlowRecorder           the curve of the flow In and Out of an extraction, for the journal
   heating/
     TemperatureSensor      MAX31865 reading, validity, filter, PT100 polynomial
     HeaterController       PID + feedforward on the flow, heater relay
   settings/
     Settings               saved values (EEPROM)
+    Journal                the last extractions and their flow curves (EEPROM ring)
   display/
     ScreenController       what is shown and when it is redrawn (dirty flags)
     Display                drawing on the GC9A01

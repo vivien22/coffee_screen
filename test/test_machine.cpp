@@ -520,6 +520,15 @@ static void journal(){
   { const float cup=(e.inTenths-e.outTenths)/10.0f-e.loss4/4.0f; CHECK(cup>e.cup-1.0f && cup<e.cup+1.0f); }   // the volumes add up: cup = In - Out - loss
   CHECK(!j.read(1,e));
   for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!j.read(1,e));    // written once
+  // the curve of the flow In and Out of that extraction: in the curve ring, with the sequence of its entry; it adds up to the volumes
+  {
+    uint8_t cs=99, cb[CURVE_BYTES]; uint16_t cn=0; unsigned sumIn=0, sumOut=0; CHECK(j.read(0,e));
+    CHECK(j.readCurve(0,cs,cb,cn) && cs==0 && cn>=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS) && cn<=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS)+10);
+    for(unsigned i=0;i<cn;i++){ sumIn+=cb[2*i]; sumOut+=cb[2*i+1]; }
+    CHECK(sumIn>=e.inTenths-10 && sumIn<=e.inTenths+10 && sumOut==0);
+    CHECK(cb[0]>0 && cb[2*(cn/2)]>0);                                  // the water flows from the start to the middle
+    CHECK(!j.readCurve(1,cs,cb,cn));                                   // one curve so far
+  }
   // 2. stopped by the start button, in the main phase
   m.handleStartButton(); t0=t;
   for(int i=0;i<15;i++){ t+=100; m.flow_.in=(t-t0)*0.003f; m.update(); }

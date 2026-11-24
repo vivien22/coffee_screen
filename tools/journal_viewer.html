@@ -8,7 +8,8 @@
   journal_viewer.html: reads the journal of the machine over the USB serial line and draws it. One page, no install, no network.
   Double-click it (Chrome or Edge: the Web Serial API is needed; tools/read_journal.bat opens it in one of them).
 
-  The machine answers the letter j with "JOURNAL", one line per extraction (the last one first) and "END" (src/drivers/SerialConsole.cpp).
+  The machine answers the letter j with "JOURNAL", one line per extraction (the last one first), one "CURVE" line per extraction that has its
+  flow curve (the water that went through the In and the Out sensor during each half second) and "END" (src/drivers/SerialConsole.cpp).
   This page opens the port, sends j, reads up to END, and closes the port again, so that no other program is blocked.
   It never writes anything to the machine but that letter. Close the serial monitors (PlatformIO, Arduino IDE) first: a port has one user.
 
@@ -17,13 +18,13 @@
 <style>
 :root {
   --bg: #f4f3ef; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #dcdad2; --accent: #1f6f78; --on-accent: #ffffff;
-  --cup: #1f8a70; --loss: #d08a2c; --out: #5b7fa6; --warn: #b3412f; --track: #ebe9e2;
+  --cup: #1f8a70; --loss: #d08a2c; --out: #5b7fa6; --flowin: #c4562a; --warn: #b3412f; --track: #ebe9e2;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #161615; --panel: #20201e; --ink: #ecebe6; --muted: #a09f98; --line: #3a3a36; --accent: #4fb3bd; --on-accent: #101010;
-    --cup: #46b896; --loss: #e0a24d; --out: #86a8cf; --warn: #e07a66; --track: #2c2c29; color-scheme: dark;
+    --cup: #46b896; --loss: #e0a24d; --out: #86a8cf; --flowin: #ec8f63; --warn: #e07a66; --track: #2c2c29; color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
@@ -53,6 +54,11 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: v
 .note { font-size: 13px; color: var(--muted); }
 svg text { fill: var(--muted); font: 11px system-ui, sans-serif; }
 svg .grid { stroke: var(--line); stroke-width: 1; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 8px; font-size: 14px; }
+select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100%; }
+#flow { position: relative; min-width: 640px; }
+#flow svg { display: block; width: 100%; height: auto; }
+#tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.5; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 #log { font: 12px ui-monospace, Consolas, monospace; white-space: pre-wrap; color: var(--muted); max-height: 160px; overflow: auto; margin: 0; }
 </style>
 </head>
@@ -77,6 +83,16 @@ svg .grid { stroke: var(--line); stroke-width: 1; }
   <section class="card" id="chart-more" hidden>
     <h2>Duration and temperature</h2>
     <div class="scroll" id="more"></div>
+  </section>
+  <section class="card" id="chart-flow" hidden>
+    <h2>Flow during an extraction</h2>
+    <div class="controls">
+      <label>Extraction <select id="curve-pick"></select></label>
+      <label><input type="checkbox" id="curve-smooth"> smooth over 1.5 s</label>
+    </div>
+    <div class="legend"><span><i style="background:var(--flowin)"></i>flow In (ml/s)</span><span><i style="background:var(--out)"></i>flow Out (ml/s)</span><span><i style="background:var(--out);height:3px;vertical-align:middle"></i>volume Out (ml, lower chart)</span></div>
+    <div class="scroll"><div id="flow"></div></div>
+    <p class="note" id="curve-note"></p>
   </section>
   <section class="card" id="table-card" hidden>
     <h2>Every extraction</h2>
@@ -106,6 +122,21 @@ function parse(text) {
                    loss: +m[11], cup: +m[12], cal: m[13] ? +m[13] : 0, delay: +m[14], t0: +m[15], t1: +m[16] });
   }
   return entries;
+}
+
+// "CURVE #12 500 ms 84 | in 0,5,14,... | out 0,0,1,..." : the water through In and Out during each sample, in tenths of ml
+const CURVE = /^CURVE #(\d+) (\d+) ms (\d+) \| in ([\d,]*) \| out ([\d,]*)\s*$/;
+function parseCurves(text) {
+  const curves = {};
+  for (const raw of text.split(/\r?\n/)) {
+    const m = CURVE.exec(raw);
+    if (!m) continue;
+    const list = (t) => (t ? t.split(",").map(Number) : []);
+    const inn = list(m[4]), out = list(m[5]);
+    if (inn.length !== +m[3] || out.length !== +m[3]) continue;   // damaged line
+    curves[+m[1]] = { n: +m[1], ms: +m[2], inn, out };
+  }
+  return curves;
 }
 
 // ---- drawing
@@ -164,6 +195,107 @@ function moreChart(entries) {
   return s + "</svg>";
 }
 
+// ---- the flow curves: flow In and Out (ml/s) above, the volume that came out (ml) below, on the same time axis
+const STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120, 150, 200, 250, 300];
+function niceStep(v) { return STEPS.find((s) => s >= v) || Math.ceil(v / 100) * 100; }
+
+// the series of a curve: times (s), flows (ml/s) In and Out, and the volume Out (ml); smooth = mean of 3 samples
+function curveSeries(c, smooth) {
+  const dt = c.ms / 1000, n = c.inn.length;
+  const flow = (a) => a.map((v) => v / 10 / dt);
+  let fin = flow(c.inn), fout = flow(c.out);
+  if (smooth) {
+    const mean = (a) => a.map((_, i) => { const lo = Math.max(0, i - 1), hi = Math.min(a.length - 1, i + 1); let s = 0; for (let k = lo; k <= hi; k++) s += a[k]; return s / (hi - lo + 1); });
+    fin = mean(fin); fout = mean(fout);
+  }
+  const t = [], vin = [], vout = [];
+  let sIn = 0, sOut = 0;
+  for (let i = 0; i < n; i++) { t.push((i + 1) * dt); sIn += c.inn[i] / 10; sOut += c.out[i] / 10; vin.push(sIn); vout.push(sOut); }
+  return { dt, n, t, fin, fout, vin, vout };
+}
+
+function flowChart(c, entry, smooth) {
+  const d = curveSeries(c, smooth);
+  const W = 900, left = 50, right = 16, plotW = W - left - right;
+  const topA = 12, hA = 190, topB = topA + hA + 34, hB = 130, H = topB + hB + 34;
+  const tMax = Math.max(5, d.t[d.n - 1] || 5);
+  const tStep = tMax > 60 ? 10 : 5, tEnd = Math.ceil(tMax / tStep) * tStep;
+  const fMax = niceStep(Math.max(1, ...d.fin, ...d.fout) * 1.1), vMax = niceStep(Math.max(1, d.vout[d.n - 1] || 1) * 1.1);
+  const x = (t) => left + (t / tEnd) * plotW;
+  const yA = (v) => topA + hA - (v / fMax) * hA, yB = (v) => topB + hB - (v / vMax) * hB;
+  let s = `<svg role="img" aria-label="Flow In and Out and volume Out during the extraction" viewBox="0 0 ${W} ${H}">`;
+  for (let t = 0; t <= tEnd; t += tStep) s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${topA}" y2="${topB + hB}"/><text x="${x(t)}" y="${topB + hB + 16}" text-anchor="middle">${t}</text>`;
+  s += `<text x="${left + plotW}" y="${topB + hB + 30}" text-anchor="end">time since the push (s)</text>`;
+  for (let i = 0; i <= 4; i++) {
+    const v = (fMax / 4) * i, w = (vMax / 4) * i;
+    s += `<line class="grid" x1="${left}" x2="${W - right}" y1="${yA(v)}" y2="${yA(v)}"/><text x="${left - 6}" y="${yA(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+    s += `<line class="grid" x1="${left}" x2="${W - right}" y1="${yB(w)}" y2="${yB(w)}"/><text x="${left - 6}" y="${yB(w) + 4}" text-anchor="end">${Math.round(w)}</text>`;
+  }
+  s += `<text x="${left}" y="${topA - 2}" >ml/s</text><text x="${left}" y="${topB - 6}">ml (volume Out)</text>`;
+  const line = (xs, ys, color, width) => `<polyline fill="none" stroke="${color}" stroke-width="${width}" stroke-linejoin="round" stroke-linecap="round" points="${xs.map((v, i) => `${x(v).toFixed(1)},${ys[i].toFixed(1)}`).join(" ")}"/>`;
+  const t0 = [0, ...d.t];
+  s += line(t0, [0, ...d.fin].map(yA), "var(--flowin)", 2);
+  s += line(t0, [0, ...d.fout].map(yA), "var(--out)", 2);
+  s += line(t0, [0, ...d.vout].map(yB), "var(--out)", 2.5);
+  if (entry && entry.dur > 0 && entry.dur <= tEnd) {
+    s += `<line x1="${x(entry.dur)}" x2="${x(entry.dur)}" y1="${topA}" y2="${topB + hB}" stroke="var(--ink)" stroke-dasharray="4 4" stroke-width="1.2"/>`;
+    const late = x(entry.dur) > left + plotW * 0.7;   // the label goes to the left of the line near the right edge
+    s += `<text x="${x(entry.dur) + (late ? -4 : 4)}" y="${topA + 10}" text-anchor="${late ? "end" : "start"}">end of the extraction (${entry.dur} s)</text>`;
+  }
+  s += `<line id="cursor" y1="${topA}" y2="${topB + hB}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>`;
+  return { svg: s + "</svg>", d, geometry: { W, left, plotW, tEnd } };
+}
+
+let curves = {}, entriesNow = [], chartState = null;
+function pickLabel(e, n) { return e ? `#${n}: ${END_SHORT[e.reason] || e.reason}, ${e.dur} s, cup ${e.cup} ml` : `#${n}`; }
+
+function showCurve() {
+  const pick = $("curve-pick"), n = +pick.value, c = curves[n];
+  if (!c) return;
+  const entry = entriesNow.find((e) => e.n === n);
+  const out = flowChart(c, entry, $("curve-smooth").checked);
+  $("flow").innerHTML = out.svg + '<div id="tip" hidden></div>';
+  chartState = out;
+  const d = out.d, sumIn = d.vin[d.n - 1] || 0, sumOut = d.vout[d.n - 1] || 0;
+  const peak = Math.max(0, ...d.fin);
+  $("curve-note").textContent = `From the curve: ${f1(sumIn)} ml in, ${f1(sumOut)} ml out, in flow up to ${peak.toFixed(1)} ml/s, ${d.n} samples of ${c.ms} ms.` +
+    (entry ? ` The journal says ${f1(entry.inn)} ml in and ${f1(entry.out)} ml out (the curve goes on a little after the end).` : "");
+}
+
+function curveHover(ev) {
+  if (!chartState) return;
+  const svg = $("flow").querySelector("svg"), tip = $("tip"), cursor = $("cursor");
+  const box = svg.getBoundingClientRect(), { W, left, plotW, tEnd } = chartState.geometry, d = chartState.d;
+  const px = ((ev.clientX - box.left) / box.width) * W;
+  const t = ((px - left) / plotW) * tEnd;
+  if (t < 0 || t > tEnd + d.dt) { tip.hidden = true; cursor.setAttribute("visibility", "hidden"); return; }
+  let i = Math.round(t / d.dt) - 1;
+  i = Math.max(0, Math.min(d.n - 1, i));
+  const cx = left + (d.t[i] / tEnd) * plotW;
+  cursor.setAttribute("x1", cx); cursor.setAttribute("x2", cx); cursor.setAttribute("visibility", "visible");
+  tip.hidden = false;
+  tip.innerHTML = `<b>${d.t[i].toFixed(1)} s</b><br>flow In ${d.fin[i].toFixed(1)} ml/s<br>flow Out ${d.fout[i].toFixed(1)} ml/s<br>volume Out ${d.vout[i].toFixed(1)} ml`;
+  const host = $("flow").getBoundingClientRect();
+  const wantLeft = (cx / W) * box.width + 12;
+  tip.style.left = Math.min(wantLeft, host.width - tip.offsetWidth - 4) + "px";
+  tip.style.top = "8px";
+}
+$("flow").addEventListener("mousemove", curveHover);
+$("flow").addEventListener("mouseleave", () => { const tip = $("tip"), cursor = $("cursor"); if (tip) tip.hidden = true; if (cursor) cursor.setAttribute("visibility", "hidden"); });
+$("curve-pick").addEventListener("change", showCurve);
+$("curve-smooth").addEventListener("change", showCurve);
+
+function showCurves(entries, found) {
+  entriesNow = entries; curves = found;
+  const numbers = Object.keys(found).map(Number).sort((a, b) => b - a);   // the last one first, as the entries (the numbers wrap at 256: the order is the one of the text)
+  const order = entries.map((e) => e.n).filter((n) => found[n]);
+  const list = order.length ? order : numbers;
+  $("chart-flow").hidden = list.length === 0;
+  if (!list.length) return;
+  $("curve-pick").innerHTML = list.map((n) => `<option value="${n}">${pickLabel(entries.find((e) => e.n === n), n)}</option>`).join("");
+  showCurve();
+}
+
 function show(entries) {
   const have = entries.length > 0;
   for (const id of ["chart-water", "chart-more", "table-card"]) $(id).hidden = !have;
@@ -202,7 +334,7 @@ async function readJournal(p) {
     writer.releaseLock(); writer = null;
     reader = p.readable.getReader();
     const decoder = new TextDecoder();
-    const stop = Date.now() + 8000;
+    const stop = Date.now() + 20000;
     while (Date.now() < stop && !/\bEND\b/.test(text)) {
       const timer = new Promise((r) => setTimeout(() => r({ timeout: true }), 1500));
       const got = await Promise.race([reader.read(), timer]);
@@ -230,9 +362,10 @@ async function run() {
       setStatus("no answer");
       showError("The machine did not answer. Is it the machine on this port (not the programmer or another board), and does it run the version with the serial console?");
     } else {
-      const entries = parse(text);
+      const entries = parse(text), found = parseCurves(text);
       show(entries);
-      setStatus(`read at ${new Date().toLocaleTimeString()}: ${entries.length} extraction${entries.length === 1 ? "" : "s"}`);
+      showCurves(entries, found);
+      setStatus(`read at ${new Date().toLocaleTimeString()}: ${entries.length} extraction${entries.length === 1 ? "" : "s"}, ${Object.keys(found).length} with a flow curve`);
     }
   } catch (e) {
     setStatus("cannot read");
@@ -261,9 +394,31 @@ const EXAMPLE = `JOURNAL
 END
 `;
 
+// A made up curve like the ones of the machine: the pre-infusion, the wait (no water in), the extraction, the water that comes after the stop
+function demoCurve(n, dur, preMl, waitS, outRate) {
+  const inn = [], out = [], dt = 0.5;
+  let vIn = 0, tPre = null;
+  for (let i = 1; i <= (dur + 3) / dt; i++) {
+    const t = i * dt;
+    let fIn = 0;
+    if (tPre === null) { fIn = 4.4 * (1 - Math.exp(-t / 0.8)); vIn += fIn * dt; if (vIn >= preMl) tPre = t; }
+    else if (t > tPre + waitS && t <= dur) fIn = 4.5 * (1 - Math.exp(-(t - tPre - waitS) / 0.7));
+    else if (t > dur) fIn = 0.4 * Math.exp(-(t - dur) / 0.4);
+    const sinceFill = tPre === null ? 0 : Math.max(0, t - tPre - 2);
+    let fOut = outRate * (1 - Math.exp(-sinceFill / 6));
+    if (t > dur) fOut *= Math.exp(-(t - dur) / 2);
+    fIn *= 1 + 0.06 * Math.sin(i * 1.7); fOut *= 1 + 0.12 * Math.sin(i * 2.3 + n);
+    inn.push(Math.max(0, Math.round(fIn * dt * 10))); out.push(Math.max(0, Math.round(fOut * dt * 10)));
+  }
+  return `CURVE #${n} 500 ms ${inn.length} | in ${inn.join(",")} | out ${out.join(",")}`;
+}
+const EXAMPLE_FULL = EXAMPLE.replace("END\n", demoCurve(5, 46, 40, 5, 1.6) + "\n" + demoCurve(4, 40, 40, 5, 1.4) + "\nEND\n");
+
 function loadExample() {
-  $("log").textContent = EXAMPLE;
-  show(parse(EXAMPLE));
+  $("log").textContent = EXAMPLE_FULL;
+  const entries = parse(EXAMPLE_FULL);
+  show(entries);
+  showCurves(entries, parseCurves(EXAMPLE_FULL));
   setStatus("example (not read from the machine)");
 }
 $("demo").addEventListener("click", loadExample);
@@ -279,6 +434,19 @@ function selfTest() {
   show(e);
   if (!$("water").innerHTML.includes("<svg") || !$("more").innerHTML.includes("<svg")) fails.push("charts");
   if ($("rows").children.length !== 6) fails.push("table rows");
+  // the curves: found by their number, a damaged line is ignored, the chart has its lines, the empty state hides the card
+  const found = parseCurves(EXAMPLE_FULL + "CURVE #3 500 ms 4 | in 1,2,3 | out 1,2,3,4\nCURVE #2 500 ms 2 | in 10,20 | out 0,5\nCURVE nonsense\n");
+  if (Object.keys(found).length !== 3 || !found[5] || !found[4] || !found[2] || found[3]) fails.push("curves found " + Object.keys(found));
+  if (found[2].inn[1] !== 20 || found[2].out[1] !== 5 || found[2].ms !== 500) fails.push("curve values");
+  const flow = curveSeries(found[2], false);
+  if (Math.abs(flow.fin[0] - 2) > 1e-9 || Math.abs(flow.fin[1] - 4) > 1e-9 || Math.abs(flow.vout[1] - 0.5) > 1e-9 || flow.t[1] !== 1) fails.push("series " + JSON.stringify(flow));
+  showCurves(e, found);
+  if ($("chart-flow").hidden || !$("flow").innerHTML.includes("polyline") || $("curve-pick").children.length !== 3) fails.push("curve chart " + $("curve-pick").children.length);
+  if (!$("flow").innerHTML.includes("end of the extraction (46 s)")) fails.push("end marker");
+  $("curve-smooth").checked = true; showCurve(); $("curve-smooth").checked = false;
+  if (!$("flow").innerHTML.includes("polyline")) fails.push("smooth chart");
+  showCurves(e, {});
+  if (!$("chart-flow").hidden) fails.push("no curve: card shown");
   show([]);
   if (!$("chart-water").hidden) fails.push("empty state");
   document.title = fails.length ? "FAIL " + fails.join(" ; ") : "ALL OK";

@@ -128,6 +128,11 @@
 #define FLOW_K_FACTOR_IN             12.56f
 #define FLOW_K_FACTOR_OUT            74.18f
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
+// The curve of the flow In and Out of each AUTO extraction, kept in the journal (see settings/Journal.h, coffee/FlowRecorder.h): one sample
+// every CURVE_SAMPLE_MS (twice the period of the sensors: the pulses of In are 0.08 ml each, so a sample is good to 0.2 ml/s), up to
+// CURVE_SAMPLES of them (120 s: the longest extraction, DURATION_MAX).
+#define CURVE_SAMPLE_MS              500UL
+#define CURVE_SAMPLES                240
 
 // ---------- Extraction ----------
 #define VOLUME_PERIOD_MS             250UL     // volume check / end of extraction

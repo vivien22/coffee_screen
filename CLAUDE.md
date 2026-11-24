@@ -45,6 +45,13 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   integers only, same format as before). It says nothing by itself and writes nothing. `tools/journal_viewer.html` (double-click `tools/read_journal.bat`: Chrome or Edge, Web Serial, sends `j`, closes the
   port, draws; `#test` = self test, `#demo` = example) or `tools/journal_view.py --port COM12` ask and draw. The old sketch `tools/journal_dump.cpp` is gone. Tests: `test_journal`, `test_serial_console` (the stub `Serial` of
   `test/stubs/Arduino.h` keeps `out` and gives `in`) and `journal()` of `test_machine`.
+- Flow curves (branch journal-flow-curves, asked by the user 2026-11-24 to see the flow In / Out and the volume Out in time): `coffee/FlowRecorder.{h,cpp}` takes one
+  sample every `CURVE_SAMPLE_MS` = 500 ms (the water through In and Out since the previous sample, tenths of ml, uint8) from the start of an AUTO extraction until
+  `writeJournal()`; the journal keeps the last `CURVE_COUNT` = 14 curves in a ring of slots of 482 bytes from EEPROM address 1024 (8 KB data flash of the R4;
+  `Journal::beginCurve / stepCurve / readCurve`, written 32 bytes per loop pass: the header blanked first and written last, never a wait on the flash; `curvesFit()`
+  keeps a smaller EEPROM safe). The sequence number links a curve to its entry. `j` prints `CURVE #n 500 ms N | in ... | out ...` lines after the entries (`formatCurveLine`),
+  `journal_viewer.html` draws them (flow In / Out, volume Out, hover, smoothing); `journal_view.py` ignores them. Tests: `test_flow_recorder`, `test_journal`,
+  `test_serial_console`, `journal()` of `test_machine` (the stub EEPROM is now 8 KB). `journal_clear` does not touch the curves (they are checked by their header).
 - `tools/journal_view.py` (Python, standard library only) parses the text of the console (file, `--port` with pyserial, or `--demo`) and writes one
   HTML page with inline SVG charts (water stacked: cup / loss / Out, target tick, end reason glyphs; duration; temperatures; table). Asked by the
   user 2026-11-22. It has no automated test: check it by eye with `--demo` and a Chrome screenshot (`chrome --headless --screenshot`).

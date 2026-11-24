@@ -21,6 +21,18 @@ static void printJournal(const Journal &journal) {
     Serial.println("(no extraction in the journal)");
   }
 
+  // The curves of the last extractions (the flow In and Out), the last one first
+  static char curveLine[2048];
+  uint8_t samples[CURVE_BYTES];
+  uint8_t sequence;
+  uint16_t samplesCount;
+  for (uint8_t age = 0; age < CURVE_COUNT; age++) {
+    if (journal.readCurve(age, sequence, samples, samplesCount)) {
+      formatCurveLine(sequence, samplesCount, samples, curveLine, sizeof(curveLine));
+      Serial.println((const char *)curveLine);
+    }
+  }
+
   Serial.println("END");
 }
 

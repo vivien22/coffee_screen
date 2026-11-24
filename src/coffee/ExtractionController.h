@@ -114,6 +114,10 @@ class ExtractionController {
     // The water counted by the sensors, final like volumeMl() (not those of a flush)
     float volumeInMl() const { return finalInMl_; }
     float volumeOutMl() const { return finalOutMl_; }
+    // The same while the extraction runs (and the water that comes after the stop): the volumes counted since its start, for the curve of
+    // the journal
+    float liveInMl() { return flow_.getVolumeIn(); }
+    float liveOutMl() { return flow_.getVolumeOut(); }
 
     // No-water error: the pump is stopped, the state stays EXTRACTION_ERROR_NO_WATER and start() is
     // ignored until clearError() puts the controller back to IDLE (ignored in any other state).

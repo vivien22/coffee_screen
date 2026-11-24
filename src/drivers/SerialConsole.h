@@ -2,8 +2,8 @@
   SerialConsole: a few one-letter commands on the USB serial line of the machine (115200 baud), so that what is inside the
   machine can be read without flashing another program. The machine says nothing by itself: it only answers a command.
 
-    j   prints the journal of the last extractions (the text that tools/journal_view.py reads: "JOURNAL", one line per
-        extraction, the last one first, "END")
+    j   prints the journal of the last extractions (the text that tools/journal_view.py and tools/journal_viewer.html read: "JOURNAL",
+        one line per extraction, the last one first, then one "CURVE" line per extraction that has its flow curve, "END")
 
   Reading never writes anything. Use tools/journal_view.py --port COM<n> for the charts.
 */
