@@ -301,10 +301,6 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
     fade_[row].active = true;
     fade_[row].from = before[row];
     fade_[row].to = after;
-    if (!modeChange && row == rowOf(next) && row != rowOf(previous)) {
-      fade_[row].outMs = FADE_OUT_NEW_ROW_MS;   // the row that gets the selection: out and in, shorter than for a sub-parameter
-      fade_[row].inMs = FADE_IN_NEW_ROW_MS;
-    }
     if (row == ROW_TEMPERATURE) {
       temperatureErrorShown_ = false;   // "ERR" is drawn again when the fades are over
     }
@@ -800,7 +796,7 @@ void ScreenController::stepFades(uint32_t now) {
       continue;
     }
     const uint32_t elapsed = now - fade.start;
-    if (elapsed >= fade.outMs + fade.inMs) {
+    if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
       fade.active = false;
       if (row == ROW_MODE) {
         drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255);   // the letter of the mode, at full brightness
@@ -824,15 +820,15 @@ void ScreenController::stepFades(uint32_t now) {
     }
     fade.nextFrame = now + FADE_FRAME_MS;
 
-    const bool dimming = elapsed < fade.outMs;
+    const bool dimming = elapsed < FADE_OUT_MS;
     uint8_t level;
     if (dimming) {
       // the old row goes dark, and is dark (0) for the last frame of its phase
-      const uint32_t span = fade.outMs > FADE_FRAME_MS ? fade.outMs - FADE_FRAME_MS : 1;
+      const uint32_t span = FADE_OUT_MS > FADE_FRAME_MS ? FADE_OUT_MS - FADE_FRAME_MS : 1;
       level = elapsed >= span ? 0 : (uint8_t)(255 - 255 * elapsed / span);
     } else {
       // the new row comes up, ease-out: fast first, slow at the end
-      const uint32_t remaining = 255 - (elapsed - fade.outMs) * 255 / fade.inMs;
+      const uint32_t remaining = 255 - (elapsed - FADE_OUT_MS) * 255 / FADE_IN_MS;
       level = (uint8_t)(255 - remaining * remaining * remaining / (255 * 255));
     }
     const int16_t step = (int16_t)level - (int16_t)fade.level;

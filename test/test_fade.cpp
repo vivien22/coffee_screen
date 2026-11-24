@@ -160,7 +160,7 @@ int main() {
            (unsigned long)darkAt, inFrames);
     CHECK(othersStill);
     CHECK(firstChange >= (int)FADE_FRAME_MS - 2 && firstChange <= (int)FADE_FRAME_MS + 2);
-    CHECK(outFrames >= 3);
+    CHECK(outFrames >= (int)(FADE_OUT_MS / FADE_FRAME_MS) - 2);   // the frames of the fade out before the dark one
     CHECK(darkSeen);
     CHECK(darkAt + 5 >= FADE_OUT_MS - 2 * FADE_FRAME_MS && darkAt <= FADE_OUT_MS + 2 * FADE_FRAME_MS);   // about at the end of the fade out
     CHECK(inFrames >= 8);
@@ -279,7 +279,7 @@ int main() {
   }
 
   // 6. The row of the parameter that was selected (here the volume row, LIMIT -> WAIT) changes at once, without a fade, while the row of the new
-  // parameter (the duration row) fades out in FADE_OUT_NEW_ROW_MS and in in FADE_IN_NEW_ROW_MS
+  // parameter (the duration row) fades out in FADE_OUT_MS and in in FADE_IN_MS
   {
     Picture finalPicture;
     {
@@ -304,8 +304,7 @@ int main() {
     const Picture early = snapshot();
     CHECK(sameIn(early, finalPicture, VOLUME_ROW));      // the old parameter is back at once
     CHECK(!sameIn(early, finalPicture, DURATION_ROW));   // the new one is still coming up
-    // The new row has the shorter fades of a change of row: 330 ms after the start it is already well lit (with the fades of a sub-parameter,
-    // FADE_OUT_MS and FADE_IN_MS, it would be at a third of its brightness)
+    // 330 ms after the start the new row is already well lit
     run(sc, 330 - 60);
     CHECK(brightestIn(snapshot(), DURATION_ROW) * 10 >= brightestIn(finalPicture, DURATION_ROW) * 6);
     run(sc, TOTAL + 100);

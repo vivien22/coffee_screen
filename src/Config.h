@@ -243,27 +243,19 @@
 #endif
 #define ROLL_FRAME_MS            30UL
 
-// ---------- Change of parameter ----------
-// A double push selects the next parameter: the row (temperature, volume or duration) whose look changes (size of the digits, tag,
-// unit) fades out in FADE_OUT_MS (its text goes from 100 % to 0 % of its brightness), then the new row fades in in FADE_IN_MS (0 % to
-// 100 %, ease-out), each at its own size and place: no zoom, the old and the new rows are never drawn together. The rows that do not
-// change are not touched. A frame is drawn at most every FADE_FRAME_MS. 0 and 0: the rows change at once (the tests of the logic of the
-// screen are built so: test/run.sh).
+// ---------- Change of parameter and of mode ----------
+// A double push selects the next parameter, a short push changes the mode: the row (temperature, volume or duration) whose look changes (size of
+// the digits, tag, unit), and the drop at a change of mode, fade out in FADE_OUT_MS (the text goes from 100 % to 0 % of its brightness), then the
+// new look fades in in FADE_IN_MS (0 % to 100 %, ease-out), each at its own size and place: no zoom, the old and the new looks are never drawn
+// together. The same two durations for all the fades. The rows that do not change are not touched. When the selection goes to another row
+// (temperature, volume or duration, not a sub-parameter of the same row), the row of the parameter that was selected goes back to its normal size
+// at once, without a fade. A frame is drawn at most every FADE_FRAME_MS. 0 and 0: the rows change at once (the tests of the logic of the screen
+// are built so: test/run.sh).
 #ifndef FADE_OUT_MS
-#define FADE_OUT_MS              230UL
+#define FADE_OUT_MS              60UL
 #endif
 #ifndef FADE_IN_MS
-#define FADE_IN_MS               770UL
-#endif
-// A parameter of another row is selected (temperature, volume or duration: not a sub-parameter of the same row, such as the pre-infusion after
-// the volume): the row of the parameter that was selected goes back to its normal size at once, without a fade, and the row that gets the
-// selection is the only one that fades: out in FADE_OUT_NEW_ROW_MS, in in FADE_IN_NEW_ROW_MS (shorter than FADE_OUT_MS and FADE_IN_MS, which are
-// the fades of the sub-parameters).
-#ifndef FADE_OUT_NEW_ROW_MS
-#define FADE_OUT_NEW_ROW_MS      60UL
-#endif
-#ifndef FADE_IN_NEW_ROW_MS
-#define FADE_IN_NEW_ROW_MS       450UL
+#define FADE_IN_MS               450UL
 #endif
 #define FADE_FRAME_MS            30UL
 
