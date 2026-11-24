@@ -680,9 +680,14 @@ ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter acti
   return look;
 }
 
-// Draws a row as the look says, whole (its zone is erased), with its text at the brightness given
-void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness) {
-  forgetField(row);   // the whole row is drawn: the pixels on the screen are at another brightness
+// Draws a row as the look says, whole, with its text at the brightness given. Its zone is erased first, unless erase is false (the next
+// frame of a fade with the same look: the text is drawn over the last frame).
+void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase) {
+  if (erase) {
+    forgetField(row);   // the whole row is drawn: the pixels on the screen are at another brightness
+  } else {
+    repaintField(row);
+  }
   setTextBrightness(brightness);
   if (row == ROW_TEMPERATURE) {
     if (look.kind == LOOK_ERROR) {
@@ -774,8 +779,9 @@ void ScreenController::stepFades(uint32_t now) {
     if (dimming == fade.dimming && step < 8 && step > -8 && level != 0) {
       continue;   // hardly different from the last frame: nothing is drawn
     }
+    const bool newPhase = (dimming != fade.dimming);   // the first frame of the fade in: the new look replaces the (dark) old one
     fade.dimming = dimming;
     fade.level = level;
-    drawLook((Row)row, dimming ? fade.from : fade.to, level);
+    drawLook((Row)row, dimming ? fade.from : fade.to, level, newPhase);
   }
 }

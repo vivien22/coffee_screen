@@ -221,7 +221,7 @@ class ScreenController {
     };
     Fade fade_[ROW_COUNT];
     RowLook lookOf(Row row, ActiveParameter active) const;
-    void drawLook(Row row, const RowLook &look, uint8_t brightness);
+    void drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase = true);
     uint8_t dirtyOf(Row row) const;
     uint8_t fadingRows() const;
     void finishFades();      // the rows in a fade show their look as it is, at once

@@ -41,6 +41,7 @@ struct NumberField {
   uint8_t size;     // TextSize of the digits
   uint8_t tag;      // PhaseTag shown next to it
   bool valid;       // false: the field is not known to show anything (start, or something else was drawn over it)
+  bool repaint;     // the next drawing paints number, unit and tag over what is there, without erasing the zone first (repaintField)
   char text[6];     // the number of the last picture drawn as it is (the old number of a roll), see drawNumber
 };
 static NumberField temperatureField, volumeField, durationField;
@@ -246,6 +247,12 @@ void forgetField(uint8_t field) {
   (field == 0 ? temperatureField : (field == 1 ? volumeField : durationField)).valid = false;
 }
 
+void repaintField(uint8_t field) {
+  NumberField &f = (field == 0 ? temperatureField : (field == 1 ? volumeField : durationField));
+  f.valid = false;
+  f.repaint = true;
+}
+
 static uint16_t dimChannel(uint8_t shift, uint8_t mask, uint16_t foreground) {
   const int16_t background = (COLOR_BG >> shift) & mask;
   const int16_t text = (foreground >> shift) & mask;
@@ -416,6 +423,10 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
 
   const GFXfont *font = (size == TEXT_SIZE_SMALL) ? FONT_SMALL : FONT_LARGE;
   const bool sameLook = field.valid && !force && field.size == size && field.tag == tag;
+  // A repainted field (the frames of a fade): the digits, the unit and the tag are opaque blocks that cover what they replace, so nothing
+  // is erased first. An erase followed by a drawing would show the unit and the tag blinking at every frame.
+  const bool repaint = field.repaint;
+  field.repaint = false;
   const uint8_t length = strlen(text);
   const uint8_t oldLength = strlen(field.text);
   const bool rolling = progress < DISPLAY_ROLL_DONE && sameLook && oldLength > 0 && oldLength <= length;
@@ -444,10 +455,10 @@ static int16_t drawNumber(NumberField &field, const char *text, TextSize size, P
 
   // Around the blocks: the left margin of the zone (new look), and the right of the number, up to the end of the
   // zone, if it moved (the old one was longer, the unit is going to be drawn again)
-  if (!sameLook && x > zoneX) {
+  if (!sameLook && !repaint && x > zoneX) {
     tft.fillRect(zoneX, zoneY, x - zoneX, zoneHeight, COLOR_BG);
   }
-  if (moved && xEnd < zoneX + zoneWidth) {
+  if (moved && !repaint && xEnd < zoneX + zoneWidth) {
     tft.fillRect(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight, COLOR_BG);
   }
 

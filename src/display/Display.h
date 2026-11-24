@@ -30,6 +30,10 @@ void setTextBrightness(uint8_t level);
 // even if the field already shows the same look. Used by the faded rows: what is on the screen is at another brightness.
 void forgetField(uint8_t field);
 
+// The same, but the zone is not erased first: the number, the unit and the tag are drawn over what is there (the frames of a fade at
+// another brightness, where an erase followed by a drawing would make the unit and the tag blink).
+void repaintField(uint8_t field);
+
 // Size of the digits of a value
 enum TextSize {
   TEXT_SIZE_SMALL,
