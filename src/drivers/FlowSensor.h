@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-// Two pulse flow sensors. The pulses are counted in an interrupt that depends on the board (platform/Platform.h: the pin
-// change interrupt on the Nano R3, one external interrupt per input on the R4), which calls flowPulseIn() / flowPulseOut().
+// Two pulse flow sensors. The pulses are counted in an interrupt (platform/Platform.h: one external interrupt per input on the
+// Nano R4), which calls flowPulseIn() / flowPulseOut().
 // The inputs (PIN_FLOW_IN, PIN_FLOW_OUT), the calibration (FLOW_K_FACTOR_IN / OUT, pulses per millilitre) and
 // FLOW_UPDATE_MS are in Config.h. Only one instance is supported (the interrupt handlers use a single instance).
 class FlowSensor {

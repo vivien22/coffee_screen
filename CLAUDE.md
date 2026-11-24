@@ -1,50 +1,26 @@
 # coffee_screen: working rules
 
-Espresso-machine controller (Ascaso Steel Uno Pro) on an Arduino Nano (ATmega328P): GC9A01 round display,
+Espresso-machine controller (Ascaso Steel Uno Pro) on an Arduino Nano R4 (RA4M1): GC9A01 round display,
 CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, two flow sensors.
 `docs/DOCUMENTATION.md` describes the behaviour in full (the README is the presentation of the project). The user writes in French: reply in French.
 
-## Build (PlatformIO, env `nanoatmega328new`)
-- The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here.
-- `pio run` compiles; the line "Flash: ... used N bytes from 30720 bytes" is what matters (limit 30720 B, RAM 2 KB).
-- **`build_flags` in `platformio.ini` must keep `-mcall-prologues`** (about 1 KB saved) **and `-fno-ipa-cp -mstrict-X
-  -fno-gcse -fshort-enums`** (1262 B saved together, measured one by one then combined). `-flto`, `-fno-jump-tables`,
-  `-ffunction-sections`, `-Wl,--gc-sections` brought nothing (PlatformIO already does LTO and gc-sections): do not add
-  them. `-finline-limit=3 -fno-reorder-blocks` would give 154 B more: left out, they slow the inlined loops.
-- Flash is tight: report the size after every change that touches the display, the machine or the settings.
-- The limit stays 30720 B. Tested on the user's Nano (2026-11-17): the bootloader is the 512 B Optiboot at 0x7E00, but the
-  fuses protect the whole 2 KB boot section: a write above 0x7800 fails (verification error at 0x7800) and leaves a
-  broken firmware. Using up to 32256 B would need an ISP programmer on the ICSP header to set BOOTSZ (hfuse 0xDE, like an
-  Uno). Never raise `maximum_size` in platformio.ini without that.
-- **`tools/link_flags.py` (extra script of the R3 environment) gives the LINK step `-ffunction-sections -fdata-sections`.** The
-  build is LTO: the code is generated at link time, and without these flags every unit stays in one piece, so the linker kept
-  the functions nobody calls (-0.5 KB). Together with `putText()` in Display.cpp (every text is drawn by the firmware, the
-  `Screen` class replaces `Print::write` by nothing) the text engine of Adafruit_GFX and its 5 x 7 font (1280 B) are not linked
-  any more (-2.6 KB): do not call `tft.print()` / `setFont` / `setCursor`, use `putText()`.
-- Last measured (2026-11-22, flags above, welcome picture and standby, In and Out sensors, the stop before the target, the steaming
-  mode, the journal): **30632 B flash (99.7 %), 88 B free**; the RAM stays under 500 B. The flash is almost full: watch every feature.
-- `./tools/check_flash.sh` builds, shows the flash size and fails over 1600 B of RAM (a stack overflow corrupts the
-  memory without any message); the CI runs it for the three flow configurations (In only, In and Out, simulator) on every push. There is no flash budget any
-  more (the user's decision, the software being nearly finished: the linker already refuses a program over 30720 B);
-  `FLASH_BUDGET=<bytes>` gives an optional gate. The simulator is off by default: the real flow sensors build is
-  about 170 B larger than the simulator one. With the welcome picture (1048 B) and its use in the standby (about 190 B) the firmware is 30054 B of
-  30720 B with the pump and the valve driven,
-  and the feedforward table of the PID tuning (+220 B) will still fit (about 450 B left). With `WELCOME_MS` 0 the firmware
-  is 40 B larger than master (the faster drawing of the icons and the start-up sequence), with the same RAM.
-
-## Nano R4 (second board, same code)
-- `pio run -e nano_r4` (platform renesas-ra, board nano_r4). The two environments share `[env]` in `platformio.ini`; the
-  AVR-only `build_flags` belong to the R3 environment. `pio run` alone builds the R3 (`default_envs`).
-- What differs between the boards lives in `src/platform/` ONLY: `Platform.h` (plain functions, no virtual calls: no flash cost on
-  the R3) implemented by `PlatformAvr.cpp` and `PlatformRenesas.cpp` (each empty on the other board, `ARDUINO_ARCH_AVR`):
-  the flow pulse interrupt (PCINT1 on the R3, `attachInterrupt` on the R4) and the watchdog (`WATCHDOG_MS`). Do not write
-  board specific code (`avr/`, `PORTx`, `_BV`, `WDT`) elsewhere. A new board = a new Platform*.cpp. The core of each board
-  already abstracts GPIO, SPI, EEPROM: do not wrap those.
-- The R4 has no pin change interrupt and A0 has no external interrupt: the shared pins are pump D4, valve A3, flow In A1, flow Out A2
-  (A1 = channel 6, A2 = channel 7; D2 / D3 = channels 0 / 1; keep A4 and A5 free; A0 unused). A GPIO gives 8 mA at most there.
-- The CI builds both (`PIO_ENV`, `RAM_BUDGET`, `FLASH_LIMIT` of `tools/check_flash.sh`). Measured: R4 about 67 KB of
-  256 KB, 3.7 KB of 32 KB of RAM. **Not run on a real R4 board yet.** `src/platform/nano_r4/wiring_private.h` is an empty stand-in
-  that Adafruit_GC9A01A needs.
+## Build (PlatformIO, env `nano_r4`)
+- Since 2026-11-24 `master` is for the Arduino Nano R4 ONLY (RA4M1, 256 KB of flash, 32 KB of RAM). The Nano R3 version is the branch
+  `r3` (master of 2026-11-24, commit 1e4b2ab), no longer developed: do not port anything back to it unless asked.
+- The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here. `pio run`
+  builds the machine (env `nano_r4`, platform renesas-ra), `pio run -t upload` flashes it. If the upload cannot find the board, a double
+  push on RESET puts it in its bootloader. The USB serial loses what is printed before a monitor has opened the port.
+- There is no flash budget any more (the AVR build flags, `link_flags.py` and the 30720 B limit went with the R3). Last measured: about
+  70 KB of 256 KB, 3.7 KB of RAM. `./tools/check_flash.sh` builds, shows the size and fails over 24000 B of RAM (a stack overflow
+  corrupts the memory without any message); the CI runs it on every push.
+- What is board specific lives in `src/platform/`: `Platform.h` / `PlatformRenesas.cpp` (the external interrupts of the flow pulses, the
+  watchdog `WATCHDOG_MS`). `src/platform/nano_r4/wiring_private.h` is an empty stand-in that Adafruit_GC9A01A needs. Keep the board
+  specific code in that folder.
+- The shared pins: pump D4, valve A3, flow In A1, flow Out A2 (A1 = channel 6, A2 = channel 7; D2 / D3 = channels 0 / 1; keep A4 and A5
+  free; A0 unused). A GPIO gives 8 mA at most.
+- Kept from the R3 time because they work (they can be simplified, nothing requires it): every text is drawn by `putText()` (do not
+  call `tft.print()` / `setFont` / `setCursor`), the icons are stored compressed, `F()` and `pgm_read_*` (no-ops on the R4, the tests
+  rely on them), the journal of 62 entries of 16 bytes.
 
 ## Steaming mode (long push of the encoder)
 - Asked by the user 2026-11-19: the long push enters / leaves a steaming mode (`CoffeeMachine::toggleSteaming()`, only when no extraction is
@@ -55,7 +31,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `TEMPERATURE_OFFSET` applies as in the other modes (the user tried without it, then asked to keep it, 2026-11-19). Not saved across a reboot.
 
 ## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
-- `src/settings/Journal.{h,cpp}`: a ring of 62 entries of 16 bytes in the EEPROM from address 24 (993 bytes of the 1024 of the R3; 66 entries became 62 when `cal` was added, as the user allowed; the
+- `src/settings/Journal.{h,cpp}`: a ring of 62 entries of 16 bytes in the EEPROM from address 24 (993 bytes of the first 1024 of the EEPROM; 66 entries became 62 when `cal` was added, as the user allowed; the
   settings are at 0..19): `JournalEntry` = reason + phase (4 bits each), target, pre-infusion, wait, duration, In and Out in tenths of ml
   (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
   `CoffeeMachine::validateCalibration()` through `Journal::setLastCal()`, only when the weight was changed, else 0). The
@@ -91,7 +67,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed
   commits is not the user's approval: do not push, ask for "pousse".
 - Never force-push or rewrite a published branch without an explicit request.
-- Branches: `master` (working) and `pid-tuning` (tuning firmware without the UI, serial console, own tests, and the
+- Branches: `master` (working, Nano R4 only), `r3` (the Nano R3 version, frozen on 2026-11-24) and `pid-tuning` (tuning firmware without the UI, serial console, own tests, and the
   measured tuning results in `tuning/`). The other branches were merged into master and deleted.
 - End commit messages with: `Co-Authored-By: Claude <noreply@anthropic.com>`
 

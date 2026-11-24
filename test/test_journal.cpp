@@ -37,7 +37,7 @@ int main() {
     CHECK(j.read(age, e) && e.inTenths == (uint16_t)(249 - age) && e.sequence == (uint8_t)(249 - age));
   }
   CHECK(!j.read(JOURNAL_COUNT, e));
-  // the entries and their position are inside the EEPROM of the Nano R3 (1024 bytes), after the settings (0..19)
+  // the entries and their position are inside the first 1024 bytes of the EEPROM, after the settings (0..19)
   CHECK(24 + 1 + JOURNAL_COUNT * (int)sizeof(JournalEntry) <= 1024);
   // the sequence wraps at 256
   for (int i = 250; i < 300; i++) j.add(entry(END_USER, (uint16_t)i));

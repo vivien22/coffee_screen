@@ -1,8 +1,5 @@
-// PlatformRenesas.cpp: Platform.h for the Arduino Nano R4 (RA4M1, Renesas core). Empty on the Nano R3.
+// PlatformRenesas.cpp: Platform.h for the Arduino Nano R4 (RA4M1, Renesas core).
 #include "../Config.h"
-
-#if !defined(ARDUINO_ARCH_AVR)
-
 #include "Platform.h"
 #include <WDT.h>
 
@@ -12,13 +9,13 @@ void platformWatchdogPrepare() {
 }
 
 void platformWatchdogStart() {
-#ifdef WATCHDOG_TIMEOUT
+#ifdef WATCHDOG_MS
   WDT.begin(WATCHDOG_MS);   // WATCHDOG_MS: at most about 5.5 s on the R4
 #endif
 }
 
 void platformWatchdogKick() {
-#ifdef WATCHDOG_TIMEOUT
+#ifdef WATCHDOG_MS
   WDT.refresh();
 #endif
 }
@@ -35,4 +32,3 @@ void platformPulsesBegin() {
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW_OUT), flowPulseOut, FALLING);
 }
 
-#endif  // !ARDUINO_ARCH_AVR

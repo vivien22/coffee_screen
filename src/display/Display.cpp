@@ -203,22 +203,12 @@ void showStandbyPicture() {}
 // Values
 
 static const uint8_t *glyphBitmap(const GFXfont *font) {
-#ifdef __AVR__
-  return (const uint8_t *)pgm_read_word(&font->bitmap);
-#else
   return font->bitmap;
-#endif
 }
 
-// A glyph of a digit font. The fonts are in flash on the AVR: their fields are read with pgm_read_*.
-// All the fonts start at '0'.
+// A glyph of a digit font. All the fonts start at '0'.
 static const GFXglyph *glyphOf(const GFXfont *font, char c) {
-#ifdef __AVR__
-  const GFXglyph *glyphs = (const GFXglyph *)pgm_read_word(&font->glyph);
-#else
-  const GFXglyph *glyphs = font->glyph;
-#endif
-  return &glyphs[c - '0'];
+  return &font->glyph[c - '0'];
 }
 
 // The cell of a digit has the same width for all the digits of a font (DIGIT_CELL_SMALL / DIGIT_CELL_LARGE in

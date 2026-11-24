@@ -17,10 +17,9 @@
 #define PIN_VALVE_RELAY   A3
 #define PIN_MAX31865_CS   6
 #define PIN_START_BUTTON  A0    // the start / stop button of the extraction (see START_BUTTON below)
-// Flow sensors: they need an interrupt. Nano R3: any of A0..A5 (PCINT1, see FlowSensor). Nano R4: A1 is external
-// interrupt channel 6 and A2 channel 7 (A0 has none; D2 / D3, the encoder, are channels 0 / 1; keep A4 free: it shares
-// channel 1 with D3, and A5: it shares channel 2 with A3, the valve relay, a plain output). The same wiring works on both
-// boards. A0 is not used.
+// Flow sensors: they need an external interrupt. On the Nano R4, A1 is external interrupt channel 6 and A2 channel 7 (A0 has
+// none; D2 / D3, the encoder, are channels 0 / 1; keep A4 free: it shares channel 1 with D3, and A5: it shares channel 2 with
+// A3, the valve relay, a plain output).
 #define PIN_FLOW_IN       A1
 #define PIN_FLOW_OUT      A2
 
@@ -206,13 +205,10 @@
 #define MAX_PRESS_TIME_AGE_MS        5000UL    // older push timestamps are ignored (timer starts "now")
 
 // ---------- Watchdog ----------
-// If loop() does not run for WATCHDOG_TIMEOUT, the ATmega328P resets itself: the pump, the valve
-// and the heater relays are released (pins back to inputs) until the setup runs again.
-// Comment the line out to disable it. Choose WDTO_4S or WDTO_8S: a Nano with the OLD bootloader
-// does not disable the watchdog after a reset and can stay in a reset loop with a short timeout
-// (flash the Optiboot bootloader, or select "ATmega328P (Old Bootloader)" only if you do not use this).
-#define WATCHDOG_TIMEOUT   WDTO_4S   // Nano R3 (AVR constant)
-#define WATCHDOG_MS        4000UL    // Nano R4: the same timeout in ms (its watchdog allows up to about 5.5 s)
+// If loop() does not run for WATCHDOG_MS, the board resets itself: the pump, the valve and the heater relays are released
+// (pins back to inputs) until the setup runs again. The watchdog of the Nano R4 allows up to about 5.5 s.
+// Comment the line out to disable it.
+#define WATCHDOG_MS        4000UL
 
 // ---------- Screen ----------
 // Draw the three icons at startup. Disabled: the icon data (about 1 KB) is then not in the flash.

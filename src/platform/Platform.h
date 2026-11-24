@@ -1,13 +1,12 @@
-// Platform.h: what differs between the boards (Nano R3 = ATmega328P, Nano R4 = RA4M1). The rest of the program is the same
-// on both: GPIO, SPI, EEPROM, millis() come from the Arduino core of each board. Only this folder knows which board it is:
-// PlatformAvr.cpp and PlatformRenesas.cpp each implement the functions below for one board (the file of the other board
-// is empty, selected by ARDUINO_ARCH_AVR; plain functions, no virtual calls: nothing is paid in flash or RAM).
-// Do not write board specific code (avr/..., PORTx, _BV, WDT...) outside this folder.
+// Platform.h: what is specific to the board (Nano R4 = RA4M1, Renesas core): the watchdog and the interrupts of the flow
+// sensors. GPIO, SPI, EEPROM and millis() come from the Arduino core. PlatformRenesas.cpp implements the functions below.
+// (The Nano R3 had its own PlatformAvr.cpp: it is on the branch r3.) Keep the board specific code (WDT, attachInterrupt...)
+// in this folder.
 
 #pragma once
 #include <Arduino.h>
 
-// ---------- Watchdog (WATCHDOG_TIMEOUT in Config.h: not defined = no watchdog, these do nothing) ----------
+// ---------- Watchdog (WATCHDOG_MS in Config.h: not defined = no watchdog, these do nothing) ----------
 // Call platformWatchdogPrepare() first thing in setup(), platformWatchdogStart() at the end of it (the welcome picture
 // of several seconds is shown during the setup), and platformWatchdogKick() on every pass of loop().
 void platformWatchdogPrepare();

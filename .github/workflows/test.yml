@@ -9,24 +9,19 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./test/run.sh
   firmware:
-    # The firmware is built for the Nano R3 as configured and for the Nano R4 (PIO_ENV nano_r4, with the memories of that board).
-    # tools/check_flash.sh shows the flash size and fails over the RAM budget.
+    # The firmware is built for the Nano R4 (the machine) and the journal reader; tools/check_flash.sh shows the flash size
+    # and fails over the RAM budget.
     name: firmware (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: In and Out sensors (as configured)
+          - name: machine (Nano R4)
             edit: "true"
           - name: journal reader (tools/journal_dump.cpp)
             edit: "true"
             env: journal_dump
-          - name: Nano R4 (as configured)
-            edit: "true"
-            env: nano_r4
-            ram: "24000"
-            flash: "262144"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,19 +36,14 @@ jobs:
       - run: ./tools/check_flash.sh
         env:
           LABEL: ${{ matrix.name }}
-          # the Nano R3 environment unless the entry of the matrix names another one
+          # the machine unless the entry of the matrix names another environment
           PIO_ENV: ${{ matrix.env }}
-          RAM_BUDGET: ${{ matrix.ram || '1600' }}
-          FLASH_LIMIT: ${{ matrix.flash || '30720' }}
   cppcheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y cppcheck
       # Real bugs only (errors, warnings, portability, performance); style findings are not blocking.
-      # Checked for the two boards (ARDUINO_ARCH_AVR is the Nano R3, undefined is the Nano R4).
       - run: |
-          for d in "-DARDUINO_ARCH_AVR" "-UARDUINO_ARCH_AVR"; do
-            cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
-              --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -D__AVR_ATmega328P__ -I src $d src
-          done
+          cppcheck --enable=warning,performance,portability --inline-suppr --error-exitcode=1 \
+            --suppress=missingInclude --suppress=unusedFunction -DPROGMEM= -I src src

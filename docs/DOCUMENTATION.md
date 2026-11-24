@@ -5,7 +5,7 @@
 *The full description of the behaviour, the wiring, the configuration and the code. The presentation of the project is in the
 [README](../README.md).*
 
-**A controller for an espresso machine on an Arduino Nano, built and used on an Ascaso Steel Uno Pro.**
+**A controller for an espresso machine on an Arduino Nano R4, built and used on an Ascaso Steel Uno Pro.** (The Nano R3 version is on the `r3` branch, no longer developed.)
 
 A round colour screen, one rotary encoder, a PID-controlled boiler, a pump, a 3-way valve and two flow
 sensors that measure the volume in the cup. Everything is done with a single knob: turn to change a value,
@@ -15,7 +15,7 @@ push to brew.
 <img src="images/auto-running.png" alt="Extraction in progress" width="220">
 <img src="images/auto-flushing.png" alt="Flush" width="220">
 
-![Arduino Nano](https://img.shields.io/badge/board-Arduino%20Nano%20(ATmega328P)-00979D)
+![Arduino Nano](https://img.shields.io/badge/board-Arduino%20Nano%20R4-00979D)
 ![PlatformIO](https://img.shields.io/badge/build-PlatformIO-F5822A)
 ![Tests](https://img.shields.io/github/actions/workflow/status/vivien22/coffee_screen/test.yml?label=tests)
 
@@ -217,7 +217,7 @@ does nothing else (it writes nothing). Flash it, read the serial line, then flas
 ```
 pio run -e journal_dump -t upload      # the sketch of tools/journal_dump.cpp
 pio device monitor                     # (or any serial monitor, 115200 baud, reset the board to see it again)
-pio run -e nanoatmega328new -t upload  # the machine again
+pio run -t upload                      # the machine again
 ```
 
 It prints one line per extraction, the last one first:
@@ -443,10 +443,6 @@ before the target and learns the delay itself, see [The stop before the target](
 | **Standby** | Heater off after 30 minutes without activity, the welcome picture is shown |
 | **Watchdog** | If `loop()` is blocked for 4 s the board resets (pump and valve relays go back to idle) |
 
-> [!NOTE]
-> The watchdog needs a bootloader that handles it correctly. On some old Nano bootloaders a watchdog reset
-> can lock the board: if yours does, remove `WATCHDOG_TIMEOUT` in `Config.h`.
-
 > [!TIP]
 > **Relay inputs.** The relays are driven active HIGH. After a reset (the watchdog's included) the pins of the
 > Nano are floating inputs until `setup()` runs again, and a floating input can switch a relay on. Wire a
@@ -475,16 +471,14 @@ before the target and learns the delay itself, see [The stop before the target](
 The TFT and the MAX31865 share the hardware SPI (SCK D13, MOSI D11, MISO D12), each with its own chip select.
 The pins are defined in `src/Config.h`.
 
-**Boards:** the same wiring and the same code work on the **Arduino Nano R3** (ATmega328P, the board this was
-developed on) and on the **Arduino Nano R4** (RA4M1, 5 V I/O like the R3). The only thing the R4 does not have is the
-pin change interrupt: the flow sensors need an external interrupt channel, and A0 has none. That is why the flow
-sensors are on A1 (In) and A2 (Out): A1 and A2 are interrupt channels 6 and 7 of the R4 (checked in the pin table of its
-core); the valve relay is on A3 (a plain output) and A0 is not used. The encoder (D2, D3) is on channels 0 and 1; keep A4
+**Board:** the **Arduino Nano R4** (RA4M1, 5 V I/O). The flow sensors need an external interrupt channel, and A0 has none. That
+is why the flow sensors are on A1 (In) and A2 (Out): A1 and A2 are interrupt channels 6 and 7 of the R4 (checked in the pin table
+of its core); the valve relay is on A3 (a plain output) and A0 is not used. The encoder (D2, D3) is on channels 0 and 1; keep A4
 free (it shares channel 1 with D3) and A5 (channel 2, shared with A3).
-A GPIO of the R4 gives 8 mA at most (the R3: 40 mA): check the current of the display backlight (D9) and of the relay
-inputs, and use a transistor if they need more.
+A GPIO of the R4 gives 8 mA at most: check the current of the display backlight (D9) and of the relay inputs, and use a
+transistor if they need more. (The Nano R3 version, with the same wiring, is on the `r3` branch.)
 
-**Parts:** Arduino Nano R3 or R4, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
+**Parts:** Arduino Nano R4, GC9A01 round display, CJMCU-111 encoder, MAX31865 board with a PT100, three relays
 (pump, heater, valve; solid state relays in the author's build: a DC-DC one for the pump, an AC one for the heater and one for the
 valve), two flow sensors (In and Out / OPV return), a 5 V power supply (2 A).
 
@@ -533,7 +527,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
 | `SENSOR_FAULT_TOLERANCE` | 3 | Faulty probe readings in a row before ERR and heater off |
-| `WATCHDOG_TIMEOUT` | `WDTO_4S` | Remove to disable the watchdog |
+| `WATCHDOG_MS` | 4000 | The watchdog resets the board if `loop()` is blocked this long, ms (up to about 5500 on the R4). Remove to disable it |
 | `START_BUTTON` / `PIN_START_BUTTON` | on / A0 | The start / stop button (between the pin and GND); `START_BUTTON_DEBOUNCE_MS` 30 |
 | `FLOW_K_FACTOR_IN` / `FLOW_K_FACTOR_OUT` | 12.56 / 74.18 | Pulses per ml of the two flow sensors (Out calibrated against In on 2026-11-19) |
 | `STOP_DELAY_DEFAULT_S` / `STOP_DELAY_MAX_S` / `STOP_DELAY_GAIN` | 0.40 / 1.5 / 0.30 | Stop before the target: first delay, its limit, and how fast it is learned (seconds of flow, see "Cup volume") |
@@ -543,52 +537,34 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 
 ## 🔨 Build and upload
 
-With PlatformIO (board Arduino Nano, ATmega328P, environment `nanoatmega328new`):
+With PlatformIO (board Arduino Nano R4, platform `renesas-ra`, environment `nano_r4`; PlatformIO downloads the platform at the first
+build):
 
 ```
-pio run -e nanoatmega328new
-pio run -e nanoatmega328new -t upload
+pio run
+pio run -t upload
 ```
 
-For the **Nano R4** use the other environment (PlatformIO downloads its platform at the first build):
-
-```
-pio run -e nano_r4
-pio run -e nano_r4 -t upload
-```
-
-It builds from the same sources. What differs between the boards is in `src/platform/` (`Platform.h`, implemented by
-`PlatformAvr.cpp` and `PlatformRenesas.cpp`, one of them empty on each board): the interrupt that counts the pulses of the
-flow sensors (pin change interrupt on the R3, `attachInterrupt` on the R4) and the watchdog (`WATCHDOG_MS` in `Config.h` for the R4). The R4 has 256 KB of flash and 32 KB of RAM (the firmware uses about 67 KB and 3.7 KB), so the size
-flags below are for the R3 only. `src/platform/nano_r4/wiring_private.h` is an empty header that the display library needs
-and the R4 core lacks. **The R4 build compiles in the CI but has not been run on a board yet** (display, encoder, flow
-interrupts, watchdog, EEPROM to check).
+What is specific to the board is in `src/platform/` (`Platform.h`, implemented by `PlatformRenesas.cpp`): the external
+interrupts that count the pulses of the flow sensors and the watchdog (`WATCHDOG_MS` in `Config.h`).
+`src/platform/nano_r4/wiring_private.h` is an empty header that the display library needs and the R4 core lacks. The R4 has
+256 KB of flash and 32 KB of RAM (the firmware uses about 70 KB and 3.7 KB). Upload by the USB port: if the upload cannot find the
+board, put it in its bootloader by a double push on RESET, then upload again.
 
 The project follows the Arduino sketch layout (`coffee_screen.ino` and the `src/` folder). Libraries:
-Adafruit GFX and Adafruit GC9A01A (display), PID_v1 (heater). The EEPROM, SPI and avr/wdt libraries come
+Adafruit GFX and Adafruit GC9A01A (display), PID_v1 (heater). The EEPROM, SPI and Wire libraries come
 with the Arduino core.
 
 The PlatformIO project is the folder of the repository (`platformio.ini` is in it; run `pio` from there).
 
-The program is close to the 30720 bytes of flash of the Nano, so `platformio.ini` sets build flags that make the
-code smaller: `-mcall-prologues` (about 1 KB, shared function prologues, a little slower, needed for the display
-code to fit) and `-fno-ipa-cp -mstrict-X -fno-gcse -fshort-enums` (about 1.3 KB more). The extra script
-`tools/link_flags.py` also gives the link step `-ffunction-sections -fdata-sections` (the build is LTO: without them the linker
-keeps the functions nobody calls, about 0.5 KB), and every text of the screen is drawn by the firmware itself
-(`putText()` in `Display.cpp`), which keeps the text engine of Adafruit_GFX and its default font out of the program (about 2.6 KB).
-If you build with another project file, copy these `build_flags` and the script.
-
 Serial debug traces are switched on by uncommenting `#define SERIAL_DEBUG` in `src/Debug.h` (115200 baud);
-they are removed from the build otherwise.
+they are removed from the build otherwise. The USB serial of the R4 loses what is printed before a monitor has opened the port.
 
 > [!TIP]
-> **Memory.** The ATmega328P has 32 KB of flash (30 720 bytes usable with the bootloader) and 2 KB of RAM.
-> At the last measured build the flash was at **91.8 %** (28 198 bytes, 490 bytes of RAM) as configured: the pump and the
-> valve driven, the In and Out flow sensors, the stop before the target (the welcome picture costs about 1.2 KB with its use in
-> the standby: `WELCOME_MS` 0 gives them back). About 2.5 KB are left: check the size after every change, and prefer `uint8_t` / `int16_t` types and `F()` for constant
-> strings. `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 1 600 bytes of RAM
-> (the CI runs it on every push). The flash has no budget: the linker already refuses a program over 30 720 bytes
-> (`FLASH_BUDGET=<bytes>` gives an earlier alarm if you want one).
+> **Memory.** `./tools/check_flash.sh` builds the firmware, shows its size and fails over the budget of 24 000 bytes of RAM
+> (the CI runs it on every push). The flash has no budget: the linker already refuses a program over the 256 KB of the board
+> (`FLASH_BUDGET=<bytes>` gives an earlier alarm if you want one). Some code written to fit in the 30 KB of the Nano R3 is kept
+> because it works: the screen texts drawn by `putText()`, the compressed icons, `F()` and `pgm_read_*` (no-ops on the R4).
 
 ---
 
@@ -607,8 +583,8 @@ mock of the flow sensor in `test/mock`. The Arduino API that all the tests share
 `test_sim_*` tests use a flow simulator (`test/mock/FlowSimulator.h`, the simulated water follows the pump relay).
 
 **Continuous integration** (`.github/workflows/test.yml`), on every push: the tests, a `cppcheck` static
-analysis, and the build of the firmware for the Nano with the flow simulator and with the real flow sensors,
-which shows the flash size and fails over the RAM budget (`./tools/check_flash.sh`).
+analysis, and the build of the firmware for the Nano R4, which shows the flash size and fails over the RAM
+budget (`./tools/check_flash.sh`).
 
 **Screen pictures.** `./tools/render_screens.sh` draws every screen with the real display code into a frame
 buffer and writes the PNG files of `docs/images` (needs `g++` and Python with Pillow). Run it again after a

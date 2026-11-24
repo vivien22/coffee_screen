@@ -1,20 +1,20 @@
 #!/bin/sh
 # Builds the firmware with PlatformIO, shows its size, and fails if the RAM goes over its budget: ./tools/check_flash.sh
 # Used by the CI (.github/workflows/test.yml) and usable by hand (PIO=/path/to/pio to use another pio).
-#   RAM_BUDGET    bytes of RAM allowed (the Nano has 2048): the rest is the stack, whose overflow does not stop the
+#   RAM_BUDGET    bytes of RAM allowed (the Nano R4 has 32 KB): the rest is the stack, whose overflow does not stop the
 #                 build and corrupts the memory without a message
 #   FLASH_BUDGET  optional: fail over this many bytes of flash. No budget by default: the linker already refuses a
-#                 program over the 30720 bytes of the Nano, the size is only shown
+#                 program over the 256 KB of the Nano R4, the size is only shown
+#   FLASH_LIMIT   the flash of the board in bytes (default 262144), for the share shown
 #   LABEL         name of this build in the CI summary
-#   PIO_ENV       PlatformIO environment (default: the one of "pio run", the Nano R3); nano_r4 builds the Nano R4,
-#                 then set RAM_BUDGET=24000 and FLASH_LIMIT=262144 (its memories are 32 KB of RAM and 256 KB of flash)
+#   PIO_ENV       PlatformIO environment (default: the one of "pio run", the machine)
 set -e
 cd "$(dirname "$0")/.."
 
-RAM_BUDGET=${RAM_BUDGET:-1600}
+RAM_BUDGET=${RAM_BUDGET:-24000}
 FLASH_BUDGET=${FLASH_BUDGET:-}
 PIO=${PIO:-pio}
-FLASH_LIMIT=${FLASH_LIMIT:-30720}
+FLASH_LIMIT=${FLASH_LIMIT:-262144}
 
 if ! output=$("$PIO" run ${PIO_ENV:+-e "$PIO_ENV"} 2>&1); then
   echo "$output"

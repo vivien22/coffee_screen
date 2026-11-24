@@ -7,7 +7,7 @@
   itself shows or uses it.
 
   EEPROM layout, from address JOURNAL_ADDRESS (Journal.cpp): [next slot: 1 byte][JOURNAL_COUNT entries of 16 bytes]: 993 bytes of the
-  1024 of the Nano R3, after the settings (addresses 0..19). A blank (0xFF) or unknown slot is empty.
+  the first 1024 bytes of the EEPROM, after the settings (addresses 0..19). A blank (0xFF) or unknown slot is empty.
 */
 
 #pragma once

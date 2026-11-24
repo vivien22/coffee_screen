@@ -12,7 +12,7 @@ Built and used every day on an **Ascaso Steel Uno Pro**: it controls the boiler 
 <img src="docs/images/auto-running.png" alt="Extraction in progress" width="200">
 <img src="docs/images/steaming.png" alt="Steaming mode" width="200">
 
-![Arduino Nano](https://img.shields.io/badge/board-Arduino%20Nano%20R3%20%2F%20R4-00979D)
+![Arduino Nano](https://img.shields.io/badge/board-Arduino%20Nano%20R4-00979D)
 ![PlatformIO](https://img.shields.io/badge/build-PlatformIO-F5822A)
 ![Tests](https://img.shields.io/github/actions/workflow/status/vivien22/coffee_screen/test.yml?label=tests)
 
@@ -94,7 +94,7 @@ No-water detection (the pump stops and the screen says so), maximum duration of 
 
 | | |
 |---|---|
-| **Board** | Arduino Nano **R3** (ATmega328P), or Nano **R4** (same wiring) |
+| **Board** | Arduino Nano **R4** (RA4M1). The Nano R3 version is on the [`r3` branch](https://github.com/vivien22/coffee_screen/tree/r3), no longer developed |
 | **Screen** | GC9A01 round display, 240 x 240 |
 | **Input** | CJMCU-111 rotary encoder with push button, and a push button to start / stop |
 | **Temperature** | MAX31865 amplifier + PT100 probe |
@@ -117,8 +117,7 @@ You need [PlatformIO](https://platformio.org/) and the parts above wired as desc
 ```
 git clone https://github.com/vivien22/coffee_screen.git
 cd coffee_screen
-pio run -e nanoatmega328new -t upload      # Arduino Nano R3
-pio run -e nano_r4 -t upload               # Arduino Nano R4
+pio run -t upload                          # Arduino Nano R4
 ```
 
 Everything that depends on your machine is in `src/Config.h`: the pins, the limits and defaults of the settings, the
@@ -129,15 +128,15 @@ temperature offset, the PID gains, the calibration factors of the flow sensors a
 
 ## 🧪 Quality
 
-The firmware has to fit in the 30 KB of an ATmega328P and still be safe, so it is tested like software that matters:
+The firmware drives a heater, a pump and a valve, so it is tested like software that matters:
 
 - **Host tests**: the logic (extraction phases, stop before the target, heater, safeties, screen redraw, settings) runs on a
   computer with stubs of the Arduino libraries: `./test/run.sh`. Critical tests are checked by mutation: breaking the code
   must make them fail.
 - **Pixel tests**: the screen code is run against a faithful copy of the Adafruit GFX font engine, its texts are counted pixel
   by pixel against the real library, and the pictures above are generated from it.
-- **Continuous integration**: every push runs the tests, builds the firmware for the R3 and the R4 in several
-  configurations, checks the memory use, and runs cppcheck.
+- **Continuous integration**: every push runs the tests, builds the firmware for the R4, checks the memory use,
+  and runs cppcheck.
 
 See [Tests](docs/DOCUMENTATION.md#-tests) and [Code architecture](docs/DOCUMENTATION.md#-code-architecture).
 

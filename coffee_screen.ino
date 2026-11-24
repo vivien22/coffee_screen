@@ -1,7 +1,7 @@
 /*
  * coffee_screen.ino
- * Arduino Nano R3 (ATmega328P, 32 KB Flash / 2 KB SRAM) or Nano R4 (RA4M1, 256 KB / 32 KB): same code, the
- * differences (flow interrupts, watchdog) are in src/platform/
+ * Arduino Nano R4 (RA4M1, 256 KB Flash / 32 KB SRAM). What is specific to the board (flow interrupts, watchdog) is in
+ * src/platform/. The Nano R3 version is on the branch r3.
  *
  * Cooperative loop, no RTOS and no delay(). Everything is in CoffeeMachine
  * (CoffeeMachine.h), which connects the independent modules:
@@ -15,7 +15,7 @@
  *   ScreenController       what is shown and when
  *   Display                drawing on the GC9A01 (Layout.h, Fonts.h)
  *   CJMCU111               rotary encoder + push button
- *   FlowSensor             flow sensors (PCINT1 on the R3, external interrupts on the R4)
+ *   FlowSensor             flow sensors (one external interrupt per input)
  *
  * Safeties: the heater is switched off on MAX31865 fault, implausible temperature or standby
  * (STANDBY_MINUTES without activity); the pump stops when no water flows (no-flow safety) and
@@ -37,7 +37,7 @@ void setup()
   DEBUG_BEGIN(115200);
   machine.begin();
 
-  platformWatchdogStart();     // if WATCHDOG_TIMEOUT is defined: from here the loop has to run
+  platformWatchdogStart();     // if WATCHDOG_MS is defined: from here the loop has to run
 }
 
 void loop()

@@ -3,7 +3,7 @@
 #include "Journal.h"
 #include <EEPROM.h>
 
-static const int JOURNAL_ADDRESS = 24;   // 24 + 1 + 62 entries of 16 bytes = 1017: inside the 1024 bytes of the Nano R3
+static const int JOURNAL_ADDRESS = 24;   // 24 + 1 + 62 entries of 16 bytes = 1017: inside the first 1024 bytes of the EEPROM
 static const int ENTRY_SIZE = (int)sizeof(JournalEntry);
 
 static int slotAddress(uint8_t slot) {

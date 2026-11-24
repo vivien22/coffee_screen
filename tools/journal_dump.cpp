@@ -1,6 +1,6 @@
 // journal_dump: a small sketch that prints the journal of the last 62 AUTO extractions (EEPROM) over the serial line (115200 baud),
 // then does nothing. It does not write anything. Flash it with: pio run -e journal_dump -t upload, read the serial line, then flash
-// the machine again: pio run -e nanoatmega328new -t upload (the EEPROM is kept).
+// the machine again: pio run -t upload (the EEPROM is kept).
 //
 // One line per extraction, the last one first (the first number is its sequence number):
 //   #12 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 27 s | in 102.3 out 54.1 net 48.2 loss 36.3 cup 12 cal 10 | delay 0.37 | 88 -> 91 C
@@ -31,6 +31,10 @@ static const __FlashStringHelper *phaseName(uint8_t phase) {
 
 void setup() {
   Serial.begin(115200);
+  const uint32_t start = millis();
+  while (!Serial && millis() - start < 8000) {
+    delay(10);   // the USB serial of the R4 loses what is printed before a monitor has opened the port
+  }
   delay(300);
   Serial.println(F("JOURNAL"));
 
