@@ -1,6 +1,7 @@
-// Adafruit_GFX stand-in for the host: draws into a 240 x 240 RGB565 frame buffer, with the real GFX font rules
-// (bit-packed glyphs, offsets, advance). Used by tools/render_screens.cpp (the pictures of the documentation) and by
-// test/test_display.cpp. A program that links Display.cpp must define frameBuffer.
+// Adafruit_GFX stand-in for the host: draws into a 240 x 240 RGB565 frame buffer. It only has what Display.cpp calls: rectangles,
+// and the window and bursts of the driver (the texts are drawn by Display.cpp itself, from the masks of Fonts.h). Used by
+// tools/render_screens.cpp (the pictures of the documentation) and by test/test_display.cpp. A program that links Display.cpp must
+// define frameBuffer.
 #pragma once
 #include "Arduino.h"
 
@@ -26,34 +27,10 @@ class Adafruit_GFX {
     void writeColor(uint16_t color, uint32_t len) {
       for (; len; len--, wi_++) writePixel(wx_ + wi_ % ww_, wy_ + wi_ / ww_, color);
     }
-    void setFont(const GFXfont *f) { font_ = f; }
-    void setTextColor(uint16_t c) { color_ = c; }
-    void setTextSize(uint8_t s) { size_ = s; }
-    void setCursor(int16_t x, int16_t y) { cx_ = x; cy_ = y; }
-    int16_t getCursorX() { return cx_; }
-    void print(char c) {
-      if (!font_ || c < font_->first || c > font_->last) return;
-      const GFXglyph &g = font_->glyph[c - font_->first];
-      const uint8_t *bitmap = font_->bitmap + g.bitmapOffset;
-      uint16_t bit = 0;
-      for (uint8_t yy = 0; yy < g.height; yy++) {
-        for (uint8_t xx = 0; xx < g.width; xx++, bit++) {
-          if (bitmap[bit >> 3] & (0x80 >> (bit & 7))) {
-            fillRect(cx_ + (g.xOffset + xx) * size_, cy_ + (g.yOffset + yy) * size_, size_, size_, color_);
-          }
-        }
-      }
-      cx_ += g.xAdvance * size_;
+    void writePixels(uint16_t *colors, uint32_t len, bool = true, bool = false) {
+      for (uint32_t i = 0; i < len; i++, wi_++) writePixel(wx_ + wi_ % ww_, wy_ + wi_ / ww_, colors[i]);
     }
-    void print(const char *s) { while (*s) print(*s++); }
-    // Not used by the display code, only to build with it
-    void fillCircle(int16_t, int16_t, int16_t, uint16_t) {}
-    void drawCircle(int16_t, int16_t, int16_t, uint16_t) {}
   private:
-    const GFXfont *font_ = nullptr;
-    uint16_t color_ = 0xFFFF;
-    uint8_t size_ = 1;
-    int16_t cx_ = 0, cy_ = 0;
     uint16_t wx_ = 0, wy_ = 0, ww_ = 1, wh_ = 1;
     uint32_t wi_ = 0;
 };
