@@ -12,6 +12,7 @@
 #include "src/settings/Settings.h"
 #include <SPI.h>
 #include "TestSupport.h"
+static const unsigned long RESULT_MS = EXTRACTION_RESULT_DISPLAY_MS;   // how long the values of an extraction stay on the screen (Config.h)
 // The MAX31865 answers the RTD register: the probe is at 93 degrees (PT100, Callendar-Van Dusen) unless a test sets another one
 static uint16_t rtdRegister=0; static int byteIndex=0;
 static uint8_t answer(uint8_t v){ if(v==0x01){ byteIndex=0; return 0; } if(v!=0) { byteIndex=-1; return 0; }
@@ -58,25 +59,25 @@ static void scenario(int flush){
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
     // at the end of the flush the values of the extraction are shown again, not the target yet
     CHECK(!has("dur(0,0,0,1)"));   // (the volume ends on the target: it looks like the target, only the duration tells)
-    // they stay 10 s from the end of the flush, then the target volume (40, large
+    // they stay EXTRACTION_RESULT_DISPLAY_MS from the end of the flush, then the target volume (40, large
     // because the volume is selected) and 0 s come back
     calls.clear(); unsigned long tfe=t;
-    while(t<tfe+6800){ t+=100; m.update(); }
-    while(t<tfe+9900){ t+=100; m.update(); }
+    while(t<tfe+RESULT_MS-3200){ t+=100; m.update(); }
+    while(t<tfe+RESULT_MS-100){ t+=100; m.update(); }
     CHECK(!has("dur(0,0,0,1)"));                     // still held, no blinking
-    while(t<tfe+10200){ t+=100; m.update(); }
+    while(t<tfe+RESULT_MS+200){ t+=100; m.update(); }
     CHECK(has("vol(40,1,0,1)")); CHECK(has("dur(0,0,0,1)"));
-    printf("flush=%d: values reset 10 s after the end of the flush\n",flush);
+    printf("flush=%d: values reset after the end of the flush\n",flush);
   } else {
     CHECK(m.extraction_.state()==EXTRACTION_FINISHED);
-    // final values shown, held 10 s
+    // final values shown, held EXTRACTION_RESULT_DISPLAY_MS
     bool final=false; for(auto&c:calls) if(c.rfind("dur(",0)==0 && c!="dur(0,0,0,1)") final=true; CHECK(final);
     calls.clear(); unsigned long t0=t;
-    while(t<t0+8300){ t+=100; m.update(); }
-    while(t<t0+9900){ t+=100; m.update(); }
-    CHECK(!has("dur(0,0,0,1)"));     // still holding at 9.9 s
-    while(t<t0+10200){ t+=100; m.update(); }
-    CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset after 10 s
+    while(t<t0+RESULT_MS-1700){ t+=100; m.update(); }
+    while(t<t0+RESULT_MS-100){ t+=100; m.update(); }
+    CHECK(!has("dur(0,0,0,1)"));     // still holding 0.1 s before the end
+    while(t<t0+RESULT_MS+200){ t+=100; m.update(); }
+    CHECK(has("dur(0,0,0,1)")); CHECK(has("vol(40,1,0,1)"));       // reset
     calls.clear(); { unsigned long t1=t; while(t<t1+3000){ t+=100; m.update(); } }
     // a new extraction during the hold cancels the reset
     m.handleStartButton(); t+=100; m.update(); calls.clear();
@@ -152,10 +153,10 @@ static void manualMode(){
   m.handleStartButton();                                   // stop
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   calls.clear(); unsigned long t0=t;
-  while(t<t0+8300){ t+=100; m.update(); }
-  while(t<t0+9900){ t+=100; m.update(); }
-  CHECK(!has("dur(0,0,0,1)"));                           // the values stay 10 s
-  while(t<t0+10300){ t+=100; m.update(); }
+  while(t<t0+RESULT_MS-1700){ t+=100; m.update(); }
+  while(t<t0+RESULT_MS-100){ t+=100; m.update(); }
+  CHECK(!has("dur(0,0,0,1)"));                           // the values stay as long as EXTRACTION_RESULT_DISPLAY_MS
+  while(t<t0+RESULT_MS+300){ t+=100; m.update(); }
   CHECK(has("dur(0,0,0,1)") && has("vol(0,1,0,1)") && !has("vol(40,1,0,1)"));    // then 0 ml (no target in MANUAL) and 0 s
   CHECK(!m.screen_.adjustActiveParameter(5) && m.screen_.settings().volume==DEFAULT_VOLUME);   // the volume is not a setting here
   m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);              // ready again
@@ -199,9 +200,9 @@ static void manualTime(){
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON && pins[PIN_VALVE_RELAY]==0);
   CHECK(t-t0>=6900 && t-t0<=7300);
   calls.clear(); t+=100; m.update();
-  // the final values: elapsed time (7 s), kept 10 s
-  { calls.clear(); for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)") && !has("dur(7,0,0,1)"));   // the values of the extraction stay
-    calls.clear(); for(int i=0;i<60;i++){ t+=100; m.update(); }
+  // the final values: elapsed time (7 s), kept EXTRACTION_RESULT_DISPLAY_MS
+  { calls.clear(); for(unsigned i=0;i<RESULT_MS/200;i++){ t+=100; m.update(); } CHECK(!has("dur(0,0,0,1)") && !has("dur(7,0,0,1)"));   // the values of the extraction stay
+    calls.clear(); for(unsigned i=0;i<RESULT_MS/200+10;i++){ t+=100; m.update(); }
     CHECK(has("dur(7,0,0,1)") && !has("dur(0,0,0,1)") && has("vol(0,1,0,1)")); }   // then 0 ml and the MANUAL time (7 s), not 0
   // the time set stays shown when another parameter is selected, and after a mode change
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_MANUAL_TIME); m.screen_.adjustActiveParameter(3);

@@ -180,7 +180,7 @@
 #define STOP_SETTLE_MS               2000UL    // how long after the stop the water that still comes is measured
 #define STOP_LEARN_MIN_ML_PER_S      2.0f      // no learning from an extraction stopped under this flow (too noisy)
 #define STOP_ANTICIPATION_MAX_ML     6.0f      // the pump never stops more than this before the target
-#define EXTRACTION_RESULT_DISPLAY_MS 10000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
+#define EXTRACTION_RESULT_DISPLAY_MS 30000UL   // the volume and duration of an extraction (end of the flush if any) stay on the screen
                                                // this long, then the screen shows the target volume and 0 s again
 
 // Pre-infusion: the puck is wetted at low pressure, then left to rest, before the full extraction.

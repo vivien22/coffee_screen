@@ -122,7 +122,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - Colors: the numbers never change color; the tags (PRE, WAIT, FLUSH, CAL) and the AUTO / MANUAL letter use the icon
   orange. A tag keeps its place and is not redrawn when only the number changes; the units move as little as possible
   while a value is set (flicker).
-- The result of an extraction stays 10 s, counted from the END of the flush, no blinking (asked by the user 2026-11-19), then the target volume and
+- The result of an extraction stays 30 s (10 s before 2026-11-24, asked by the user), counted from the END of the flush, no blinking (asked by the user 2026-11-19), then the target volume and
   0 s come back. Same in AUTO and MANUAL; a change of mode resets it.
 - MANUAL: the volume at rest is 0 (it is not a target); a MANUAL time above 0 counts down and stays shown.
 - CAL comes right after the volume in the double push cycle; validating a weight goes back to the volume.
