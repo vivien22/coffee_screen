@@ -351,6 +351,9 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
   if (settings.manual) {
     extraction_.startManual(pressTime, settings.manualSeconds);
   } else {
+#ifdef FLOW_LIMIT
+    extraction_.setFlowLimit(settings.flowLimit / 10.0f);   // AUTO only: the MANUAL extraction has no target to limit toward
+#endif
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();

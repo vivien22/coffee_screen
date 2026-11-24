@@ -424,6 +424,12 @@ void drawTemperatureError() {
 // Phase tag at a given position. FontTag only holds the letters P R E W A I T F L U S H, under the
 // codes '0'..';' (see Fonts.h): "012" is PRE, "3456" is WAIT and "789:;" is FLUSH.
 static void drawTag(PhaseTag tag, int16_t x, int16_t baseline) {
+#ifdef FLOW_LIMIT
+  if (tag == PHASE_TAG_LIMIT) {
+    putText(FONT_TAG, x, baseline, COLOR_TAG, 1, F("85<56"));   // FontTag codes: L I M I T
+    return;
+  }
+#endif
   // FontTag codes: P R E = "012", C A L = "=48", F L U S H = "789:;", W A I T = "3456"
   putText(FONT_TAG, x, baseline, COLOR_TAG, 1,
           tag == PHASE_TAG_PREINFUSION ? F("012") :
@@ -464,6 +470,40 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {
     drawTag(tag, VOLUME_TAG_X, VOLUME_TAG_BASELINE);
   }
 }
+
+#ifdef FLOW_LIMIT
+// The flow limit: tenths of ml/s, "2:5 ml/s" (the decimal point is the glyph ':' of FontSmall, as in drawTemperature), in the volume
+// field with the tag LIMIT. The tag is drawn only if redrawTag; the number is drawn again only when it changed (drawNumber).
+void drawFlowLimit(uint16_t tenths, bool redrawTag) {
+  char text[6];
+  itoa(tenths / 10, text, 10);
+  const uint8_t length = strlen(text);
+  text[length] = ':';
+  text[length + 1] = (char)('0' + (tenths % 10));
+  text[length + 2] = 0;
+
+  const bool keepTag = !redrawTag;
+  int16_t zoneWidth = VOLUME_ZONE_WIDTH;
+  if (keepTag) {
+    zoneWidth = VOLUME_TAG_X - VOLUME_ZONE_X;
+  }
+  bool moved;
+  const int16_t xNumberEnd = drawNumber(volumeField, text, TEXT_SIZE_SMALL, PHASE_TAG_LIMIT, redrawTag,
+                                        VOLUME_ZONE_X, VOLUME_ZONE_Y, zoneWidth, VOLUME_ZONE_HEIGHT,
+                                        VOLUME_X, VOLUME_BASELINE, moved);
+  if (moved) {
+    if (keepTag) {
+      tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
+                   VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
+                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+    }
+    putText(FONT_UNIT, xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE, COLOR_TEXT, 1, F("2163"));   // m l / s
+  }
+  if (redrawTag) {
+    drawTag(PHASE_TAG_LIMIT, VOLUME_TAG_X, VOLUME_TAG_BASELINE);
+  }
+}
+#endif
 
 // Duration in seconds, with its tag (WAIT, FLUSH) when there is one.
 void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag) {

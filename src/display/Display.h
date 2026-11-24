@@ -33,6 +33,9 @@ enum PhaseTag : uint8_t {
   PHASE_TAG_PREINFUSION_WAIT,  // "WAIT": the puck is soaking (duration field)
   PHASE_TAG_FLUSH,             // "FLUSH": the grouphead is rinsed, or waits to be (duration field)
   PHASE_TAG_CALIBRATION        // "CAL": the weight of the cup is entered (volume field)
+#ifdef FLOW_LIMIT
+  , PHASE_TAG_LIMIT              // "LIMIT": the flow limit of the extraction (volume field, test)
+#endif
 };
 
 // Initialize the screen and fill it with the background color.
@@ -78,6 +81,10 @@ void drawTemperatureError();
 // tag: top right of the field, above the unit (PHASE_TAG_PREINFUSION in the volume field).
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the
 // screen is left as it is (use it when only the number changed). true: the whole field is redrawn.
+#ifdef FLOW_LIMIT
+// The flow limit of the extraction, tenths of ml/s shown as "2:5 ml/s" in the volume field, with the tag LIMIT (test)
+void drawFlowLimit(uint16_t tenths, bool redrawTag);
+#endif
 void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag);
 // tag: top right of the field, above the unit, whatever the size of the digits.
 // redrawTag false: only the number and its unit are erased and redrawn, the tag already on the

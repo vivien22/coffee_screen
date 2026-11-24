@@ -155,3 +155,17 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - `-fno-jump-tables`, `-ffunction-sections`, `-Wl,--gc-sections`: no gain (see Build).
 - The phase table (one table row per phase) was tried on a branch, saved about 400 B and was merged into `master`
   on 2026-11-17; the user found it harder to read at first.
+
+## Flow limit (test, branch `flow_control`, Nano R4 only: `-DFLOW_LIMIT=1` in `nano_r4`)
+- `src/coffee/FlowLimit.{h,cpp}`: during RUNNING only (not the pre-infusion, not MANUAL), the pump is a pattern of 20 ms slots (one
+  mains period, the SSR switches on the zero crossings) spread evenly. The flow per click is MEASURED from the In sensor over the
+  clicks of a window (at least 1 s and 5 clicks): no pressure, no PI. Duty = limit / (flow per click x 50 clicks/s), capped at 100 %.
+- Setting `flowLimit` (tenths of ml/s, 0 = off, 0.5 to 8.0), EEPROM 20-21 (no new magic: blank = off). Menu: AUTO only, after PRE,
+  tag "LIMIT", value "2:5 ml/s" in the volume field, steps of 0.1 ml/s.
+- The "/" of "ml/s" is a glyph drawn by hand in `Fonts.h` (FontUnit '6', under FLOW_LIMIT): the font file is not in the repository.
+- Host tests: `test/test_flow_limit.cpp` (simulated pump, the flow per click changes during the run) and
+  `test/test_flow_limit_learning.cpp`. The R3 build does not change. The default is 0 (no limit), `DEFAULT_FLOW_LIMIT_TENTHS`.
+- **REMINDER (pense-bete, the user may change this later):** while a flow limit applies, the stop delay (STOP_DELAY_*) is NOT learned
+  (`ExtractionController::finish()`). Reasons: the flow read at the stop is noisy with the pump working by slots, and the water that
+  comes after a stop is probably partly a fixed volume, so a delay in seconds does not carry over from the limited flow to the full
+  flow. Options for later: a second learned delay for the limited mode (another EEPROM value), or a stop by a fixed volume.
