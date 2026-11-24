@@ -207,7 +207,7 @@ void drawSteamIcon() {
 }
 
 // The drop icon with the letter of the mode: A (AUTO) or M (MANUAL). Not visible = the icon is erased (blinking).
-// The letter is centered in the drop by its own width (the letters of Poppins Bold have different widths).
+// The letter is centered in the drop by its own width (the letters of Poppins Bold have different widths), then moved by MODE_LETTER_DX.
 void drawDrop(bool visible, bool manual) {
   tft.fillRect(ICON_DROP_X, ICON_DROP_Y, ICON_DROP_WIDTH, ICON_DROP_HEIGHT, COLOR_BG);
   if (visible) {
@@ -228,7 +228,7 @@ void drawModeLetter(bool manual) {
   const char letter = manual ? '<' : '4';   // FontTag codes: '4' = A, '<' = M
   const GFXglyph *glyph = glyphOf(FONT_TAG, letter);
   const int16_t letterWidth = pgm_read_byte(&glyph->width);
-  const int16_t letterLeft = ICON_DROP_X + (ICON_DROP_WIDTH - letterWidth) / 2;
+  const int16_t letterLeft = ICON_DROP_X + (ICON_DROP_WIDTH - letterWidth) / 2 + MODE_LETTER_DX;
   const char text[2] = {letter, 0};
   putText(FONT_TAG, letterLeft - (int8_t)pgm_read_byte(&glyph->xOffset), ICON_DROP_Y + MODE_LETTER_DY, COLOR_TAG,
           reinterpret_cast<Text>(text));
