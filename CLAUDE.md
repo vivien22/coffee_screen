@@ -182,4 +182,9 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - Setting `flowLimit` (tenths of ml/s, 0 = off, 0.5 to 8.0), EEPROM 20-21 (no new magic: blank = off). Menu: AUTO only, after PRE,
   tag "LIMIT", value "2:5 ml/s" in the volume field, steps of 0.1 ml/s.
 - The "/" of "ml/s" is a glyph drawn by hand in `Fonts.h` (FontUnit '6', under FLOW_LIMIT): the font file is not in the repository.
-- Host test: `test/test_flow_limit.cpp` (simulated pump, the flow per click changes during the run). The R3 build does not change.
+- Host tests: `test/test_flow_limit.cpp` (simulated pump, the flow per click changes during the run) and
+  `test/test_flow_limit_learning.cpp`. The R3 build does not change. The default is 0 (no limit), `DEFAULT_FLOW_LIMIT_TENTHS`.
+- **REMINDER (pense-bete, the user may change this later):** while a flow limit applies, the stop delay (STOP_DELAY_*) is NOT learned
+  (`ExtractionController::finish()`). Reasons: the flow read at the stop is noisy with the pump working by slots, and the water that
+  comes after a stop is probably partly a fixed volume, so a delay in seconds does not carry over from the limited flow to the full
+  flow. Options for later: a second learned delay for the limited mode (another EEPROM value), or a stop by a fixed volume.

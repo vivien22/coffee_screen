@@ -47,7 +47,7 @@ Settings SettingsStore::load() const {
 #ifdef FLOW_LIMIT
     EEPROM.get(ADDR_FLOW_LIMIT, settings.flowLimit);
     if (settings.flowLimit != 0 && (settings.flowLimit < FLOW_LIMIT_MIN_TENTHS || settings.flowLimit > FLOW_LIMIT_MAX_TENTHS)) {
-      settings.flowLimit = 0;   // blank (-1) or out of range: off
+      settings.flowLimit = DEFAULT_FLOW_LIMIT_TENTHS;   // blank (-1) or out of range: the default (0 = no limit)
     }
 #endif
     EEPROM.get(ADDR_LOSS, settings.loss);
@@ -66,7 +66,7 @@ Settings SettingsStore::load() const {
     settings.manualSeconds = DEFAULT_MANUAL_SECONDS;
     settings.loss = DEFAULT_LOSS_ML;
 #ifdef FLOW_LIMIT
-    settings.flowLimit = 0;
+    settings.flowLimit = DEFAULT_FLOW_LIMIT_TENTHS;
 #endif
     save(settings);
     EEPROM.update(ADDR_MAGIC, SETTINGS_MAGIC);

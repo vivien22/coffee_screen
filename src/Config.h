@@ -151,6 +151,7 @@
 
 // ---------- Flow limit (test, Nano R4 only: -DFLOW_LIMIT=1 in platformio.ini, see coffee/FlowLimit.h) ----------
 #ifdef FLOW_LIMIT
+#define DEFAULT_FLOW_LIMIT_TENTHS         0      // default: 0 = no limit (0.0 ml/s on the screen), also when the EEPROM is blank
 #define FLOW_LIMIT_MIN_TENTHS             5      // 0.5 ml/s, the lowest limit: the no-flow safety needs 2 ml in 5 s
 #define FLOW_LIMIT_MAX_TENTHS             80     // 8.0 ml/s, the highest limit (the setting goes up in steps of 0.1 ml/s)
 #define FLOW_LIMIT_SLOT_MS                20UL   // one period of the 50 Hz mains: the SSR switches on the zero crossings only

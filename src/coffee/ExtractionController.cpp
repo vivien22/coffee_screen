@@ -198,6 +198,16 @@ void ExtractionController::finish(uint32_t now) {
     stopNetMl_ = netAtStop;
     stopNetRate_ = rateAtStop;
     learning_ = (rateAtStop >= STOP_LEARN_MIN_ML_PER_S);
+#ifdef FLOW_LIMIT
+    // REMINDER (flow_control, decision of the user 2026-11-24, may change): the stop delay is NOT learned while a flow limit
+    // applies. The pump then works by slots, the flow read at the stop is noisy, and the water that comes after a stop is probably
+    // partly a fixed volume (pipes), so a delay in seconds learned at a limited flow does not suit the full flow (and the other
+    // way round). The delay of the normal extractions is kept as it is. To change later: learn a second delay for the limited mode
+    // (another EEPROM value), or stop by a fixed volume. Locked by test/test_flow_limit_learning.cpp.
+    if (flowLimitMlPerS_ > 0.0f) {
+      learning_ = false;
+    }
+#endif
   }
 
   // Flush time 0: no flush, the extraction is over
