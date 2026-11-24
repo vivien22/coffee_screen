@@ -215,6 +215,7 @@ class ScreenController {
       bool active = false;
       bool started = false;     // the start time is taken by the first update() after the change
       bool dimming = true;      // out phase (the old look) or in phase (the new one)
+      bool drawn = false;       // a frame of the fade has been drawn: the next one can be drawn over it without erasing
       uint8_t level = 255;      // brightness of the last frame drawn
       RowLook from, to;
       uint32_t start = 0;

@@ -285,6 +285,12 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
     if (after == before[row]) {
       continue;
     }
+    // The row takes another look: a roll of its number in progress stops (its frames would be drawn over the new look)
+    if (row == ROW_VOLUME) {
+      volumeRoll_ = Roll();
+    } else if (row == ROW_DURATION) {
+      durationRoll_ = Roll();
+    }
     if (after.sameShape(before[row]) && !modeChange) {   // at a change of mode a new number fades too
       dirty_ |= dirtyOf((Row)row);
       continue;
@@ -713,9 +719,15 @@ ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter acti
 // Draws a row as the look says, whole, with its text at the brightness given. Its zone is erased first, unless erase is false (the next
 // frame of a fade with the same look: the text is drawn over the last frame).
 void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness, bool erase) {
-  if (row == ROW_MODE) {   // only the letter: it is an opaque block, nothing is erased first
+  if (row == ROW_MODE) {
+    // The drop: drawn over the last frame (a frame of the fade), or whole, erased first (a fade that is cut: the other letter may be wider
+    // than this one and leave its edges)
     setTextBrightness(brightness);
-    drawDropFrame(look.value != 0.0);
+    if (erase) {
+      drawDrop(dropVisible_, look.value != 0.0);
+    } else {
+      drawDropFrame(look.value != 0.0);
+    }
     setTextBrightness(255);
     return;
   }
@@ -799,7 +811,7 @@ void ScreenController::stepFades(uint32_t now) {
     if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
       fade.active = false;
       if (row == ROW_MODE) {
-        drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255);   // the letter of the mode, at full brightness
+        drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255, false);   // the drop, at full brightness, over the last frame
         continue;
       }
       // The row as it is, whole, at full brightness. Drawn over the last frame, without erasing, when it is the look of that frame (an erase
@@ -835,7 +847,11 @@ void ScreenController::stepFades(uint32_t now) {
     if (dimming == fade.dimming && step < 8 && step > -8 && level != 0) {
       continue;   // hardly different from the last frame: nothing is drawn
     }
-    const bool newPhase = (dimming != fade.dimming);   // the first frame of the fade in: the new look replaces the (dark) old one
+    // The first frame of a phase is drawn whole, erased first: in the first one of the fade the screen may not show the old look yet (a value
+    // that was set just before is still waiting to be drawn), and the first of the fade in replaces the (dark) old look by a new one. The next
+    // frames of a phase are drawn over the last one.
+    const bool newPhase = (dimming != fade.dimming) || !fade.drawn;
+    fade.drawn = true;
     fade.dimming = dimming;
     fade.level = level;
     drawLook((Row)row, dimming ? fade.from : fade.to, level, newPhase);

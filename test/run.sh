@@ -30,7 +30,7 @@ for t in test/test_*.cpp; do
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
-    test_roll|test_fade) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp";;
+    test_roll|test_fade|test_fade_random|test_fade_machine) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp";;
     test_machine) C="$C $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/settings/JournalFormat.cpp";;
     test_serial_console) C="$B/$d/src/settings/Journal.cpp $B/$d/src/settings/JournalFormat.cpp $B/$d/src/drivers/SerialConsole.cpp";;
   esac
