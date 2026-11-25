@@ -41,16 +41,16 @@ class ScreenController {
     // icons. Blocks for the rest of that time: call it once, at start-up.
     void finishWelcome();
 
-    // A fade or a roll of digits is in progress or about to start: the machine does not write the data flash meanwhile (a block
+    // A fade (of a row, or of the backlight at a big change of the screen) or a roll of digits is in progress or about to start: the machine does not write the data flash meanwhile (a block
     // operation takes the loop for some milliseconds, which would be seen as a jerk).
     bool animating() const;
 
     // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
     void show();
 
-    // The standby: the welcome picture replaces the screen, and nothing else is drawn (update() does nothing) until
-    // leaveStandby(), which draws the real screen again in full, in the dark, and lights it. Both do nothing
-    // if there is no welcome picture (WELCOME_MS 0): the screen is then left as it is.
+    // The standby: the welcome picture replaces the screen (the backlight fades out, the picture is drawn in the dark, the backlight fades in),
+    // and nothing else is drawn (update() only runs the fade) until leaveStandby(), which does the same with the real screen, drawn
+    // again in full. Both do nothing if there is no welcome picture (WELCOME_MS 0): the screen is then left as it is.
     void enterStandby();
     void leaveStandby();
 
@@ -68,7 +68,8 @@ class ScreenController {
 
     // Steaming mode: the screen shows the temperature alone, in large digits (the rest of the screen is cleared); the encoder sets
     // the steaming temperature (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one again). leaveSteaming()
-    // draws the real screen again in full, with the volume selected.
+    // draws the real screen again in full, with the volume selected. Both change the screen through the fade of the backlight (see
+    // BACKLIGHT_FADE_OUT_MS): the new screen is drawn by update() once the backlight is off.
     void enterSteaming();
     void leaveSteaming();
     bool steaming() const { return steaming_; }
@@ -141,6 +142,11 @@ class ScreenController {
 
     void render(uint32_t now);
     void redrawScreen();                        // the real screen (or the steaming one) in full
+    void changeScreen();                        // a big change of the screen: the backlight fades out, the new screen is drawn in the dark, the backlight fades in
+    void drawNewScreen();                       // the new screen as the state says (steaming, standby picture, brewing), over a cleared screen
+    void stepBacklight(uint32_t now);
+    void setLevel(uint8_t level);               // the backlight level (setBacklight() only when it changes)
+    bool canDraw() const;                       // the screen shows what the state describes: no drawing on a screen about to be replaced
     void activate(ActiveParameter next, bool animate = false, bool modeChange = false);   // select a parameter and show it (animate: the rows fade, see FADE_OUT_MS)
     bool availableInMode(ActiveParameter p) const;
     bool calibrationAvailable_ = false;
@@ -233,6 +239,19 @@ class ScreenController {
     uint8_t fadingRows() const;
     void finishFades();      // the rows in a fade show their look as it is, at once
     void stepFades(uint32_t now);
+
+    // The fade of the backlight at a big change of the screen. OUT: the old screen goes dark (the new one is not drawn yet), then it is
+    // drawn and IN: the backlight comes up. A change that comes during the fade only brings the next screen: the one drawn in the dark is
+    // always the one of the state at that moment.
+    enum BacklightPhase : uint8_t { BACKLIGHT_STEADY, BACKLIGHT_OUT, BACKLIGHT_IN };
+    struct BacklightFade {
+      uint8_t phase = BACKLIGHT_STEADY;
+      bool started = false;      // the start time is taken by the first update() of the phase (the drawing in the dark takes time)
+      uint8_t level = 0;         // the level of the backlight now
+      uint8_t from = 0;          // the level the fade out started from
+      uint32_t start = 0;
+    };
+    BacklightFade backlight_;
 
     // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.

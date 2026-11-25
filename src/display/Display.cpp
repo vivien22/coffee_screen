@@ -113,7 +113,7 @@ static NumberField temperatureField, volumeField, durationField;
 void beginDisplay() {
   // Set Blk Pin of the screen to Low in order to avoid artefacts before the screen is filled of black
   pinMode(PIN_TFT_BL, OUTPUT);
-  digitalWrite(PIN_TFT_BL, LOW);
+  setBacklight(0);   // from now on the pin is only driven by analogWrite (never digitalWrite: they do not mix)
 
   tft.begin();
   tft.fillScreen(COLOR_BG);
@@ -122,7 +122,14 @@ void beginDisplay() {
 
 // Switches the backlight on: the screen appears as it has been drawn.
 void showDisplay() {
-  digitalWrite(PIN_TFT_BL, HIGH);
+  setBacklight(255);
+}
+
+// The backlight is driven by PWM (D9 is a PWM pin of the Nano R4). The eye does not see the brightness in proportion to the power: the
+// level (0 to 255, what the eye should get) is squared to give the duty cycle (quadratic curve, close to a gamma of 2), so that a fade looks
+// even and the low levels are not crowded at the end.
+void setBacklight(uint8_t level) {
+  analogWrite(PIN_TFT_BL, (int)((uint16_t)level * level / 255));
 }
 
 #ifdef DISPLAY_ICONS
@@ -227,7 +234,7 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
 void beginWelcome() {
 #if WELCOME_MS > 0
   drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
-  digitalWrite(PIN_TFT_BL, HIGH);
+  setBacklight(255);
 #endif
 }
 
@@ -236,20 +243,18 @@ void beginWelcome() {
 // is then drawn in the dark, and shown at once by showDisplay().
 void endWelcome() {
 #if WELCOME_MS > 0
-  digitalWrite(PIN_TFT_BL, LOW);
+  setBacklight(0);
   tft.fillRect(WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT, COLOR_BG);
 #endif
 }
 
-// The standby: the welcome picture replaces the whole screen. The backlight goes off while the screen is cleared and
-// the picture drawn (nothing is seen but the picture appearing complete), then it goes on. The values that were on the
-// screen are gone: the number fields are not valid any more, so the real screen is drawn in full when it comes back
-// (endWelcome() clears the picture, then the caller draws everything).
+// The standby: the welcome picture replaces the whole screen. The screen is cleared and the picture drawn without touching the
+// backlight: the caller has switched it off (ScreenController, fade) and lights it again. The values that were on the screen are gone: the
+// number fields are not valid any more, so the real screen is drawn in full when it comes back.
 void showStandbyPicture() {
 #if WELCOME_MS > 0
-  digitalWrite(PIN_TFT_BL, LOW);
   clearScreen();
-  beginWelcome();
+  drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
 #endif
 }
 

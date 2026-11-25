@@ -24,7 +24,7 @@ static void probeAt(double celsius){
 static unsigned long welcomeAt=0, welcomeEnd=0;   // the clock when the welcome picture starts and ends
 std::vector<std::string> calls;
 static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprintf(s,80,"%s(%g,%d,%d,%d)",f,a,b,c,d);calls.push_back(s);}
-void beginDisplay(){} void showDisplay(){L("show");} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void showStandbyPicture(){L("standbypic");} void drawIcons(){L("icons");}
+void beginDisplay(){} void showDisplay(){} void setBacklight(uint8_t v){L("backlight",v);} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void showStandbyPicture(){L("standbypic");} void drawIcons(){L("icons");}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r,uint8_t p){if(p==DISPLAY_ROLL_DONE)L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r,uint8_t p){if(p==DISPLAY_ROLL_DONE)L("dur",v,s,g,r);}
 void clearTemperature(){} void clearVolume(){} void clearDuration(){} void setTextBrightness(uint8_t){} void forgetField(uint8_t){} void repaintField(uint8_t){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawModeLetter(bool){} void drawDropFrame(bool){} void drawTemperatureError(){L("temperr");}
@@ -341,11 +341,11 @@ static void standby(){
   calls.clear();
   for(int i=0;i<30;i++){ t+=1000; m.screen_.showLiveTemperature(t,80.0+i); m.screen_.showReady(); m.update(); }   // showReady(): the volume and the duration are redrawn if anything is drawn
   CHECK(calls.empty());
-  // the wake-up: the picture is cleared in the dark, the icons, the drop and every field are drawn again, then the backlight
+  // the wake-up: the backlight goes off, the picture is cleared in the dark, the icons, the drop and every field are drawn again, then the backlight
   m.wakeUp(); CHECK(!m.standby_);
   {
-    const int cleared=count("endwelcome(0,0,0,0)")>0 ? (int)(std::find(calls.begin(),calls.end(),"endwelcome(0,0,0,0)")-calls.begin()) : -1;
-    CHECK(cleared==0 && count("icons(0,0,0,0)")==1 && count("show(0,0,0,0)")==1 && calls.back()=="show(0,0,0,0)");
+    const int cleared=count("clearscreen(0,0,0,0)")>0 ? (int)(std::find(calls.begin(),calls.end(),"clearscreen(0,0,0,0)")-calls.begin()) : -1;
+    CHECK(calls[0]=="backlight(0,0,0,0)" && cleared==1 && count("icons(0,0,0,0)")==1 && count("backlight(255,0,0,0)")==1 && calls.back()=="backlight(255,0,0,0)");
     bool temperature=false, volume=false, duration=false;
     for(size_t i=0;i<calls.size();i++){ temperature|=startsWith(calls[i],"temp(")||startsWith(calls[i],"temperr("); volume|=startsWith(calls[i],"vol("); duration|=startsWith(calls[i],"dur("); }
     CHECK(temperature && volume && duration);
@@ -356,7 +356,7 @@ static void standby(){
   unsigned long t1=t; while(t<t1+STANDBY_MINUTES*60000UL+3000){ t+=1000; m.update(); }
   CHECK(m.standby_ && count("standbypic(0,0,0,0)")==1);
   calls.clear(); m.handleStartButton(); t+=100; m.update(); CHECK(!m.standby_ && m.extraction_.isActive());   // an extraction wakes it
-  CHECK(count("endwelcome(0,0,0,0)")==1 && count("show(0,0,0,0)")==1);   // the real screen came back
+  CHECK(count("clearscreen(0,0,0,0)")==1 && count("backlight(255,0,0,0)")==1);   // the real screen came back
   CoffeeMachine m2; m2.begin(); CHECK(!m2.standby_);               // nothing is remembered
   printf("standby: ok\n");
 }
@@ -369,7 +369,7 @@ static void startup(){
   t=1000; m.begin();
   stubDelayHook=nullptr;
   auto at=[](const char*name){ int found=-1; for(size_t i=0;i<calls.size();i++) if(calls[i]==name){ CHECK(found<0); found=(int)i; } return found; };
-  const int welcome=at("welcome(0,0,0,0)"), cleared=at("endwelcome(0,0,0,0)"), icons=at("icons(0,0,0,0)"), show=at("show(0,0,0,0)");
+  const int welcome=at("welcome(0,0,0,0)"), cleared=at("endwelcome(0,0,0,0)"), icons=at("icons(0,0,0,0)"), show=at("backlight(255,0,0,0)");
   CHECK(welcome==0);                                                 // the welcome picture comes first
   CHECK(cleared>welcome && icons>cleared);                           // then it is cleared, then the icons are drawn
   CHECK(show>=0 && show==(int)calls.size()-1);                       // the backlight is the last thing of the start-up

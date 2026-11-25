@@ -274,6 +274,17 @@
 #endif
 #define FADE_FRAME_MS            30UL
 
+// ---------- Backlight fades (big changes of the screen) ----------
+// Entering and leaving the steaming mode and the standby: the backlight (PWM, perceptual curve, see setBacklight()) fades out in BACKLIGHT_FADE_OUT_MS,
+// the new screen is drawn in the dark, then the backlight fades in in BACKLIGHT_FADE_IN_MS. Run by ScreenController::update(), no delay().
+// 0 and 0: the new screen is drawn at once (the tests of the logic of the screen are built so: test/run.sh).
+#ifndef BACKLIGHT_FADE_OUT_MS
+#define BACKLIGHT_FADE_OUT_MS    150UL
+#endif
+#ifndef BACKLIGHT_FADE_IN_MS
+#define BACKLIGHT_FADE_IN_MS     250UL
+#endif
+
 // ---------- Screen refresh ----------
 #define TEMPERATURE_DISPLAY_MS   1000UL    // max refresh rate of the live temperature
 #define FLUSH_BLINK_MS           600UL     // the "FLUSH" tag is alternately shown and hidden this long during FLUSHING

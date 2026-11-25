@@ -17,11 +17,13 @@ status=0
 for t in test/test_*.cpp; do
   n=$(basename "$t" .cpp)
   case "$n" in test_sim_*) d=real;; *) d=mock;; esac
-  EXTRA=""
+  # no fade of the backlight at a big change of the screen (steaming, standby): the new screen is drawn at once; test_backlight has its own
+  EXTRA="-DBACKLIGHT_FADE_OUT_MS=0UL -DBACKLIGHT_FADE_IN_MS=0UL"
+  case "$n" in test_backlight) EXTRA="-DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
   # the tests of the logic of the screen look at what is drawn after each update(): no rolling digits and no fades there (test_roll and test_fade have them)
-  case "$n" in test_flush|test_pre|test_machine) EXTRA="-DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
+  case "$n" in test_flush|test_pre|test_machine) EXTRA="$EXTRA -DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
   # the volume does not roll in the machine (ROLL_VOLUME_MS is 0 in Config.h); test_roll tests the roll of its digits all the same
-  case "$n" in test_roll) EXTRA="-DROLL_VOLUME_MS=160UL";; esac
+  case "$n" in test_roll) EXTRA="$EXTRA -DROLL_VOLUME_MS=160UL";; esac
   # the tests that follow the cup volume number by number were written for a loss of 30 ml: the default of the machine is free to change
   case "$n" in test_volume|test_pre|test_manual|test_sim_flow) EXTRA="$EXTRA -DDEFAULT_LOSS_ML=30.0f";; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
@@ -36,7 +38,7 @@ for t in test/test_*.cpp; do
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
     test_display|test_welcome|test_text) C="$B/$d/src/display/Display.cpp";;
-    test_roll|test_fade|test_fade_random|test_fade_machine) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp";;
+    test_roll|test_fade|test_fade_random|test_fade_machine|test_backlight) C="$B/$d/src/display/Display.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp";;
     test_machine) C="$C $B/$d/src/coffee/FlowRecorder.cpp $B/$d/src/settings/Journal.cpp $B/$d/src/settings/Settings.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/coffee/CoffeeMachine.cpp $B/$d/src/heating/HeaterController.cpp $B/$d/src/heating/TemperatureSensor.cpp $B/$d/src/drivers/CJMCU111.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/drivers/Perf.cpp $B/$d/src/settings/JournalFormat.cpp";;
     test_serial_console) C="$B/$d/src/settings/Journal.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/settings/JournalFormat.cpp $B/$d/src/drivers/SerialConsole.cpp $B/$d/src/drivers/Perf.cpp";;
   esac

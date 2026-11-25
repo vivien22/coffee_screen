@@ -108,7 +108,11 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - Transitions (`ScreenController`: `Fade`, `stepFades`, `stepRolls`; timings in `Config.h`): the seconds roll (`ROLL_DURATION_MS`), the
   volume does NOT roll (user, 2026-11-24, after trying the tens only). A change of parameter or mode fades out (`FADE_OUT_MS` 60 ms) then
   fades in (`FADE_IN_MS` 550 ms, from `FADE_IN_START_PERCENT` 20 %), uniform for every row, the drop and its letter, no zoom, old and
-  new never drawn together. All validated by the user on the real screen; ask before changing a timing. Frames are drawn at most every
+  new never drawn together. All validated by the user on the real screen; ask before changing a timing.
+  Big changes of the screen (steaming mode in / out, standby in / out; branch smooth-ui, 2026-11-25, not yet seen on the board): the backlight (D9, PWM through `analogWrite` ONLY, never `digitalWrite`
+  again; `setBacklight(level)` squares the level) fades out (`BACKLIGHT_FADE_OUT_MS` 150), `ScreenController::stepBacklight()` draws the new screen in the dark (`drawNewScreen()`:
+  clear + redraw, or the standby picture; always the screen of the state at that moment, so a second change during the fade only changes what is drawn), then fades in (`BACKLIGHT_FADE_IN_MS` 250).
+  While it is going dark `update()` draws nothing and `canDraw()` blocks the direct drawings. `animating()` is true meanwhile. Test: `test_backlight`; the other tests are built with both at 0. Frames are drawn at most every
   30 ms from `update()` (no `delay()`). The tests of the logic of the screen are built without animation (see `test/run.sh`).
 - Start-up sequence: `ScreenController::begin()` shows the welcome picture, the probe and the flow sensors start while it is
   shown, `finishWelcome()` waits for the rest of `WELCOME_MS`, clears the picture and draws the icons in the dark, then

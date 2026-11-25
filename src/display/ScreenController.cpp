@@ -16,6 +16,8 @@ void ScreenController::begin(const Settings &settings) {
 
   beginDisplay();
   beginWelcome();                // the welcome picture is shown (the backlight goes on)
+  backlight_ = BacklightFade();
+  backlight_.level = WELCOME_MS > 0 ? 255 : 0;   // beginDisplay() switched it off, beginWelcome() on
 #if WELCOME_MS > 0
   welcomeStartedAt_ = millis();
 #endif
@@ -32,15 +34,108 @@ void ScreenController::finishWelcome() {
   }
 #endif
   endWelcome();
+  backlight_.level = 0;   // endWelcome() switched it off
 #ifdef DISPLAY_ICONS
   drawIcons();
   drawDrop(true, settings_.manual);   // with the letter of the mode
 #endif
 }
 
-// The backlight goes on after the first drawing: the whole screen appears at once.
+// The backlight comes up after the first drawing: the whole screen appears at once, and fades in (BACKLIGHT_FADE_IN_MS) while the loop runs.
 void ScreenController::show() {
-  showDisplay();
+  if (BACKLIGHT_FADE_IN_MS == 0) {
+    setLevel(255);
+    return;
+  }
+  backlight_.phase = BACKLIGHT_IN;
+  backlight_.started = false;
+}
+
+void ScreenController::setLevel(uint8_t level) {
+  if (level != backlight_.level) {
+    backlight_.level = level;
+    setBacklight(level);
+  }
+}
+
+// The screen is going to be replaced (steaming, standby): the old one must not be drawn on any more, and nothing of the new one may be
+// drawn while the old one is lit. The standby picture is not to be drawn over either.
+bool ScreenController::canDraw() const {
+#if WELCOME_MS > 0
+  if (standbyShown_) {
+    return false;
+  }
+#endif
+  return backlight_.phase != BACKLIGHT_OUT;
+}
+
+// A big change of the screen. The state (steaming_, standbyShown_...) is already the new one. The backlight fades out, update() draws the new
+// screen when it is off (drawNewScreen: the one of the state at that moment, so a second change during the fade only changes what is drawn)
+// and fades the backlight in. Without fades (both durations 0) the new screen is drawn at once.
+void ScreenController::changeScreen() {
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    fade_[row] = Fade();   // the old screen goes away with what was fading and rolling
+  }
+  volumeRoll_ = Roll();
+  durationRoll_ = Roll();
+
+  if (BACKLIGHT_FADE_OUT_MS + BACKLIGHT_FADE_IN_MS == 0) {
+    setLevel(0);
+    drawNewScreen();
+    setLevel(255);
+    return;
+  }
+  if (backlight_.phase != BACKLIGHT_OUT) {   // (during a fade out the new screen is already waiting)
+    backlight_.phase = BACKLIGHT_OUT;
+    backlight_.started = false;
+    backlight_.from = backlight_.level;
+  }
+}
+
+// The screen as the state describes it, over a cleared screen
+void ScreenController::drawNewScreen() {
+#if WELCOME_MS > 0
+  if (standbyShown_) {
+    showStandbyPicture();
+    return;
+  }
+#endif
+  clearScreen();
+  redrawScreen();
+}
+
+// The fade of the backlight: linear in the level (setBacklight() applies the perceptual curve). The out phase lasts in proportion to the
+// level it starts from (a change during a fade in does not wait a full fade out). The start of the fade in is taken by the first update()
+// after the new screen was drawn: the drawing takes a few hundred ms, which must not eat the fade.
+void ScreenController::stepBacklight(uint32_t now) {
+  if (backlight_.phase == BACKLIGHT_STEADY) {
+    return;
+  }
+  if (!backlight_.started) {
+    backlight_.started = true;
+    backlight_.start = now;
+  }
+  const uint32_t elapsed = now - backlight_.start;
+
+  if (backlight_.phase == BACKLIGHT_OUT) {
+    const uint32_t span = (uint32_t)BACKLIGHT_FADE_OUT_MS * backlight_.from / 255;
+    if (elapsed < span) {
+      setLevel((uint8_t)(backlight_.from * (span - elapsed) / span));
+      return;
+    }
+    setLevel(0);
+    drawNewScreen();               // in the dark
+    backlight_.phase = BACKLIGHT_IN;
+    backlight_.started = false;
+    return;
+  }
+
+  if (elapsed < BACKLIGHT_FADE_IN_MS) {
+    setLevel((uint8_t)(255UL * elapsed / BACKLIGHT_FADE_IN_MS));
+  } else {
+    setLevel(255);
+    backlight_.phase = BACKLIGHT_STEADY;
+  }
 }
 
 // The standby: the picture replaces the screen. What changes meanwhile (the temperature...) only marks the fields
@@ -48,21 +143,16 @@ void ScreenController::show() {
 void ScreenController::enterStandby() {
 #if WELCOME_MS > 0
   standbyShown_ = true;
-  for (uint8_t row = 0; row < ROW_COUNT; row++) {
-    fade_[row] = Fade();   // the picture replaces what was fading
-  }
-  showStandbyPicture();
+  changeScreen();   // the picture replaces what was fading
 #endif
 }
 
-// The end of the standby: the picture is cleared in the dark, then the icons, the drop (as it is: the no-water error
-// may be blinking) and every field are drawn again, and the screen is lit: it comes back complete, as at start-up.
+// The end of the standby: the picture goes dark, then the icons, the drop (as it is: the no-water error
+// may be blinking) and every field are drawn again in the dark, and the screen is lit: it comes back complete, as at start-up.
 void ScreenController::leaveStandby() {
 #if WELCOME_MS > 0
   standbyShown_ = false;
-  endWelcome();
-  redrawScreen();
-  showDisplay();
+  changeScreen();
 #endif
 }
 
@@ -94,8 +184,7 @@ void ScreenController::enterSteaming() {
   steamSetpointShown_ = false;
   active_ = PARAMETER_TEMPERATURE;
   temperatureShown_ = liveTemperature_;
-  clearScreen();
-  redrawScreen();
+  changeScreen();
 }
 
 // Back to the brewing: the volume is selected, the real screen is drawn again in full.
@@ -103,14 +192,17 @@ void ScreenController::leaveSteaming() {
   steaming_ = false;
   activate(PARAMETER_VOLUME);
   showReady();
-  clearScreen();
-  redrawScreen();
+  changeScreen();
 }
 
 // Called on every pass: runs the blinking of the tag and of the drop, then draws what changed.
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
   lastNow_ = now;
+  stepBacklight(now);   // may draw the new screen, in the dark
+  if (backlight_.phase == BACKLIGHT_OUT) {
+    return;             // the old screen is going dark: nothing is drawn on it
+  }
 #if WELCOME_MS > 0
   if (standbyShown_) {
     return;   // the picture of the standby is on the screen: nothing is drawn over it
@@ -169,7 +261,9 @@ void ScreenController::showNoWater(bool error) {
     dropBlinkPending_ = false;
     if (!dropVisible_) {
       dropVisible_ = true;
-      drawDrop(true, settings_.manual);   // the error is cleared: the drop stays on
+      if (canDraw()) {
+        drawDrop(true, settings_.manual);   // the error is cleared: the drop stays on
+      }
     }
   }
 }
@@ -180,11 +274,11 @@ void ScreenController::showNoWater(bool error) {
 // AUTO <-> MANUAL: the letter in the drop changes and the volume is selected again.
 void ScreenController::toggleMode() {
   // The rows whose content changes and the letter of the drop fade, as at a change of parameter (see FADE_OUT_MS in Config.h)
-  const bool animate = dropVisible_ && !steaming_ && FADE_OUT_MS + FADE_IN_MS > 0;
+  const bool animate = dropVisible_ && !steaming_ && canDraw() && FADE_OUT_MS + FADE_IN_MS > 0;
   finishFades();   // a letter that was fading shows its final look: the next change starts from it
   const bool wasManual = settings_.manual;
   settings_.manual = !settings_.manual;
-  if (!animate) {
+  if (!animate && canDraw()) {
     drawDrop(dropVisible_, settings_.manual);
   }
   activate(PARAMETER_VOLUME, animate, animate);   // the selected parameter may not exist in the new mode
@@ -783,9 +877,12 @@ uint8_t ScreenController::fadingRows() const {
   return flags;
 }
 
-// A fade or a roll is going on or has just been asked for: the frames come from update(), a block operation of the data flash now would
+// A fade (of a row or of the backlight) or a roll is going on or has just been asked for: the frames come from update(), a block operation of the data flash now would
 // make them jerk
 bool ScreenController::animating() const {
+  if (backlight_.phase != BACKLIGHT_STEADY) {
+    return true;   // the backlight fades at a big change of the screen
+  }
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
     if (fade_[row].active) {
       return true;

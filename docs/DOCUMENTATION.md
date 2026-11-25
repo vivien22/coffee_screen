@@ -144,9 +144,16 @@ The screen moves a little when something changes, and never blinks:
   look is drawn at its own size and place: no zoom, the old and the new are never drawn together. When the selection goes to another
   row (temperature, volume, duration), the row that was selected goes back to its normal size at once.
 - **Change of mode** (short push): the drop, its letter A / M and the rows that change fade the same way.
+- **Big changes of the screen** (entering and leaving the steaming mode, entering and leaving the standby): the **backlight** fades out
+  in `BACKLIGHT_FADE_OUT_MS` = 150 ms, the new screen is drawn while it is off (nothing of it is drawn while the old one is lit), then
+  the backlight fades in in `BACKLIGHT_FADE_IN_MS` = 250 ms. The backlight (D9) is driven by PWM (`analogWrite`, never `digitalWrite`) with
+  a perceptual curve: the duty cycle is the square of the level (`setBacklight()`). The loop runs meanwhile (`ScreenController::update()`
+  steps the fade); a change that comes during a fade only changes the screen that is drawn in the dark, and a fade out that starts
+  while the backlight is rising goes down from where it is. At start-up the real screen fades in the same way.
 
 A fade is drawn at most every `FADE_FRAME_MS` = 30 ms and the main loop goes on meanwhile (the encoder, the heater and the
-safeties are never waiting for the screen). Setting the durations to 0 gives instant changes.
+safeties are never waiting for the screen). Setting the durations to 0 gives instant changes. Drawing the new screen in the dark is not
+interrupted (a few hundred ms at most, one pass of the loop).
 
 ### Icons
 
@@ -619,6 +626,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `ROLL_DURATION_MS` / `FADE_OUT_MS` / `FADE_IN_MS` | 260 / 60 / 550 | Rolling seconds, fade out and fade in of a change of parameter or of mode (0 = instant, see [Fonts and transitions](#fonts-and-transitions)) |
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.3 / 500 | PID gains, over a 1 s window |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
+| `BACKLIGHT_FADE_OUT_MS` / `BACKLIGHT_FADE_IN_MS` | 150 / 250 | Fade of the backlight at the big changes of the screen: steaming mode and standby (0 and 0 = instant) |
 | `WELCOME_MS` | 2000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |
 | `DURATION_MAX` | 120 | An extraction stops with an error after this many seconds |
@@ -680,8 +688,10 @@ mock of the flow sensor in `test/mock`. The Arduino API that all the tests share
 
 The screen animations have their own tests: `test_roll` (the rolling digits), `test_fade` (fade out / fade in of a parameter or of
 the mode, frame by frame), `test_fade_random` (random pushes, then the screen must equal the one of quiet pushes) and
-`test_fade_machine` (the same during a whole extraction and its flush, against a full redraw). The tests of the logic of the
-screen are built without animation (`run.sh` passes `-DROLL_*_MS=0 -DFADE_*_MS=0`), and the tests that follow the cup volume number
+`test_fade_machine` (the same during a whole extraction and its flush, against a full redraw) and `test_backlight` (the fade of the
+backlight at the steaming mode and the standby: the old screen untouched until the backlight is off, the new one drawn in the dark,
+durations, a change during a fade). The tests of the logic of the
+screen are built without animation (`run.sh` passes `-DROLL_*_MS=0 -DFADE_*_MS=0 -DBACKLIGHT_FADE_*_MS=0`), and the tests that follow the cup volume number
 by number are built with a loss of 30 ml (`-DDEFAULT_LOSS_ML=30.0f`), whatever the default of the machine is.
 
 **Continuous integration** (`.github/workflows/test.yml`), on every push: the tests, a `cppcheck` static

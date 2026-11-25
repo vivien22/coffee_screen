@@ -60,14 +60,19 @@ void beginDisplay();
 // Switch the backlight on: the screen appears complete.
 void showDisplay();
 
+// The brightness of the backlight, 0 (off) to 255, as the eye should see it: the duty cycle of the PWM is the square of it (perceptual curve).
+// The pin is only driven with analogWrite(): nothing else writes to it.
+void setBacklight(uint8_t level);
+
 // The welcome picture of the start-up: beginWelcome() draws it (right after beginDisplay()) and switches the backlight
 // on; it stays until endWelcome() (the caller waits WELCOME_MS between the two, and starts what has to be done in the
 // meantime), which switches the backlight off and clears the picture. Both do nothing if WELCOME_MS is 0.
 void beginWelcome();
 void endWelcome();
 
-// The standby: the welcome picture replaces the whole screen (shown complete, the backlight stays on). endWelcome()
-// takes it away, and the caller then draws the real screen again in full. Does nothing if WELCOME_MS is 0.
+// The standby: the welcome picture replaces the whole screen (the screen is cleared and the picture drawn; the backlight is not touched: the
+// caller switches it off before and on after). The caller then draws the real screen again in full (clearScreen() first). Does nothing if
+// WELCOME_MS is 0.
 void showStandbyPicture();
 
 #ifdef DISPLAY_ICONS

@@ -29,6 +29,7 @@ const char *stubFlashString(const char *literal);
 #define max(a,b) ((a)>(b)?(a):(b))
 unsigned long millis(); unsigned long micros(); void delay(unsigned long);
 void pinMode(uint8_t,uint8_t); void digitalWrite(uint8_t,uint8_t); int digitalRead(uint8_t);
+void analogWrite(uint8_t pin, int value);   // keeps the value in stubPins and calls stubAnalogHook
 void noInterrupts(); void interrupts();
 struct SerialT {
   template<class T> void print(T){} template<class T,class U> void print(T,U){} template<class T> void println(T){} template<class T,class U> void println(T,U){} void begin(long){}
@@ -43,6 +44,7 @@ extern SerialT Serial;
 // The state of this stand-in (ArduinoStubs.cpp), driven by the tests
 extern unsigned long stubNow;   // what millis() returns
 extern int stubPins[32];        // the level written to each pin by digitalWrite(), read by digitalRead()
+extern void (*stubAnalogHook)(uint8_t pin, int value);   // called by analogWrite(), if set (a test can look at the screen at that moment)
 extern void (*stubDelayHook)(unsigned long);   // called by delay(), if set (a test can look at the screen meanwhile)
 char* itoa(int,char*,int);
 uint8_t stubPgmReadByte(const void *address);

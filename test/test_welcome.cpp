@@ -53,7 +53,7 @@ int main() {
   beginWelcome();
 
   // the welcome picture is on the screen and lit: the whole picture, nothing else
-  CHECK(stubPins[PIN_TFT_BL] == HIGH);
+  CHECK(stubPins[PIN_TFT_BL] == 255);
   CHECK(differences(frameBuffer, RAW_WELCOME, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
   CHECK(outside(frameBuffer, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
   // and it is in the middle of the round screen
@@ -75,14 +75,21 @@ int main() {
   CHECK(differences(frameBuffer, RAW_THERMOMETER, STEAM_ICON_X, STEAM_ICON_Y, ICON_THERMOMETER_WIDTH, ICON_THERMOMETER_HEIGHT) == 0);
   CHECK(differences(frameBuffer, RAW_STEAM, STEAM_WISPS_X, STEAM_WISPS_Y, ICON_STEAM_WIDTH, ICON_STEAM_HEIGHT) == 0);
 
-  // the standby: the picture replaces the whole screen (the icons are gone with the rest), lit; then it is taken away
+  // the standby: the picture replaces the whole screen (the icons are gone with the rest); the backlight is not touched (the screen
+  // controller fades it); then it is taken away
+  setBacklight(255);
   showStandbyPicture();
-  CHECK(stubPins[PIN_TFT_BL] == HIGH);
+  CHECK(stubPins[PIN_TFT_BL] == 255);
   CHECK(differences(frameBuffer, RAW_WELCOME, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
   CHECK(outside(frameBuffer, WELCOME_X, WELCOME_Y, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT) == 0);
   endWelcome();
   CHECK(stubPins[PIN_TFT_BL] == LOW);
   CHECK(outside(frameBuffer, 0, 0, 0, 0) == 0);
+
+  // the backlight curve: the duty cycle is the square of the level
+  setBacklight(128); CHECK(stubPins[PIN_TFT_BL] == 64);
+  setBacklight(255); CHECK(stubPins[PIN_TFT_BL] == 255);
+  setBacklight(0); CHECK(stubPins[PIN_TFT_BL] == 0);
 
   printf(fails ? "%d FAIL\n" : "ALL OK\n", fails);
   return fails != 0;

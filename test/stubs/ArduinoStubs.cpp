@@ -41,6 +41,8 @@ void (*stubDelayHook)(unsigned long) = nullptr;
 void delay(unsigned long ms) { if (stubDelayHook) stubDelayHook(ms); }
 void pinMode(uint8_t, uint8_t) {}
 void digitalWrite(uint8_t pin, uint8_t level) { stubPins[pin] = level; }
+void (*stubAnalogHook)(uint8_t, int) = nullptr;
+void analogWrite(uint8_t pin, int value) { stubPins[pin] = value; if (stubAnalogHook) stubAnalogHook(pin, value); }
 int digitalRead(uint8_t pin) { return stubPins[pin]; }
 void noInterrupts() {}
 void interrupts() {}
