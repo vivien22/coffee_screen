@@ -27,7 +27,7 @@ const char *stubFlashString(const char *literal);
 #define constrain(a,lo,hi) ((a)<(lo)?(lo):((a)>(hi)?(hi):(a)))
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
-unsigned long millis(); void delay(unsigned long);
+unsigned long millis(); unsigned long micros(); void delay(unsigned long);
 void pinMode(uint8_t,uint8_t); void digitalWrite(uint8_t,uint8_t); int digitalRead(uint8_t);
 void noInterrupts(); void interrupts();
 struct SerialT {

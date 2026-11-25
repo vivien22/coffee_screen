@@ -8,6 +8,7 @@
 #include "src/settings/Journal.h"
 #include "src/settings/JournalFormat.h"
 #include "src/drivers/SerialConsole.h"
+#include "src/drivers/Perf.h"
 #include "TestSupport.h"
 
 static JournalEntry entry(uint8_t reason, uint8_t phase, uint8_t pre, uint8_t duration, uint16_t in, uint16_t out, uint8_t loss4,
@@ -102,6 +103,24 @@ int main() {
           "CURVE #1 500 ms 2 | in 7,9 | out 8,10\n"
           "CURVE #0 500 ms 3 | in 1,3,5 | out 2,4,6\n"
           "END\n");
+  }
+
+  // ---- the command p: one line of the performance trace, then the maxima start again
+  {
+    perfTakeLine(nullptr, 0);   // nothing measured yet in this test: start from zero
+    Serial.out.clear(); Serial.in = "p";
+    console.update(j);
+    CHECK(Serial.out == "PERF loop max 0.0 ms | screen max 0.0 ms | flash 0 ops max 0.0 ms\n");
+    perfRecord(PERF_LOOP, 12345); perfRecord(PERF_LOOP, 800); perfRecord(PERF_SCREEN, 9849);
+    perfRecord(PERF_FLASH, 45050); perfRecord(PERF_FLASH, 3000); perfRecord(PERF_FLASH, 100);
+    Serial.out.clear(); Serial.in = "P";
+    console.update(j);
+    CHECK(Serial.out == "PERF loop max 12.3 ms | screen max 9.8 ms | flash 3 ops max 45.1 ms\n");
+    Serial.out.clear(); Serial.in = "p";
+    console.update(j);
+    CHECK(Serial.out == "PERF loop max 0.0 ms | screen max 0.0 ms | flash 0 ops max 0.0 ms\n");   // reset by the first one
+    char small[10];
+    CHECK(perfTakeLine(small, sizeof(small)) == strlen(small) && strlen(small) == sizeof(small) - 1);   // a small buffer cuts the line
   }
 
   if (fails == 0) printf("test_serial_console: ALL OK\n");

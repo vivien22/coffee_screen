@@ -61,7 +61,9 @@ void CoffeeMachine::begin() {
 //   3. temperature and heater (heater off during standby)
 //   4. what the screen shows, then the drawing of what changed
 void CoffeeMachine::update() {
-  console_.update(journal_);   // answers a command of the serial line (reads only)
+  console_.update(journal_);   // answers a command of the serial line (reads only; not counted in the pass: see Perf.h)
+
+  PerfScope pass(PERF_LOOP);   // the time of this pass, until the end of update()
 
   // ----- 1. User actions -----
   // The encoder is polled on every pass: its debounce / click state machine needs it.
@@ -108,7 +110,10 @@ void CoffeeMachine::update() {
     screen_.showTemperatureError();   // the heater is off (see HeaterController)
   }
   screen_.showHeaterState(heater_.isOn());
-  screen_.update(now);
+  {
+    PerfScope drawing(PERF_SCREEN);
+    screen_.update(now);
+  }
 }
 
 // Section 2 of update(): the extraction (phases, volume, safeties) and what follows from it.

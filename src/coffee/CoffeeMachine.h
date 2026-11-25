@@ -19,6 +19,7 @@
 #include "../settings/Journal.h"
 #include "FlowRecorder.h"
 #include "../drivers/SerialConsole.h"
+#include "../drivers/Perf.h"
 #include "../heating/TemperatureSensor.h"
 #include "../heating/HeaterController.h"
 #include "ExtractionController.h"
@@ -59,7 +60,7 @@ class CoffeeMachine {
     SettingsStore store_;
     Journal journal_;
     FlowRecorder recorder_;   // the curve of the flow In and Out of the extraction, written in the journal with its entry
-    SerialConsole console_;   // the commands of the USB serial line (j = the journal)
+    SerialConsole console_;   // the commands of the USB serial line (j = the journal, p = the performance trace)
     TemperatureSensor temperature_;
     HeaterController heater_;
     ExtractionController extraction_;

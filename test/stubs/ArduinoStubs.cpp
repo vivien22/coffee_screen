@@ -10,6 +10,7 @@ unsigned long stubNow = 0;   // what millis() returns
 int stubPins[32];            // the last level written to each pin; digitalRead() gives it back
 
 unsigned long millis() { return stubNow; }
+unsigned long micros() { return stubNow * 1000UL; }   // the clock of the tests has a resolution of 1 ms
 
 // The "flash" of the stub: the strings of F() (see Arduino.h)
 static uint8_t stubFlash[4096];

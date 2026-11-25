@@ -42,7 +42,8 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   counted), once; the start temperature is taken in `startExtraction()`.
 - Read it WITHOUT flashing: the machine answers the letter `j` on its USB serial line (115200 baud) with `JOURNAL`, one line per
   extraction (the last first) and `END` (`src/drivers/SerialConsole.{h,cpp}`, the line is made by `src/settings/JournalFormat.cpp`,
-  integers only, same format as before). It says nothing by itself and writes nothing. `tools/journal_viewer.html` (double-click `tools/read_journal.bat`: Chrome or Edge, Web Serial, sends `j`, closes the
+  integers only, same format as before). The letter `p` prints one line of the performance trace (`src/drivers/Perf.{h,cpp}`: longest loop pass,
+  longest `screen_.update()`, number and longest time of the data flash block operations, since the previous `p`) and resets it. It says nothing by itself and writes nothing. `tools/journal_viewer.html` (double-click `tools/read_journal.bat`: Chrome or Edge, Web Serial, sends `j`, closes the
   port, draws; `#test` = self test, `#demo` = example) or `tools/journal_view.py --port COM12` ask and draw. The old sketch `tools/journal_dump.cpp` is gone. Tests: `test_journal`, `test_serial_console` (the stub `Serial` of
   `test/stubs/Arduino.h` keeps `out` and gives `in`) and `journal()` of `test_machine`.
 - Flow curves (branch journal-flow-curves, asked by the user 2026-11-24 to see the flow In / Out and the volume Out in time): `coffee/FlowRecorder.{h,cpp}` takes one

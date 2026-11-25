@@ -2,6 +2,7 @@
 
 #include "SerialConsole.h"
 #include "../settings/JournalFormat.h"
+#include "Perf.h"
 
 static void printJournal(const Journal &journal) {
   Serial.println("JOURNAL");
@@ -45,6 +46,10 @@ void SerialConsole::update(const Journal &journal) {
     const int command = Serial.read();
     if (command == 'j' || command == 'J') {
       printJournal(journal);
+    } else if (command == 'p' || command == 'P') {
+      char line[100];
+      perfTakeLine(line, sizeof(line));   // the maxima start again from here
+      Serial.println((const char *)line);
     }
     // any other character (a newline after the letter, noise) is ignored
   }

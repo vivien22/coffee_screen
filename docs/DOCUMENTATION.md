@@ -253,6 +253,12 @@ says nothing by itself, and reading writes nothing: nothing has to be flashed. W
 pio device monitor                     # (or any serial monitor, 115200 baud), then type j
 ```
 
+The letter `p` prints one line of the **performance trace** (`src/drivers/Perf.{h,cpp}`) and starts it again: the longest pass of the
+loop (`CoffeeMachine::update()`, without the console), the longest drawing (`ScreenController::update()`) and the number and the longest
+time of the data flash block operations, all since the previous `p`, for example
+`PERF loop max 12.3 ms | screen max 9.8 ms | flash 3 ops max 45.1 ms`. It shows what blocks the loop (the animations and the heater
+need a pass every few milliseconds). It writes nothing.
+
 **The simplest way: double-click `tools/read_journal.bat`** (or open `tools/journal_viewer.html` in Chrome or Edge). The page reads the USB serial
 port itself (Web Serial API), sends `j`, and draws the journal: a summary, the water of each extraction, the duration and the temperatures,
 the **flow curves** (below), a table, and the text the machine sent. The first time it asks which port is the machine (then it remembers: the next time the journal is read
@@ -699,6 +705,7 @@ src/
   drivers/
     CJMCU111               rotary encoder + push button (short, double, long push)
     FlowSensor             flow sensors (pin change interrupt); replaced by a mock or a simulator in the tests
+    Perf                   the performance trace (longest loop pass, drawing, flash operation), printed by the console command p
 test/                      host tests (run.sh, stubs, mocks)
 tools/                     screen pictures (render_screens), fonts (generate_fonts), icons (compress_icons, png_to_icon.ps1), size and RAM budget (check_flash)
 images/               the screen pictures
