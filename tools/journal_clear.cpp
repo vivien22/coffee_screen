@@ -3,6 +3,11 @@
 // pio run -t upload. Needed once when the layout of the journal or of the curves changes (the old ones would be misread).
 #include <Arduino.h>
 #include <EEPROM.h>
+#include "../src/settings/Flash.h"
+
+// The data flash is erased and programmed one block of 1 KB at a time: the addresses 24 to 8191 are blanked block by block, one erase and
+// program per block that holds something (the old way, EEPROM.update() byte by byte, was one block operation per byte: minutes).
+static uint8_t blank[FLASH_BLOCK_BYTES];
 
 void setup() {
   Serial.begin(115200);
@@ -11,8 +16,12 @@ void setup() {
     delay(10);   // the USB serial of the R4: the message below is seen only if a monitor is open
   }
   delay(300);
-  for (int address = 24; address < EEPROM.length(); address++) {
-    EEPROM.update(address, 0xFF);   // blank: an empty slot
+  memset(blank, 0xFF, sizeof(blank));   // blank: an empty slot
+  for (int address = 24; address < EEPROM.length(); ) {
+    const int toBlockEnd = FLASH_BLOCK_BYTES - address % FLASH_BLOCK_BYTES;   // up to the end of the block: ONE operation
+    const int size = min(toBlockEnd, EEPROM.length() - address);
+    flashWrite(address, blank, (uint16_t)size);
+    address += size;
   }
   Serial.println(F("JOURNAL CLEARED"));
 }
