@@ -328,14 +328,23 @@ writes per byte (a slot of the curves is written once every 20 extractions).
 
 ### What is saved, and when
 
-Settings are saved **automatically**, never by hand, and only when something changed (the EEPROM is written
-byte by byte, only for the bytes that differ, to spare its life):
+Settings are saved **automatically**, never by hand, and only when something changed. The EEPROM of the Nano R4 is the 8 KB data flash in
+blocks of 1 KB: whatever the number of bytes that change, a write erases and programs a whole block (some milliseconds, during which the
+loop of the machine waits), so the machine writes as little as possible and at quiet moments (`src/settings/Flash.{h,cpp}` writes
+several ranges of bytes with ONE block operation, none when nothing changed; the command `p` of the serial console counts them, see the
+performance trace):
 
-- at a double push (the edited parameter is validated),
-- at the start of an extraction,
-- at a change of mode,
-- at each turn of the encoder in the steaming mode (SteamingTemp),
-- at the end of each extraction: its line and its flow curve in the [journal](#the-journal-of-the-last-extractions).
+- at a double push (the edited parameter is validated), at a change of mode and at each turn of the encoder in the steaming mode
+  (SteamingTemp): the change is applied at once (the heater gets the new setpoint) and **written `SETTINGS_SAVE_DELAY_MS` = 1.5 s after the
+  last change**, in one block operation (the 22 bytes of the settings): a series of detents in the steaming mode writes once, when the
+  turning stops. A power cut within that second and a half loses the last change;
+- at the start of an extraction: whatever was set is written at once, before the pump starts (nothing if nothing changed);
+- at the end of each extraction: its line and its flow curve in the [journal](#the-journal-of-the-last-extractions), and the learned stop delay.
+
+**Never during an extraction.** The data flash is not written while the pump runs or a timed phase counts (pre-infusion, wait, main
+phase, MANUAL, the flush itself): the stop of the pump must not wait for a block. What is due waits for the end (the journal entry, the stop
+delay and the curve are written once the flush is over, or while the machine waits for the push that starts it, the pump being off), and
+the settings also wait while a fade or a roll of the screen is in progress. At most ONE block operation is done per pass of the loop.
 
 The EEPROM layout is in `src/settings/Settings.cpp`.
 

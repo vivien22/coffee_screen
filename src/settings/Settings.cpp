@@ -2,7 +2,9 @@
 
 #include "Settings.h"
 #include "../Config.h"
+#include "Flash.h"
 #include <EEPROM.h>
+#include <string.h>
 
 // EEPROM layout: [magic: 1 byte][temperature: int16][volume: int16][pre-infusion: 1 byte][wait: 1 byte][flush: 1 byte][mode: 1 byte][MANUAL time: 1 byte][loss: float]
 // The magic byte only tells a written EEPROM from a blank one. There is no migration of older layouts:
@@ -20,6 +22,8 @@ static const int ADDR_LOSS             = ADDR_MANUAL_SECONDS + 1;   // a blank E
 static const int ADDR_STOP_DELAY       = ADDR_LOSS + (int)sizeof(float);   // same: blank = the default (no new magic needed)
 static const int ADDR_STEAMING_TEMP    = ADDR_STOP_DELAY + (int)sizeof(float);   // int16: blank (-1) or out of range = the default (no new magic needed)
 static const int ADDR_FLOW_LIMIT       = ADDR_STEAMING_TEMP + (int)sizeof(int16_t);   // int16 at 20: blank (-1) = off; before the journal (24)
+static const int SETTINGS_SIZE         = ADDR_FLOW_LIMIT + (int)sizeof(int16_t);      // 22 bytes, all in the first 1 KB block of the data flash
+static_assert(SETTINGS_SIZE == 22, "the settings area is 0..21: the journal starts at 24 (settings/Journal.h)");
 
 // Reads the settings. A blank or unknown EEPROM gives the defaults (and writes them); a stored value out of its
 // limits is brought back to the nearest limit.
@@ -62,25 +66,33 @@ Settings SettingsStore::load() const {
     settings.manualSeconds = DEFAULT_MANUAL_SECONDS;
     settings.loss = DEFAULT_LOSS_ML;
     settings.flowLimit = DEFAULT_FLOW_LIMIT_TENTHS;
-    save(settings);
-    EEPROM.update(ADDR_MAGIC, SETTINGS_MAGIC);
+    save(settings);   // with the magic byte
   }
 
   return settings;
 }
 
-// EEPROM.put / update only write the bytes that changed.
+// The 22 bytes of the settings are built in RAM and written together: ONE block operation of the data flash (an erase and a program
+// of 1 KB, see Flash.h) when something changed, none when nothing did. EEPROM.update() byte by byte would be one operation per byte.
 void SettingsStore::save(const Settings &settings) const {
-  EEPROM.put(ADDR_TEMPERATURE, settings.temperature);
-  EEPROM.put(ADDR_VOLUME, settings.volume);
-  EEPROM.update(ADDR_PREINFUSION, (uint8_t)settings.preinfusion);
-  EEPROM.update(ADDR_PREINFUSION_WAIT, (uint8_t)settings.preinfusionWait);
-  EEPROM.update(ADDR_FLUSH, (uint8_t)settings.flush);
-  EEPROM.update(ADDR_MANUAL, settings.manual ? 1 : 0);
-  EEPROM.update(ADDR_MANUAL_SECONDS, (uint8_t)settings.manualSeconds);
-  EEPROM.put(ADDR_LOSS, settings.loss);
-  EEPROM.put(ADDR_STEAMING_TEMP, settings.steamingTemperature);
-  EEPROM.put(ADDR_FLOW_LIMIT, settings.flowLimit);
+  uint8_t image[SETTINGS_SIZE];
+  for (int i = 0; i < (int)sizeof(float); i++) {
+    image[ADDR_STOP_DELAY + i] = EEPROM.read(ADDR_STOP_DELAY + i);   // the stop delay has its own writes: kept as it is
+  }
+
+  image[ADDR_MAGIC] = SETTINGS_MAGIC;
+  memcpy(image + ADDR_TEMPERATURE, &settings.temperature, sizeof(int16_t));
+  memcpy(image + ADDR_VOLUME, &settings.volume, sizeof(int16_t));
+  image[ADDR_PREINFUSION] = (uint8_t)settings.preinfusion;
+  image[ADDR_PREINFUSION_WAIT] = (uint8_t)settings.preinfusionWait;
+  image[ADDR_FLUSH] = (uint8_t)settings.flush;
+  image[ADDR_MANUAL] = settings.manual ? 1 : 0;
+  image[ADDR_MANUAL_SECONDS] = (uint8_t)settings.manualSeconds;
+  memcpy(image + ADDR_LOSS, &settings.loss, sizeof(float));
+  memcpy(image + ADDR_STEAMING_TEMP, &settings.steamingTemperature, sizeof(int16_t));
+  memcpy(image + ADDR_FLOW_LIMIT, &settings.flowLimit, sizeof(int16_t));
+
+  flashWrite(0, image, SETTINGS_SIZE);
 }
 
 float SettingsStore::loadStopDelay() const {
@@ -93,5 +105,5 @@ float SettingsStore::loadStopDelay() const {
 }
 
 void SettingsStore::saveStopDelay(float seconds) const {
-  EEPROM.put(ADDR_STOP_DELAY, seconds);   // only the bytes that changed are written
+  flashWrite(ADDR_STOP_DELAY, &seconds, sizeof(seconds));   // one block operation if the value changed, none otherwise
 }

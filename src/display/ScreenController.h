@@ -41,6 +41,10 @@ class ScreenController {
     // icons. Blocks for the rest of that time: call it once, at start-up.
     void finishWelcome();
 
+    // A fade or a roll of digits is in progress or about to start: the machine does not write the data flash meanwhile (a block
+    // operation takes the loop for some milliseconds, which would be seen as a jerk).
+    bool animating() const;
+
     // Switch the backlight on. Call it once after the first update(): the icons and the values then appear together.
     void show();
 

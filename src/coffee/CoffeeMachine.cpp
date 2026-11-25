@@ -78,6 +78,7 @@ void CoffeeMachine::update() {
   if (!steaming_) {
     updateExtraction(now);
   }
+  writeFlash(now);   // the settings, the journal, the stop delay and the curves that wait for a quiet moment
 
   // ----- 3. Temperature, standby and heater -----
   temperature_.update(now);
@@ -120,13 +121,10 @@ void CoffeeMachine::update() {
 void CoffeeMachine::updateExtraction(uint32_t now) {
   extraction_.update(now, screen_.settings().volume);
   recorder_.update(now, extraction_.liveInMl(), extraction_.liveOutMl());   // does nothing unless an AUTO extraction is being recorded
-  if (journal_.curvePending()) {
-    journal_.stepCurve();   // the curve of the last extraction goes to the EEPROM, a piece at a time
-  }
 
-  // The delay of the stop before the target was learned: kept for the next extractions
+  // The delay of the stop before the target was learned: kept for the next extractions (written by writeFlash())
   if (extraction_.stopDelayLearned()) {
-    store_.saveStopDelay(extraction_.stopDelaySeconds());
+    stopDelayPending_ = true;
   }
   // The water that came after the stop is counted: the final volume of an extraction without flush is shown again (with a
   // flush the screen already follows it)
@@ -143,17 +141,18 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
   // The journal: the extraction is over (how it ended is known) and its volumes are final
   if (journalPending_ && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
     journalPending_ = false;
-    writeJournal();
+    captureJournal();
   }
 
   // The drop icon blinks until the no-water error is cleared
   screen_.showNoWater(extraction_.hasNoWaterError());
 }
 
-// One line in the journal of the last extractions (EEPROM, see Journal.h)
-void CoffeeMachine::writeJournal() {
+// The line for the journal of the last extractions (EEPROM, see Journal.h) is made when its values are final, and written by
+// writeFlash() when the extraction (its flush) is over: the data flash is never written while the pump may have to stop.
+void CoffeeMachine::captureJournal() {
   const Settings &settings = screen_.settings();
-  JournalEntry entry;
+  JournalEntry &entry = journalEntry_;
   entry.sequence = 0;   // given by the journal
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
@@ -169,14 +168,49 @@ void CoffeeMachine::writeJournal() {
   entry.tempStart = journalTempStart_;
   entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
   entry.cal = 0;   // set later if the cup weight is entered in CAL
-  const uint8_t sequence = journal_.add(entry);
   recorder_.stop();
-  journal_.beginCurve(sequence, recorder_.samples(), recorder_.count());   // written by the next passes of updateExtraction()
+  journalWritePending_ = true;
+}
+
+void CoffeeMachine::writeJournal() {
+  journalWritePending_ = false;
+  const uint8_t sequence = journal_.add(journalEntry_);
+  journal_.beginCurve(sequence, recorder_.samples(), recorder_.count());   // written by the next passes of writeFlash()
+}
+
+// Nothing that a block operation of the data flash (an erase and a program of 1 KB, some milliseconds) could delay: no extraction,
+// except while it waits for the push that starts the flush (the pump is off and nothing is timed). The stop of the pump must never wait.
+bool CoffeeMachine::flashQuiet() const {
+  return !extraction_.isActive() || extraction_.state() == EXTRACTION_FLUSH_WAIT;
+}
+
+// The writes to the data flash that are due: ONE block operation at most per pass (the loop never waits for two), and none while the
+// extraction is going on or the screen is animating. By priority: the entry of the journal, the learned stop delay, the settings
+// (SETTINGS_SAVE_DELAY_MS after the last change, so that a series of changes is written once), then the pieces of the curve.
+void CoffeeMachine::writeFlash(uint32_t now) {
+  if (!flashQuiet() || screen_.animating()) {
+    return;
+  }
+
+  if (journalWritePending_) {
+    writeJournal();
+  } else if (stopDelayPending_) {
+    stopDelayPending_ = false;
+    store_.saveStopDelay(extraction_.stopDelaySeconds());
+  } else if (settingsPending_ && (uint32_t)(now - settingsChangedAt_) >= SETTINGS_SAVE_DELAY_MS) {
+    settingsPending_ = false;
+    store_.save(pendingSettings_);
+  } else if (journal_.curvePending()) {
+    journal_.stepCurve();
+  }
 }
 
 // The weight entered in CAL is validated: written in the journal (last entry = the extraction CAL was offered for) only if it was
 // changed, then the loss is corrected (the same thing for the double push and for the start button).
 void CoffeeMachine::validateCalibration() {
+  if (journalWritePending_) {
+    writeJournal();   // the entry has to be in the journal to receive the weight (no extraction is going on here)
+  }
   if (screen_.calibrationChanged()) {
     journal_.setLastCal(screen_.calibrationWeight());
   }
@@ -317,7 +351,7 @@ void CoffeeMachine::adjustActiveParameter(int16_t delta) {
     return;
   }
   if (screen_.adjustActiveParameter(delta) && steaming_) {
-    saveSettings();   // SteamingTemp is saved at each change, and applied to the heater at once
+    saveSettings();   // SteamingTemp is applied to the heater at once and saved when the turning stops
   }
 }
 
@@ -360,7 +394,7 @@ void CoffeeMachine::handleExtractionPush() {
 // the start (written only if it changed). Used by the start / stop button.
 void CoffeeMachine::startExtraction(uint32_t pressTime) {
   const Settings &settings = screen_.settings();
-  saveSettings();
+  saveSettingsNow();   // before the pump starts: it will not be written during the extraction
   calibrationOffered_ = false;   // the previous extraction can no longer be used to calibrate
   screen_.withdrawCalibration();
   if (settings.manual) {
@@ -373,6 +407,9 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
   journalTempStart_ = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);   // for the journal
   journalPending_ = extraction_.isActive() && !settings.manual;   // the journal gets this extraction (AUTO only) when its values are final
   if (journalPending_) {
+    if (journalWritePending_) {
+      writeJournal();            // (the previous extraction is normally written long before)
+    }
     journal_.flushCurve();       // the previous curve is in the EEPROM before its buffer is used again
     recorder_.begin(pressTime);  // the flow In and Out is recorded until the journal gets the extraction
   }
@@ -465,10 +502,25 @@ void CoffeeMachine::handleDoublePush() {
   screen_.selectNextParameter();
 }
 
-// Save the settings (only the bytes that changed are written) and apply the temperature to the heater
+// The settings are validated: the temperature is applied to the heater at once, and they are to be written to the EEPROM once the
+// user has stopped changing things for SETTINGS_SAVE_DELAY_MS (writeFlash()): a block of the data flash is erased and programmed for
+// each write, and the loop waits for it. What is being edited afterwards is not saved with them: the values are copied here.
 void CoffeeMachine::saveSettings() {
+  pendingSettings_ = screen_.settings();
+  settingsPending_ = true;
+  settingsChangedAt_ = millis();
+  applySetpoint();
+}
+
+// The same, written at once: the extraction that starts must not be delayed by a write, and does not allow one.
+void CoffeeMachine::saveSettingsNow() {
+  settingsPending_ = false;
+  store_.save(screen_.settings());   // nothing is written if nothing changed
+  applySetpoint();
+}
+
+void CoffeeMachine::applySetpoint() {
   const Settings &settings = screen_.settings();
-  store_.save(settings);
   heater_.setSetpoint((steaming_ ? settings.steamingTemperature : settings.temperature) + TEMPERATURE_OFFSET);
 }
 

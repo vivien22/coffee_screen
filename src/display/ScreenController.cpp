@@ -783,6 +783,17 @@ uint8_t ScreenController::fadingRows() const {
   return flags;
 }
 
+// A fade or a roll is going on or has just been asked for: the frames come from update(), a block operation of the data flash now would
+// make them jerk
+bool ScreenController::animating() const {
+  for (uint8_t row = 0; row < ROW_COUNT; row++) {
+    if (fade_[row].active) {
+      return true;
+    }
+  }
+  return volumeRoll_.active || volumeRoll_.requested || durationRoll_.active || durationRoll_.requested;
+}
+
 // The rows in a fade show what they show now (the final look), as it is
 void ScreenController::finishFades() {
   for (uint8_t row = 0; row < ROW_COUNT; row++) {

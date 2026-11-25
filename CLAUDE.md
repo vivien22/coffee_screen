@@ -57,6 +57,17 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   HTML page with inline SVG charts (water stacked: cup / loss / Out, target tick, end reason glyphs; duration; temperatures; table). Asked by the
   user 2026-11-22. It has no automated test: check it by eye with `--demo` and a Chrome screenshot (`chrome --headless --screenshot`).
 
+## Writes to the data flash (2026-11-25, branch smooth-ui)
+- The R4 "EEPROM" is the 8 KB data flash in blocks of 1 KB: every call that changes something erases and programs a whole block (the loop waits).
+  `src/settings/Flash.{h,cpp}` `flashWrite()` writes several ranges with ONE block operation per block touched (none if nothing changed), counted
+  and timed in `drivers/Perf` (console command `p`). The stub EEPROM (`test/stubs/EEPROM.h`) counts `blockOps` like the board. Do not add
+  `EEPROM.update/put` calls in a loop: build the bytes and give them to `flashWrite()`.
+- `SettingsStore::save()` / `saveStopDelay()` = one block operation. `CoffeeMachine`: `saveSettings()` only marks the settings (a copy, applies the setpoint at once),
+  `writeFlash()` writes them `SETTINGS_SAVE_DELAY_MS` (1.5 s) after the last change; `saveSettingsNow()` (extraction start) writes at once.
+  `writeFlash()` does ONE block operation per pass at most and NONE while `!flashQuiet()` (an extraction is active, except FLUSH_WAIT where the pump
+  is off) or `screen_.animating()`: journal entry (captured at the end of the extraction by `captureJournal()`, written by `writeJournal()`),
+  stop delay, settings, then the pieces of the curve. `validateCalibration()` writes a pending journal entry first (the weight goes into it).
+
 ## Tests (host, no Arduino)
 - `./test/run.sh` runs all tests (needs bash and g++; on Windows use WSL or Git Bash).
 - `test_display` is a property test (incremental drawing must equal a fresh draw). `test_sim_*` use the flow simulator `test/mock/FlowSimulator.h`

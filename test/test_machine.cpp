@@ -33,6 +33,8 @@ void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void c
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)
 static bool has(const char*s){ for(auto&c:calls) if(c==s) return true; return false; }
 static void step(CoffeeMachine&m,unsigned long dt){ t+=dt; m.update(); }
+// The settings are written SETTINGS_SAVE_DELAY_MS after the last change, when nothing is going on: let that time pass
+static void settle(CoffeeMachine&m){ step(m,SETTINGS_SAVE_DELAY_MS+10); for(int i=0;i<5;i++) step(m,20); }
 static void scenario(int flush){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,flush);
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
@@ -140,14 +142,15 @@ static void manualMode(){
   CoffeeMachine m; t=1000; m.begin(); calls.clear();
   CHECK(!m.screen_.settings().manual);
   m.handlePush(PUSH_SHORT); CHECK(m.screen_.settings().manual);   // the short push switches the mode: AUTO -> MANUAL
+  CHECK(EEPROM.mem[8]==0); settle(m);                    // saved SETTINGS_SAVE_DELAY_MS later
   CHECK(m.screen_.settings().manual && EEPROM.mem[8]==1 && has("drop(1,1,0,0)"));   // letter M, drop shown
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().manual); }            // remembered after a restart
   m.handleStartButton();                                   // start the pump
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON && pins[PIN_VALVE_RELAY]==1);
   m.handleShortPush(); CHECK(m.screen_.settings().manual && m.extraction_.state()==EXTRACTION_MANUAL);   // ignored while running
   m.handleDoublePush(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
-  calls.clear();
-  for(int i=0;i<80;i++){ t+=100; m.flow_.in=(t-1000)*0.003f; m.flow_.out=m.flow_.in*0.1f; m.update(); }   // 8 s at 3 ml/s, 10 % back
+  calls.clear(); const unsigned long tStart=t;
+  for(int i=0;i<80;i++){ t+=100; m.flow_.in=(t-tStart)*0.003f; m.flow_.out=m.flow_.in*0.1f; m.update(); }   // 8 s at 3 ml/s, 10 % back
   CHECK(m.extraction_.state()==EXTRACTION_MANUAL);                                   // far above the target (40): no stop
   uint16_t vol=m.extraction_.volumeMl(); CHECK(vol>=20 && vol<=22 && m.extraction_.durationSeconds()>=7);
   m.handleStartButton();                                   // stop
@@ -180,7 +183,8 @@ static void manualTime(){
   calls.clear(); m.screen_.adjustActiveParameter(7); t+=100; m.update(); CHECK(has("dur(7,1,0,1)") || has("dur(7,1,0,0)"));   // large digits, no tag
   CHECK(EEPROM.mem[9]==0);                               // not saved while it is edited
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE);
-  CHECK(EEPROM.mem[9]==7);                               // saved by the double push that leaves it
+  CHECK(EEPROM.mem[9]==0); settle(m);
+  CHECK(EEPROM.mem[9]==7);                               // saved by the double push that leaves it (a moment later)
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME);
   // AUTO: the MANUAL time is skipped, the others are back
   m.handleShortPush(); CHECK(!m.screen_.settings().manual);
@@ -210,6 +214,7 @@ static void manualTime(){
   calls.clear(); m.handleShortPush(); m.handleShortPush(); t+=100; m.update(); CHECK(has("dur(10,0,0,1)"));   // AUTO then MANUAL again
   m.handleDoublePush(); m.screen_.adjustActiveParameter(-10); m.handleDoublePush(); m.handleDoublePush();
   // time 0: the old behaviour, the pump runs until the second push, and 0 s is shown
+  settle(m);
   CHECK(EEPROM.mem[9]==0 && m.screen_.activeParameter()==PARAMETER_VOLUME);
   m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
   for(int i=0;i<300;i++){ t+=100; m.flow_.in+=0.3f; m.update(); } CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);
@@ -234,13 +239,19 @@ static void autoSave(){
   m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush(); m.handleDoublePush();   // volume -> pre -> limit -> wait -> flush
   m.handleDoublePush(); CHECK(m.screen_.activeParameter()==PARAMETER_TEMPERATURE); w=EEPROM.writes;
   m.screen_.adjustActiveParameter(-3); CHECK(savedTemperature()==DEFAULT_TEMPERATURE && EEPROM.writes==w);
-  m.handleDoublePush(); CHECK(savedTemperature()==DEFAULT_TEMPERATURE-3 && EEPROM.writes==w+1);
+  int ops=EEPROM.blockOps;
+  m.handleDoublePush(); CHECK(savedTemperature()==DEFAULT_TEMPERATURE && EEPROM.blockOps==ops);   // not at once...
+  step(m,SETTINGS_SAVE_DELAY_MS-200); CHECK(EEPROM.blockOps==ops);                                // ...not before the delay...
+  m.screen_.adjustActiveParameter(1);                                                             // (what is edited next is not saved with it)
+  step(m,300); step(m,20); CHECK(savedTemperature()==DEFAULT_TEMPERATURE-3 && EEPROM.writes==w+1 && EEPROM.blockOps==ops+1);   // ...then ONE block operation
+  for(int i=0;i<100;i++) step(m,20); CHECK(EEPROM.blockOps==ops+1);                               // and nothing more
   // double pushes without any change write nothing
-  w=EEPROM.writes; for(int i=0;i<10;i++) m.handleDoublePush(); CHECK(EEPROM.writes==w);
-  // a change of mode saves the mode, and what was being edited
-  m.screen_.adjustActiveParameter(2); w=EEPROM.writes; m.handleShortPush();
-  CHECK(EEPROM.mem[8]==1 && EEPROM.writes>=w+1);
-  w=EEPROM.writes; m.handleShortPush(); CHECK(EEPROM.mem[8]==0 && EEPROM.writes==w+1);
+  m.screen_.adjustActiveParameter(-1); m.handleDoublePush(); settle(m);
+  w=EEPROM.writes; ops=EEPROM.blockOps; for(int i=0;i<10;i++) m.handleDoublePush(); settle(m); CHECK(EEPROM.writes==w && EEPROM.blockOps==ops);
+  // a change of mode saves the mode, and what was being edited: the two saves of one push are ONE block operation
+  m.screen_.adjustActiveParameter(2); w=EEPROM.writes; m.handleShortPush(); settle(m);
+  CHECK(EEPROM.mem[8]==1 && EEPROM.writes>=w+1 && EEPROM.blockOps==ops+1);
+  w=EEPROM.writes; m.handleShortPush(); settle(m); CHECK(EEPROM.mem[8]==0 && EEPROM.writes==w+1 && EEPROM.blockOps==ops+2);
   printf("auto save: ok\n");
 }
 // Calibration of the loss: CAL appears after a normal AUTO extraction, the cup weight corrects the loss
@@ -272,6 +283,7 @@ static void calibration(){
   CHECK(m.screen_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
   m.screen_.adjustActiveParameter(-(m.screen_.calibrationValue_-30)); // the cup really holds 30 g
   m.handleDoublePush();                                  // validates
+  settle(m);
   { Journal jj; JournalEntry je; CHECK(jj.read(0,je) && je.cal==30 && je.reason==END_TARGET); }   // the weight is in the journal (last entry)
   float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
   CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
@@ -483,11 +495,14 @@ static void steaming(){
   CHECK(!m.extraction_.isActive() && !has("vol(0,1,0,1)") && !PUMPON);
   for(auto&c:calls) CHECK(c.rfind("vol(",0)!=0 && c.rfind("dur(",0)!=0 && c.rfind("drop(",0)!=0 && c.rfind("temp(",0)!=0);
   // the encoder sets SteamingTemp: shown at once, saved, applied to the heater; BrewingTemp is not touched
-  calls.clear(); m.adjustActiveParameter(5); t+=100; m.update();
-  CHECK(lastSteam()=="steam(140,0,0,0)");
+  calls.clear(); { const int ops=EEPROM.blockOps; m.adjustActiveParameter(5); t+=100; m.update();
+  CHECK(lastSteam()=="steam(140,0,0,0)" && m.heater_.setpoint_==140+TEMPERATURE_OFFSET && EEPROM.blockOps==ops);   // applied at once, not written yet
+  m.adjustActiveParameter(1); step(m,100); m.adjustActiveParameter(-1); step(m,100); m.adjustActiveParameter(1); step(m,100); CHECK(EEPROM.blockOps==ops);   // a series of detents
+  m.adjustActiveParameter(-1); settle(m); CHECK(EEPROM.blockOps==ops+1); for(int i=0;i<50;i++) step(m,20); CHECK(EEPROM.blockOps==ops+1); }   // one write after the delay
   CHECK(SettingsStore().load().steamingTemperature==140 && SettingsStore().load().temperature==DEFAULT_TEMPERATURE);
   CHECK(m.heater_.setpoint_==140+TEMPERATURE_OFFSET);
   // after STEAM_SETPOINT_SHOW_MS the measured temperature is shown again
+  m.adjustActiveParameter(1); m.adjustActiveParameter(-1); step(m,100);   // (the setpoint is shown now)
   calls.clear(); for(int i=0;i<(int)(STEAM_SETPOINT_SHOW_MS/100)+15;i++){ t+=100; m.update(); }
   CHECK(!lastSteam().empty() && lastSteam()!="steam(140,0,0,0)");
   // a long push leaves it: the brewing again (BrewingTemp), the real screen in full, the volume selected
@@ -580,6 +595,43 @@ static void journal(){
   CHECK(j.read(JOURNAL_COUNT-1,e) && e.phase==EXTRACTION_PREINFUSION);   // the first ones are gone: the oldest is one of the last quick ones
   printf("journal: ok\n");
 }
+// The data flash is written outside of the extraction: a block operation takes the loop for some milliseconds and the stop of the pump
+// must never wait for it (CoffeeMachine::flashQuiet(): not while the pump runs or a timed phase counts; the wait for the push that
+// starts the flush is allowed). What is due waits, and is written afterwards: the journal, the stop delay, the settings, the curve.
+static void flashOutsideExtraction(){
+  memset(EEPROM.mem,0xFF,sizeof(EEPROM.mem)); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,4);
+  CoffeeMachine m; t=1000; m.begin(); Journal j; JournalEntry e;
+  int bad=0;   // block operations seen while the pump runs or a phase is timed
+  auto pass=[&](unsigned long dt){ t+=dt; const int before=EEPROM.blockOps; m.update();
+    if(EEPROM.blockOps!=before && m.extraction_.isActive() && m.extraction_.state()!=EXTRACTION_FLUSH_WAIT) bad++; };
+  m.screen_.adjustActiveParameter(2);
+  int ops=EEPROM.blockOps; m.handleStartButton();
+  CHECK(EEPROM.blockOps==ops+1 && m.extraction_.isActive() && !PUMPON==false);       // what was set is written before the pump starts
+  ops=EEPROM.blockOps; unsigned long t0=t; int last=ops;
+  for(int i=0;i<600 && m.extraction_.state()!=EXTRACTION_FLUSH_WAIT;i++){
+    last=EEPROM.blockOps;
+    m.flow_.in=(t+100-t0)*0.003f; pass(100);
+    if(i==50){ m.screen_.settings_.temperature+=1; m.saveSettings(); }                // a change during the extraction (not the user's way, but it can be pending)
+  }
+  CHECK(m.extraction_.state()==EXTRACTION_FLUSH_WAIT && bad==0 && last==ops);   // nothing written from the start of the pump to its stop (the pass that ends it may write)
+  for(int i=0;i<40;i++) pass(100);                                                      // waiting for the push of the flush: the pump is off
+  CHECK(bad==0 && j.read(0,e) && e.sequence==0 && EEPROM.blockOps>ops);                // the entry, the stop delay, the settings, the curve
+  { int16_t temp; EEPROM.get(1,temp); CHECK(temp==DEFAULT_TEMPERATURE+1); }
+  m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING && PUMPON);
+  ops=EEPROM.blockOps;
+  m.screen_.settings_.temperature+=1; m.saveSettings();
+  for(int i=0;i<30 && m.extraction_.isActive();i++) pass(100);                          // the flush runs: nothing is written, even long after the delay
+  CHECK(m.extraction_.isActive()==false || bad==0);
+  for(int i=0;i<60;i++) pass(100);
+  CHECK(bad==0 && EEPROM.blockOps==ops+1 && !m.extraction_.isActive());                 // the change waited for the end of the flush: one block operation
+  { int16_t temp; EEPROM.get(1,temp); CHECK(temp==DEFAULT_TEMPERATURE+2); }
+  // a pump that is stopped by the user at once: the settings changed before the push are written first (before the pump), never after
+  ops=EEPROM.blockOps; m.screen_.adjustActiveParameter(1); m.handleStartButton(); CHECK(EEPROM.blockOps==ops+1);
+  for(int i=0;i<10;i++){ m.flow_.in=m.flow_.in+0.3f; pass(100); }
+  m.handleStartButton(); for(int i=0;i<100;i++) pass(100);
+  CHECK(bad==0);
+  printf("flash outside the extraction: ok\n");
+}
 // The delay of the stop before the target is learned, saved and given back at the next start
 static void stopDelay(){
   memset(EEPROM.mem,0xFF,64); SettingsStore st; st.load(); SAVE(st,preinfusion,0); SAVE(st,preinfusionWait,0); SAVE(st,flush,0); SAVE(st,volume,5);
@@ -597,4 +649,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); journal(); coldBoiler(); steaming(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); journal(); coldBoiler(); steaming(); flashOutsideExtraction(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

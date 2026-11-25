@@ -47,11 +47,16 @@ class CoffeeMachine {
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
     void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
-    void writeJournal();       // one line in the journal of the last extractions
+    void captureJournal();     // the extraction is over: its line for the journal is made (and the recording of its curve stops)
+    void writeJournal();       // that line goes to the journal of the last extractions (EEPROM), its curve is started
     void validateCalibration();   // CAL validated: the weight goes to the journal (if changed), the loss is corrected
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
     void showExtraction(uint32_t now);
-    void saveSettings();       // save the settings (changed bytes only) and apply the temperature setpoint
+    void saveSettings();       // the settings are to be saved (written SETTINGS_SAVE_DELAY_MS after the last change) and the setpoint is applied
+    void saveSettingsNow();    // the same, written at once (before an extraction starts)
+    void applySetpoint();      // the temperature setpoint of the mode to the heater
+    void writeFlash(uint32_t now);   // the writes to the data flash that are due, one block operation at most per pass, never during an extraction
+    bool flashQuiet() const;   // nothing that a block operation of the flash could delay is going on
     void wakeUp();             // end of the standby: the heater works again, the real screen comes back
     void adjustActiveParameter(int16_t delta);
 
@@ -71,6 +76,12 @@ class CoffeeMachine {
     bool steaming_ = false;           // steaming mode (see toggleSteaming)
     uint8_t journalTempStart_ = 0;    // the temperature shown when the extraction started (for the journal)
     bool journalPending_ = false;     // an extraction was started and is not in the journal yet
+    bool journalWritePending_ = false;   // its line is made (journalEntry_) and waits for the end of the extraction to go to the EEPROM
+    JournalEntry journalEntry_;
+    bool settingsPending_ = false;    // settings changed (pendingSettings_) and not written yet
+    Settings pendingSettings_;        // as they were at the last change: what is being edited afterwards is not saved with them
+    uint32_t settingsChangedAt_ = 0;
+    bool stopDelayPending_ = false;   // the learned stop delay is to be written
     bool standby_ = false;            // the heater is off after STANDBY_MINUTES without activity
     uint32_t lastActivityAt_ = 0;
     bool calibrationOffered_ = false; // CAL was offered for the last extraction

@@ -25,8 +25,9 @@ class SettingsStore {
   public:
     Settings load() const;
 
-    // Writes the settings. Only the bytes that changed are written (EEPROM.update / put), so it can
-    // be called as often as wanted without wearing the EEPROM: nothing changed, nothing written.
+    // Writes the settings (the 22 bytes at address 0) in ONE block operation of the data flash, and none when nothing changed
+    // (settings/Flash.h): it can be called as often as wanted without wearing the EEPROM. The machine calls it a moment after the
+    // last change, never during an extraction (CoffeeMachine).
     void save(const Settings &settings) const;
 
     // The delay (seconds of flow) by which the pump stops before the target, learned by the machine (STOP_DELAY_* in

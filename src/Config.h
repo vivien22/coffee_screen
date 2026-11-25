@@ -53,6 +53,9 @@
 // is set with the encoder (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one is shown again).
 #define DEFAULT_STEAMING_TEMPERATURE  135    // used when the EEPROM has never been written
 #define STEAM_SETPOINT_SHOW_MS        2000UL
+// The settings are written to the EEPROM this long after the last change (a block of the data flash is erased and programmed, the
+// loop waits for it): turning the encoder in the steaming mode writes once, when the user stops, and never during an extraction.
+#define SETTINGS_SAVE_DELAY_MS        1500UL
 // Pre-infusion: volume (ml) and wait time (seconds). 0 skips the matching step (see docs/DOCUMENTATION.md, "Extraction phases").
 #define PREINFUSION_MAX_ML                50
 #define DEFAULT_PREINFUSION_ML            10
