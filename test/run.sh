@@ -30,7 +30,8 @@ for t in test/test_*.cpp; do
     test_flow_recorder) C="$B/$d/src/coffee/FlowRecorder.cpp";;
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/display/ScreenController.cpp";;
     test_anticipation) C="$C $B/$d/src/settings/Settings.cpp";;
-    test_journal) C="$B/$d/src/settings/Journal.cpp";;
+    test_flash) C="$B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp";;
+    test_journal) C="$B/$d/src/settings/Journal.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp";;
     test_temperature) C="$B/$d/src/heating/TemperatureSensor.cpp";;
     test_encoder) C="$B/$d/src/drivers/CJMCU111.cpp";;
     test_heater) C="$B/$d/src/heating/HeaterController.cpp";;
