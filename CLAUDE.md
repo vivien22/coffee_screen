@@ -117,7 +117,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   clear + redraw, or the standby picture; always the screen of the state at that moment, so a second change during the fade only changes what is drawn), then fades in (`BACKLIGHT_FADE_IN_MS` 250).
   While it is going dark `update()` draws nothing and `canDraw()` blocks the direct drawings. `animating()` is true meanwhile. Test: `test_backlight`; the other tests are built with both at 0. Frames are drawn at most every
   30 ms from `update()` (no `delay()`). The tests of the logic of the screen are built without animation (see `test/run.sh`).
-- Start-up sequence: `ScreenController::begin()` shows the welcome picture, the probe and the flow sensors start while it is
+- Start-up sequence: `ScreenController::begin()` draws the welcome picture in the dark and fades the backlight in (`beginWelcome()`, `BACKLIGHT_FADE_IN_MS`, a fixed number of `delay()` steps: it runs in `setup()`; `test_backlight` checks it), the probe and the flow sensors start while it is
   shown, `finishWelcome()` waits for the rest of `WELCOME_MS`, clears the picture and draws the icons in the dark, then
   `update()` draws the values and `show()` lights the screen. Measured on the board: 311 ms of black screen between the
   picture and the real screen, 193 ms of which are the first values (the drawing of the digit blocks is the slow part).

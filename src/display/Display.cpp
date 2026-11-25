@@ -233,7 +233,14 @@ static void drawIcon(int16_t x, int16_t y, const uint8_t *data, uint8_t width, u
 // backlight goes on. It stays until endWelcome().
 void beginWelcome() {
 #if WELCOME_MS > 0
-  drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);
+  drawIcon(WELCOME_X, WELCOME_Y, ICON_WELCOME, ICON_WELCOME_WIDTH, ICON_WELCOME_HEIGHT);   // drawn in the dark
+  // The backlight rises to full in BACKLIGHT_FADE_IN_MS, like the other fades of the backlight (same curve). This runs in setup(), where the
+  // loop does not exist yet and finishWelcome() waits anyway: a plain delay() is fine here (a fixed number of steps, no clock needed).
+  const uint8_t steps = (uint8_t)(BACKLIGHT_FADE_IN_MS / 5UL > 100UL ? 100UL : BACKLIGHT_FADE_IN_MS / 5UL);
+  for (uint8_t step = 1; step < steps; step++) {
+    setBacklight((uint8_t)((uint16_t)step * 255 / steps));
+    delay(BACKLIGHT_FADE_IN_MS / steps);
+  }
   setBacklight(255);
 #endif
 }

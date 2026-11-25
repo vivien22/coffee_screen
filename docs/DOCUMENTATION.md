@@ -154,7 +154,7 @@ The screen moves a little when something changes, and never blinks:
   the backlight fades in in `BACKLIGHT_FADE_IN_MS` = 250 ms. The backlight (D9) is driven by PWM (`analogWrite`, never `digitalWrite`) with
   a perceptual curve: the duty cycle is the square of the level (`setBacklight()`). The loop runs meanwhile (`ScreenController::update()`
   steps the fade); a change that comes during a fade only changes the screen that is drawn in the dark, and a fade out that starts
-  while the backlight is rising goes down from where it is. At start-up the real screen fades in the same way.
+  while the backlight is rising goes down from where it is. At start-up the welcome picture is drawn in the dark and the backlight rises in `BACKLIGHT_FADE_IN_MS` (a plain `delay()` in `setup()`: the loop does not exist yet), then the real screen fades in the same way.
 
 A fade is drawn at most every `FADE_FRAME_MS` = 30 ms and the main loop goes on meanwhile (the encoder, the heater and the
 safeties are never waiting for the screen). Setting the durations to 0 gives instant changes. Drawing the new screen in the dark is not

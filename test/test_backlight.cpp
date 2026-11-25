@@ -103,6 +103,16 @@ int main() {
   CHECK(events.back().value == 255);      // the start-up fade in ended
   CHECK(sc.backlight_.level == 255);
 
+  // ---- the start-up: the welcome picture is drawn in the dark, then the backlight rises to full in steps (no jump)
+  CHECK(events.size() > 8 && events[0].value == 0);
+  size_t lit = 1;
+  while (lit < events.size() && events[lit].value == 0) lit++;
+  CHECK(lit < events.size() && events[lit].picture != events[0].picture);   // the picture was there when the light began
+  size_t full = lit;
+  while (full < events.size() && events[full].value < 255) full++;
+  CHECK(full < events.size() && full - lit >= 10);                           // a fade, not a jump
+  for (size_t i = lit + 1; i <= full && i < events.size(); i++) CHECK(events[i].value >= events[i - 1].value);
+
   // ---- entering the steaming mode
   uint32_t oldHash = hashOf();
   events.clear();
