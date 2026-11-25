@@ -3,6 +3,28 @@
 #include "SerialConsole.h"
 #include "../settings/JournalFormat.h"
 #include "Perf.h"
+#include <stdio.h>
+
+void SerialConsole::printCurve(uint8_t sequence, uint16_t count, const uint8_t *samples) {
+  // The header is short: a small buffer (the longest one, "CURVE #255 500 ms 180 | in ", is 27 characters)
+  char header[40];
+  snprintf(header, sizeof(header), "CURVE #%u %lu ms %u | in ", (unsigned)sequence, (unsigned long)CURVE_SAMPLE_MS, (unsigned)count);
+  Serial.print(header);
+  for (uint16_t i = 0; i < count; i++) {
+    if (i > 0) {
+      Serial.print(",");
+    }
+    Serial.print((unsigned)samples[2 * i]);   // In, in tenths of ml
+  }
+  Serial.print(" | out ");
+  for (uint16_t i = 0; i < count; i++) {
+    if (i > 0) {
+      Serial.print(",");
+    }
+    Serial.print((unsigned)samples[2 * i + 1]);   // Out, in tenths of ml
+  }
+  Serial.println("");
+}
 
 static void printJournal(const Journal &journal) {
   Serial.println("JOURNAL");
@@ -23,13 +45,11 @@ static void printJournal(const Journal &journal) {
   }
 
   // The curves of the last extractions (the flow In and Out), the last one first: the journal keeps the curve of the last CURVE_COUNT
-  static char curveLine[2048];
   uint8_t samples[CURVE_BYTES];
   uint16_t samplesCount;
   for (uint8_t age = 0; age < JOURNAL_COUNT && age < CURVE_COUNT; age++) {
     if (journal.read(age, entry) && journal.readCurve(entry.sequence, samples, samplesCount)) {
-      formatCurveLine(entry.sequence, samplesCount, samples, curveLine, sizeof(curveLine));
-      Serial.println((const char *)curveLine);
+      SerialConsole::printCurve(entry.sequence, samplesCount, samples);
     }
   }
 

@@ -81,18 +81,32 @@ int main() {
   console.update(j);
   CHECK(Serial.out == once + once);
 
-  // ---- the curves: one line each after the entries, the last one first, before END
+  // ---- the curve line, as the console prints it (SerialConsole::printCurve): the empty curve and the longest line cannot come
+  // back from the journal (no curve without a sample, at most 180 samples), so they are checked here
   {
     uint8_t one[2 * 5] = {0, 0, 32, 4, 255, 0, 9, 10, 100, 1};
-    char buffer[2048];
-    const size_t n = formatCurveLine(12, 5, one, buffer, sizeof(buffer));
-    CHECK(std::string(buffer) == "CURVE #12 500 ms 5 | in 0,32,255,9,100 | out 0,4,0,10,1" && n == strlen(buffer));
-    // the longest line (240 samples of 3 digits each, In and Out) fits in the buffer; a small buffer cuts it without overrunning
-    uint8_t full[CURVE_BYTES]; memset(full, 255, sizeof(full));
-    CHECK(formatCurveLine(255, CURVE_SAMPLES, full, buffer, sizeof(buffer)) < sizeof(buffer) - 1);
-    char small[30];
-    CHECK(formatCurveLine(255, CURVE_SAMPLES, full, small, sizeof(small)) == strlen(small) && strlen(small) < sizeof(small));
-    CHECK(formatCurveLine(1, 0, one, buffer, sizeof(buffer)) == strlen(buffer) && std::string(buffer) == "CURVE #1 500 ms 0 | in  | out ");
+    Serial.out.clear();
+    SerialConsole::printCurve(12, 5, one);
+    CHECK(Serial.out == "CURVE #12 500 ms 5 | in 0,32,255,9,100 | out 0,4,0,10,1\n");
+    // the longest line: 180 samples of 255 (In and Out), 3 digits each, no comma after the last one
+    uint8_t full[CURVE_BYTES];
+    memset(full, 255, sizeof(full));
+    std::string list;
+    for (int i = 0; i < CURVE_SAMPLES; i++) {
+      list += (i ? "," : "");
+      list += "255";
+    }
+    Serial.out.clear();
+    SerialConsole::printCurve(255, CURVE_SAMPLES, full);
+    CHECK(Serial.out == "CURVE #255 500 ms 180 | in " + list + " | out " + list + "\n");
+    // no sample: "in " and " | out " with nothing between them (two spaces before the bar)
+    Serial.out.clear();
+    SerialConsole::printCurve(1, 0, one);
+    CHECK(Serial.out == "CURVE #1 500 ms 0 | in  | out \n");
+  }
+
+  // ---- the curves in the answer of j: one line each after the entries, the last one first, before END
+  {
     // the console: the curves of the entries, after the entries, the last one first
     uint8_t first[2 * 3] = {1, 2, 3, 4, 5, 6}, second[2 * 2] = {7, 8, 9, 10}, other[2 * 2] = {1, 1, 1, 1};
     j.beginCurve(0, first, 3); j.flushCurve();

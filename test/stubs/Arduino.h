@@ -34,8 +34,14 @@ void noInterrupts(); void interrupts();
 struct SerialT {
   template<class T> void print(T){} template<class T,class U> void print(T,U){} template<class T> void println(T){} template<class T,class U> void println(T,U){} void begin(long){}
   // Text sent with print / println of a "const char *" is kept in out, and what a test puts in "in" is what read() gives (the serial console)
+  // Integers printed with print are kept as decimal text (as on the board: the curve numbers go out one by one)
   std::string in, out;
   void print(const char *s) { out += s; }
+  void print(char *s) { out += s; }   // a char buffer (the header of a curve line) is text too
+  void print(int v) { out += std::to_string(v); }
+  void print(unsigned int v) { out += std::to_string(v); }
+  void print(long v) { out += std::to_string(v); }
+  void print(unsigned long v) { out += std::to_string(v); }
   void println(const char *s) { out += s; out += "\n"; }
   int available() { return (int)in.size(); }
   int read() { if (in.empty()) return -1; const int c = (unsigned char)in[0]; in.erase(0, 1); return c; }

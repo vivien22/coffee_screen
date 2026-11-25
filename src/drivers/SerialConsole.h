@@ -22,4 +22,8 @@ class SerialConsole {
 
     // Call on every loop pass: answers the commands received since the last pass.
     void update(const Journal &journal);
+
+    // Prints one curve line ("CURVE #12 500 ms 84 | in 0,5,14,20 | out 0,0,0,2", see JournalFormat.h), piece by piece: no line buffer.
+    // update() calls it for each curve of the journal; it is public because the journal never gives back an empty curve (the test uses it).
+    static void printCurve(uint8_t sequence, uint16_t count, const uint8_t *samples);
 };
