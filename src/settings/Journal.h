@@ -8,13 +8,17 @@
   EEPROM layout (the data flash of the R4 holds 8192 bytes), from the settings (addresses 0..21):
     24                    next slot of the journal (1 byte)                    JOURNAL_ADDRESS (Journal.cpp)
     25 .. 824             JOURNAL_COUNT (50) entries of 16 bytes
-    825                   next slot of the curves (1 byte)                     CURVE_ADDRESS
-    826 .. 8065           CURVE_COUNT (20) slots of 2 + 2 x CURVE_SAMPLES (362) bytes: the sequence number of the entry, the number of
-                          samples, the samples (In, Out of each, tenths of ml)
-    8066 .. 8191          free
+    825 .. 8084           CURVE_COUNT (20) slots of 3 + 2 x CURVE_SAMPLES (363) bytes: the sequence number of the entry, the number of
+                          samples, a checksum, then the samples (In, Out of each, tenths of ml)
+    8085 .. 8191          free
   A blank (0xFF) or unknown slot is empty. The curves (the flow In and Out of an extraction, see coffee/FlowRecorder.h) are kept for the
-  last CURVE_COUNT extractions; a curve belongs to the entry with the same sequence number. A curve is written in small pieces (stepCurve)
-  so that the loop of the machine never waits for the flash.
+  last CURVE_COUNT extractions. The curve of the entry with sequence number n is in the slot n % CURVE_COUNT (no next slot is stored):
+  it is valid only if the header of the slot says n, a number of samples that fits, and the checksum (CRC-8 of the sequence, the count and
+  the samples) matches: an older curve, a curve cut by a power failure and the layout of an older version are simply not there.
+
+  The data flash is erased and programmed one block of 1 KB at a time (settings/Flash.h): an entry and the next slot are ONE block
+  operation, a curve is one or two (the slot is written in the block that does not hold its header first, the block of the header last).
+  The curve is written by stepCurve(), one block operation per call, so that the loop of the machine never waits for more than one.
 */
 
 #pragma once
@@ -53,11 +57,11 @@ struct __attribute__((packed)) JournalEntry {
 static const uint8_t JOURNAL_COUNT = 50;
 static const uint8_t CURVE_COUNT = 20;
 static const uint16_t CURVE_BYTES = 2 * CURVE_SAMPLES;         // In and Out of each sample (tenths of ml)
-static const uint16_t CURVE_SLOT_SIZE = 2 + CURVE_BYTES;       // sequence, number of samples, samples
+static const uint8_t CURVE_HEADER_SIZE = 3;                    // sequence, number of samples, checksum
+static const uint16_t CURVE_SLOT_SIZE = CURVE_HEADER_SIZE + CURVE_BYTES;
 static const uint16_t CURVE_ADDRESS = 24 + 1 + JOURNAL_COUNT * 16;   // just after the entries of the journal (16 bytes each)
-static const uint8_t CURVE_CHUNK = 24;                          // bytes written by one step (CURVE_BYTES is a multiple of it)
-static_assert(CURVE_ADDRESS + 1 + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192, "the journal and the curves must fit in the 8 KB of the EEPROM");
-static_assert(CURVE_BYTES % CURVE_CHUNK == 0, "the last piece of a curve must stay in its slot");
+static_assert(CURVE_ADDRESS + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192, "the journal and the curves must fit in the 8 KB of the EEPROM");
+static_assert(CURVE_SAMPLES < 255, "the number of samples is one byte and 255 (blank) means no curve");
 
 class Journal {
   public:
@@ -71,25 +75,28 @@ class Journal {
     bool read(uint8_t age, JournalEntry &entry) const;
 
     // ----- The curves -----
-    // The curve of the extraction whose entry has this sequence number (count samples, In and Out of each, see FlowRecorder) goes to
-    // the next slot of the curve ring. samples must stay as it is until stepCurve() has returned false (or flushCurve() was called).
-    // Nothing is written here: stepCurve() does it, a piece at a time.
+    // The curve of the extraction whose entry has this sequence number (count samples, In and Out of each, see FlowRecorder) goes to its
+    // slot (sequence % CURVE_COUNT). samples must stay as it is until stepCurve() has returned false (or flushCurve() was called).
+    // Nothing is written here: stepCurve() does it.
     void beginCurve(uint8_t sequence, const uint8_t *samples, uint16_t count);
-    // Writes the next piece (at most CURVE_CHUNK bytes, one call = one write to the flash). Returns true while there is more to write.
+    // Writes the next part: ONE block operation of the data flash (the whole curve when its slot is in one block, else the part in the
+    // second block, then the part with the header). Returns true while there is more to write.
     bool stepCurve();
     // Writes what remains, at once (before the samples are needed for another curve)
     void flushCurve() { while (stepCurve()) {} }
     bool curvePending() const { return stage_ != STAGE_NONE; }
 
-    // The curve of age 0 (the last one), 1... into samples (CURVE_BYTES bytes). Returns false if there is none.
-    bool readCurve(uint8_t age, uint8_t &sequence, uint8_t *samples, uint16_t &count) const;
+    // The curve of the extraction with this sequence number, into samples (CURVE_BYTES bytes). Returns false if there is none (blank,
+    // another sequence number, too many samples, wrong checksum).
+    bool readCurve(uint8_t sequence, uint8_t *samples, uint16_t &count) const;
 
   private:
-    enum Stage : uint8_t { STAGE_NONE, STAGE_ERASE_HEADER, STAGE_SAMPLES, STAGE_HEADER };
+    enum Stage : uint8_t { STAGE_NONE, STAGE_SECOND_BLOCK, STAGE_FIRST_BLOCK };
     Stage stage_ = STAGE_NONE;
-    uint8_t slot_ = 0;
-    uint8_t sequence_ = 0;
+    int address_ = 0;                       // of the slot
+    uint8_t header_[CURVE_HEADER_SIZE] = {0, 0, 0};
     const uint8_t *samples_ = nullptr;
     uint16_t count_ = 0;
-    uint16_t written_ = 0;   // bytes of the samples already written
+    int boundary_ = 0;                      // the first address of the second block of the slot (when it has two)
+    void writePart(int from, int to) const;   // the bytes of the slot between these addresses
 };

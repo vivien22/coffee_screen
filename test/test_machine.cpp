@@ -538,12 +538,12 @@ static void journal(){
   for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!j.read(1,e));    // written once
   // the curve of the flow In and Out of that extraction: in the curve ring, with the sequence of its entry; it adds up to the volumes
   {
-    uint8_t cs=99, cb[CURVE_BYTES]; uint16_t cn=0; unsigned sumIn=0, sumOut=0; CHECK(j.read(0,e));
-    CHECK(j.readCurve(0,cs,cb,cn) && cs==0 && cn>=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS) && cn<=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS)+10);
+    uint8_t cb[CURVE_BYTES]; uint16_t cn=0; unsigned sumIn=0, sumOut=0; CHECK(j.read(0,e));
+    CHECK(j.readCurve(e.sequence,cb,cn) && e.sequence==0 && cn>=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS) && cn<=(unsigned)(e.duration*1000/CURVE_SAMPLE_MS)+10);
     for(unsigned i=0;i<cn;i++){ sumIn+=cb[2*i]; sumOut+=cb[2*i+1]; }
     CHECK(sumIn>=e.inTenths-10 && sumIn<=e.inTenths+10 && sumOut==0);
     CHECK(cb[0]>0 && cb[2*(cn/2)]>0);                                  // the water flows from the start to the middle
-    CHECK(!j.readCurve(1,cs,cb,cn));                                   // one curve so far
+    CHECK(!j.readCurve(1,cb,cn));                                       // one curve so far
   }
   // 2. stopped by the start button, in the main phase
   m.handleStartButton(); t0=t;
@@ -603,7 +603,8 @@ static void flashOutsideExtraction(){
   CoffeeMachine m; t=1000; m.begin(); Journal j; JournalEntry e;
   int bad=0;   // block operations seen while the pump runs or a phase is timed
   auto pass=[&](unsigned long dt){ t+=dt; const int before=EEPROM.blockOps; m.update();
-    if(EEPROM.blockOps!=before && m.extraction_.isActive() && m.extraction_.state()!=EXTRACTION_FLUSH_WAIT) bad++; };
+    if(EEPROM.blockOps!=before && m.extraction_.isActive() && m.extraction_.state()!=EXTRACTION_FLUSH_WAIT) bad++;
+    if(EEPROM.blockOps>before+1) bad++; };   // and one block operation per pass at most
   m.screen_.adjustActiveParameter(2);
   int ops=EEPROM.blockOps; m.handleStartButton();
   CHECK(EEPROM.blockOps==ops+1 && m.extraction_.isActive() && !PUMPON==false);       // what was set is written before the pump starts

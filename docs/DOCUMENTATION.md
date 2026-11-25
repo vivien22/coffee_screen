@@ -230,8 +230,9 @@ mode resets them at once. With a flush, the machine waits for a push to start th
 The machine keeps in its EEPROM a **journal of the last 50 AUTO extractions** (a ring: the oldest one is overwritten). The MANUAL
 extractions are not kept; an AUTO extraction is, whichever phase it ended in (pre-infusion included). It is there to understand an
 extraction that went wrong (a cup of 12 ml instead of 40): how it ended, and what the sensors counted. Nothing in the machine shows
-or uses it. One entry is written per extraction, when its values are final (a few seconds after the stop, the water that still
-comes is then counted), so a power cut in the middle loses that extraction only.
+or uses it. One entry is made per extraction when its values are final (a few seconds after the stop, the water that still
+comes is then counted) and written to the EEPROM when the extraction, its flush included, is over (never while the pump may have to stop; the
+temperature at the end is the one of that moment), so a power cut in the middle loses that extraction only.
 
 | Field | Meaning |
 |---|---|
@@ -288,10 +289,16 @@ that came out** (ml) under it, on the same time axis, with a dashed line where t
 values when the mouse is on a chart, and a switch to smooth the flows over 1.5 s (a sample is good to 0.2 ml/s: the pulses of the In
 sensor are 0.08 ml each). `tools/journal_view.py` ignores these lines.
 
-The curves are in the EEPROM right after the entries of the journal (the data flash of the R4 holds 8 KB): a ring of 20 slots of 362 bytes
-(the number of the entry, the number of samples, the samples). A curve is written by the passes of the main loop that follow the
-journal entry, 24 bytes at a time, so that the machine never waits for the flash; the header of its slot is blanked first and written last,
-so a power cut leaves no half curve. The samples are kept in RAM during the extraction (480 bytes, `FlowRecorder`).
+The curves are in the EEPROM right after the entries of the journal (the data flash of the R4 holds 8 KB): 20 slots of 363 bytes (the
+number of the entry, the number of samples, a checksum, the samples). No position is stored: the curve of the entry numbered n is in the
+slot n modulo 20, and it counts only if the header of the slot says n, a number of samples that fits, and the checksum (CRC-8 of the
+number, the count and the samples) matches. So an older curve, a curve cut by a power failure and the data of an older layout are simply
+not there (no need to erase anything when the layout changes). A curve is written once the extraction is over (the pump is never delayed by the
+flash), by the passes of the main loop that follow the journal entry, **one block operation of the data flash per pass**: one operation when
+the slot is inside one 1 KB block, two when it spans two (the part in the second block first, the block with the header last, so that a
+power cut leaves no half curve that looks good). The samples are kept in RAM during the extraction (360 bytes, `FlowRecorder`). The
+numbering of the extractions wraps at 256, which 20 does not divide: for the 20 extractions after each wrap, up to 4 of the oldest curves
+are overwritten a little early (they are just not shown).
 
 **A graphical view.** `tools/journal_view.py` turns that text into one HTML page (no dependency, no network, light and dark themes): the water
 of each extraction (the volume in the cup, the loss and the Out water, with a tick for the target, and how each one ended: target reached,
@@ -317,14 +324,14 @@ An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters 
 | 0 .. 21 | the settings (marker, temperature, volume, pre-infusion, wait, flush, mode, MANUAL time, loss, stop delay, steaming temperature, flow limit); 22 and 23 are free |
 | 24 | the next slot of the journal |
 | 25 .. 824 | the 50 entries of the journal (16 bytes each) |
-| 825 | the next slot of the curves |
-| 826 .. 8065 | the 20 curves (362 bytes each: the number of the entry, the number of samples, then 180 samples of In and Out at most) |
-| 8066 .. 8191 | free (126 bytes) |
+| 825 .. 8084 | the 20 curves (363 bytes each: the number of the entry, the number of samples, a checksum, then 180 samples of In and Out at most), the curve of the entry n in the slot n modulo 20 |
+| 8085 .. 8191 | free (107 bytes) |
 
-After a change of this map, erase the old journal once with `pio run -e journal_clear -t upload` (then flash the machine again): the old
-entries and curves would be misread. The EEPROM is written only at the
-end of an extraction (16 bytes, and one more byte when CAL is validated; with its curve 380 bytes at most), far from its limit of 100 000
-writes per byte (a slot of the curves is written once every 20 extractions).
+After a change of the layout of the ENTRIES, erase the old journal once with `pio run -e journal_clear -t upload` (then flash the machine
+again; it erases the addresses 24 to 8191 block by block, the settings stay): the old entries would be misread. The curves do not need
+it (the checksum and the sequence number reject the old ones). The EEPROM is written only at the
+end of an extraction (the entry and its next slot in ONE block operation, one more when CAL is validated, one or two for the curve), far
+from the limit of 100 000 erase cycles of the data flash (a slot of the curves is written once every 20 extractions).
 
 ### What is saved, and when
 

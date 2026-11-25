@@ -1,6 +1,7 @@
 // Journal.cpp: the ring of the last extractions in the EEPROM (see Journal.h).
 
 #include "Journal.h"
+#include "Flash.h"
 #include <EEPROM.h>
 #include <string.h>
 
@@ -26,12 +27,15 @@ bool Journal::read(uint8_t age, JournalEntry &entry) const {
   return entry.reason >= END_TARGET && entry.reason <= END_TIMER;   // a blank slot (0xFF) is empty
 }
 
+// The entry and the position of the ring are in the same block of the data flash: ONE block operation (the next slot after the entry
+// in the same operation: a power cut during it can lose the block, which no order of the bytes changes)
 uint8_t Journal::add(JournalEntry entry) const {
   JournalEntry last;
   entry.sequence = read(0, last) ? (uint8_t)(last.sequence + 1) : 0;
   const uint8_t slot = nextSlot();
-  EEPROM.put(slotAddress(slot), entry);                                       // only the bytes that changed are written
-  EEPROM.update(JOURNAL_ADDRESS, (uint8_t)((slot + 1) % JOURNAL_COUNT));      // after the entry: a power cut loses the entry only
+  const uint8_t next = (uint8_t)((slot + 1) % JOURNAL_COUNT);
+  const FlashRange ranges[] = {{slotAddress(slot), &entry, (uint16_t)ENTRY_SIZE}, {JOURNAL_ADDRESS, &next, 1}};
+  flashWrite(ranges, 2);
   return entry.sequence;
 }
 
@@ -39,93 +43,113 @@ void Journal::setLastCal(uint8_t cal) const {
   JournalEntry last;
   if (read(0, last)) {
     const uint8_t slot = (uint8_t)((nextSlot() + JOURNAL_COUNT - 1) % JOURNAL_COUNT);
-    EEPROM.update(slotAddress(slot) + (int)offsetof(JournalEntry, cal), cal);
+    flashWrite(slotAddress(slot) + (int)offsetof(JournalEntry, cal), &cal, 1);
   }
 }
 
 // ------------------------------------------------------------
 // The curves
 
-static int curveSlotAddress(uint8_t slot) {
-  return CURVE_ADDRESS + 1 + slot * CURVE_SLOT_SIZE;
-}
-
 // The curve ring is where the data flash is long enough for it (the test EEPROM and the R4 are; a smaller one has no curves)
 static bool curvesFit() {
-  return EEPROM.length() >= CURVE_ADDRESS + 1 + CURVE_COUNT * CURVE_SLOT_SIZE;
+  return EEPROM.length() >= CURVE_ADDRESS + CURVE_COUNT * CURVE_SLOT_SIZE;
 }
 
-static uint8_t nextCurveSlot() {
-  const uint8_t slot = EEPROM.read(CURVE_ADDRESS);
-  return (slot < CURVE_COUNT) ? slot : 0;
+static int curveAddress(uint8_t sequence) {
+  return CURVE_ADDRESS + (sequence % CURVE_COUNT) * CURVE_SLOT_SIZE;
 }
 
-struct CurveChunk { uint8_t bytes[CURVE_CHUNK]; };
-struct CurveHeader { uint8_t sequence; uint8_t count; };
+// CRC-8 (polynomial 0x07), one byte at a time: the checksum of a curve covers its sequence number, its count and its samples
+static uint8_t crc8(uint8_t crc, uint8_t byte) {
+  crc ^= byte;
+  for (uint8_t bit = 0; bit < 8; bit++) {
+    crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ 0x07) : (uint8_t)(crc << 1);
+  }
+  return crc;
+}
+
+static uint8_t curveChecksum(uint8_t sequence, uint8_t count, const uint8_t *samples) {
+  uint8_t crc = crc8(crc8(0, sequence), count);
+  for (uint16_t i = 0; i < 2 * (uint16_t)count; i++) {
+    crc = crc8(crc, samples[i]);
+  }
+  return crc;
+}
 
 void Journal::beginCurve(uint8_t sequence, const uint8_t *samples, uint16_t count) {
   if (!curvesFit() || count == 0 || count > CURVE_SAMPLES) {
     stage_ = STAGE_NONE;
     return;
   }
-  slot_ = nextCurveSlot();
-  sequence_ = sequence;
+  address_ = curveAddress(sequence);
   samples_ = samples;
   count_ = count;
-  written_ = 0;
-  stage_ = STAGE_ERASE_HEADER;
+  header_[0] = sequence;
+  header_[1] = (uint8_t)count;
+  header_[2] = curveChecksum(sequence, (uint8_t)count, samples);
+
+  // The slot may span two blocks of the flash. The block that holds the first byte of the header is written LAST: the curve is valid
+  // only when everything is there (a part written alone does not match the checksum, or the sequence of the slot).
+  const int end = address_ + CURVE_HEADER_SIZE + 2 * (int)count;
+  boundary_ = (address_ / FLASH_BLOCK_BYTES + 1) * FLASH_BLOCK_BYTES;
+  stage_ = (end > boundary_) ? STAGE_SECOND_BLOCK : STAGE_FIRST_BLOCK;
 }
 
-// The order of the writes: the header of the slot is blanked first (a power cut leaves no half curve that looks good), then the
-// samples, then the real header, then the position of the ring (a power cut loses the curve only).
+// The bytes of the slot (header, then samples) that are at the addresses from..to-1: all in one block, so ONE block operation
+void Journal::writePart(int from, int to) const {
+  FlashRange ranges[2];
+  uint8_t used = 0;
+
+  const int headerEnd = address_ + CURVE_HEADER_SIZE;
+  const int headerFrom = from > address_ ? from : address_;
+  const int headerTo = to < headerEnd ? to : headerEnd;
+  if (headerFrom < headerTo) {
+    ranges[used++] = {headerFrom, header_ + (headerFrom - address_), (uint16_t)(headerTo - headerFrom)};
+  }
+
+  const int samplesEnd = headerEnd + 2 * (int)count_;
+  const int samplesFrom = from > headerEnd ? from : headerEnd;
+  const int samplesTo = to < samplesEnd ? to : samplesEnd;
+  if (samplesFrom < samplesTo) {
+    ranges[used++] = {samplesFrom, samples_ + (samplesFrom - headerEnd), (uint16_t)(samplesTo - samplesFrom)};
+  }
+
+  flashWrite(ranges, used);
+}
+
 bool Journal::stepCurve() {
-  const int address = curveSlotAddress(slot_);
+  const int end = address_ + CURVE_HEADER_SIZE + 2 * (int)count_;
   switch (stage_) {
-    case STAGE_ERASE_HEADER: {
-      const CurveHeader blank = {0xFF, 0xFF};
-      EEPROM.put(address, blank);
-      stage_ = STAGE_SAMPLES;
+    case STAGE_SECOND_BLOCK:
+      writePart(boundary_, end);
+      stage_ = STAGE_FIRST_BLOCK;
       return true;
-    }
-    case STAGE_SAMPLES: {
-      CurveChunk chunk;
-      memset(&chunk, 0, sizeof(chunk));
-      const uint16_t left = 2 * count_ - written_;
-      memcpy(chunk.bytes, samples_ + written_, left < CURVE_CHUNK ? left : CURVE_CHUNK);
-      EEPROM.put(address + 2 + written_, chunk);
-      written_ += CURVE_CHUNK;
-      if (written_ >= 2 * count_) {
-        stage_ = STAGE_HEADER;
-      }
-      return true;
-    }
-    case STAGE_HEADER: {
-      const CurveHeader header = {sequence_, (uint8_t)count_};
-      EEPROM.put(address, header);
-      EEPROM.update(CURVE_ADDRESS, (uint8_t)((slot_ + 1) % CURVE_COUNT));
+    case STAGE_FIRST_BLOCK:
+      writePart(address_, end < boundary_ ? end : boundary_);
       stage_ = STAGE_NONE;
       return false;
-    }
     default:
       return false;
   }
 }
 
-bool Journal::readCurve(uint8_t age, uint8_t &sequence, uint8_t *samples, uint16_t &count) const {
-  if (!curvesFit() || age >= CURVE_COUNT) {
+bool Journal::readCurve(uint8_t sequence, uint8_t *samples, uint16_t &count) const {
+  if (!curvesFit()) {
     return false;
   }
-  const uint8_t slot = (uint8_t)((nextCurveSlot() + 2 * CURVE_COUNT - 1 - age) % CURVE_COUNT);
-  const int address = curveSlotAddress(slot);
-  CurveHeader header;
-  EEPROM.get(address, header);
-  if (header.count == 0 || header.count > CURVE_SAMPLES) {
-    return false;   // blank or being written
+  const int address = curveAddress(sequence);
+  const uint8_t headerSequence = EEPROM.read(address);
+  const uint8_t headerCount = EEPROM.read(address + 1);
+  const uint8_t headerChecksum = EEPROM.read(address + 2);
+  if (headerSequence != sequence || headerCount == 0 || headerCount > CURVE_SAMPLES) {
+    return false;   // another extraction, blank, or the layout of an older version
   }
-  sequence = header.sequence;
-  count = header.count;
-  for (uint16_t i = 0; i < 2 * count; i++) {
-    samples[i] = EEPROM.read(address + 2 + i);
+  for (uint16_t i = 0; i < 2 * (uint16_t)headerCount; i++) {
+    samples[i] = EEPROM.read(address + CURVE_HEADER_SIZE + i);
   }
+  if (curveChecksum(sequence, headerCount, samples) != headerChecksum) {
+    return false;   // half written, or damaged
+  }
+  count = headerCount;
   return true;
 }

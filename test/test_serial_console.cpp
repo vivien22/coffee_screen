@@ -93,16 +93,35 @@ int main() {
     char small[30];
     CHECK(formatCurveLine(255, CURVE_SAMPLES, full, small, sizeof(small)) == strlen(small) && strlen(small) < sizeof(small));
     CHECK(formatCurveLine(1, 0, one, buffer, sizeof(buffer)) == strlen(buffer) && std::string(buffer) == "CURVE #1 500 ms 0 | in  | out ");
-    // the console: the curves of the EEPROM after the entries
-    uint8_t first[2 * 3] = {1, 2, 3, 4, 5, 6}, second[2 * 2] = {7, 8, 9, 10};
+    // the console: the curves of the entries, after the entries, the last one first
+    uint8_t first[2 * 3] = {1, 2, 3, 4, 5, 6}, second[2 * 2] = {7, 8, 9, 10}, other[2 * 2] = {1, 1, 1, 1};
     j.beginCurve(0, first, 3); j.flushCurve();
     j.beginCurve(1, second, 2); j.flushCurve();
+    j.beginCurve(9, other, 2); j.flushCurve();                 // a curve whose entry is not in the journal: not printed
     Serial.out.clear(); Serial.in = "j";
     console.update(j);
-    CHECK(Serial.out == once.substr(0, once.size() - 4) +
+    const std::string head = once.substr(0, once.size() - 4);   // the entries, without END
+    CHECK(Serial.out == head +
           "CURVE #1 500 ms 2 | in 7,9 | out 8,10\n"
           "CURVE #0 500 ms 3 | in 1,3,5 | out 2,4,6\n"
           "END\n");
+    // a curve that does not match its checksum is not printed, nor is one of another sequence in the slot
+    EEPROM.mem[CURVE_ADDRESS + 1 * CURVE_SLOT_SIZE + CURVE_HEADER_SIZE] ^= 1;
+    Serial.out.clear(); Serial.in = "j";
+    console.update(j);
+    CHECK(Serial.out == head + "CURVE #0 500 ms 3 | in 1,3,5 | out 2,4,6\n" "END\n");
+    EEPROM.mem[CURVE_ADDRESS + 1 * CURVE_SLOT_SIZE + CURVE_HEADER_SIZE] ^= 1;
+    j.beginCurve(21, second, 2); j.flushCurve();               // the slot of the sequence 1 now holds another extraction
+    Serial.out.clear(); Serial.in = "j";
+    console.update(j);
+    CHECK(Serial.out == head + "CURVE #0 500 ms 3 | in 1,3,5 | out 2,4,6\n" "END\n");
+    // only the curves of the last CURVE_COUNT entries are looked for: 30 more entries, the curves of #0 and #1 are not printed any more,
+    // the one of #21 (written above, its entry is the 11th) is
+    for (int i = 0; i < 30; i++) j.add(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 39, 18, 18));
+    Serial.out.clear(); Serial.in = "j";
+    console.update(j);
+    CHECK(Serial.out.find("CURVE #0 ") == std::string::npos && Serial.out.find("CURVE #1 ") == std::string::npos);
+    CHECK(Serial.out.find("CURVE #21 500 ms 2 | in 7,9 | out 8,10\n") != std::string::npos);
   }
 
   // ---- the command p: one line of the performance trace, then the maxima start again

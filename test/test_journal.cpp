@@ -49,57 +49,87 @@ int main() {
   // a slot of the ring that was never written (0xFF) is empty
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem)); j.add(entry(END_TARGET, 1));
   CHECK(j.read(0, e) && !j.read(1, e) && !j.read(JOURNAL_COUNT - 1, e));
-  // the writes: an entry costs at most its own bytes and the position
-  EEPROM.writes = 0; j.add(entry(END_TARGET, 1));
-  CHECK(EEPROM.writes <= (int)sizeof(JournalEntry) + 1);
+  // the writes: an entry costs at most its own bytes and the position, in ONE block operation of the data flash
+  EEPROM.writes = 0; EEPROM.blockOps = 0; j.add(entry(END_TARGET, 1));
+  CHECK(EEPROM.writes <= (int)sizeof(JournalEntry) + 1 && EEPROM.blockOps == 1);
+  EEPROM.blockOps = 0; j.setLastCal(30); CHECK(EEPROM.blockOps == 1 && j.read(0, e) && e.cal == 30);   // the weight of CAL: one byte, one operation
+  j.setLastCal(30); CHECK(EEPROM.blockOps == 1);                                                      // the same weight: nothing written
 
-  // ---- The curves: the flow In and Out of the last CURVE_COUNT extractions, in their own ring after the entries
+  // ---- The curves: the flow In and Out of the last CURVE_COUNT extractions, one slot each (sequence % CURVE_COUNT) after the entries
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
-  uint8_t samples[CURVE_BYTES], back[CURVE_BYTES]; uint16_t n; uint8_t sequence;
-  CHECK(!j.readCurve(0, sequence, back, n) && !j.readCurve(CURVE_COUNT, sequence, back, n));   // a blank EEPROM: none
+  uint8_t samples[CURVE_BYTES], back[CURVE_BYTES]; uint16_t n;
+  CHECK(!j.readCurve(0, back, n) && !j.readCurve(7, back, n) && !j.readCurve(255, back, n));   // a blank EEPROM: none
   CHECK(CURVE_ADDRESS == 24 + 1 + JOURNAL_COUNT * (int)sizeof(JournalEntry));                  // right after the entries
-  CHECK(CURVE_ADDRESS == 825 && CURVE_COUNT == 20 && CURVE_SLOT_SIZE == 362);                 // the map of Journal.h
-  CHECK(CURVE_ADDRESS + 1 + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192);                            // inside the 8 KB of the R4
-  CHECK(CURVE_BYTES % CURVE_CHUNK == 0);
+  CHECK(CURVE_ADDRESS == 825 && CURVE_COUNT == 20 && CURVE_SLOT_SIZE == 363);                  // the map of Journal.h
+  CHECK(CURVE_ADDRESS + CURVE_COUNT * CURVE_SLOT_SIZE <= 8192);                                // inside the 8 KB of the R4
   auto fill = [&](uint8_t seed, uint16_t count) { for (uint16_t i = 0; i < 2 * count; i++) samples[i] = (uint8_t)(seed + i); };
-  // one curve: written a piece at a time, the last piece says there is no more; it is read back as it was
-  fill(10, 84);
+  auto blocksOf = [&](uint8_t sequence, uint16_t count) {   // the blocks of 1 KB that the slot of that curve touches
+    const int address = CURVE_ADDRESS + (sequence % CURVE_COUNT) * CURVE_SLOT_SIZE, end = address + CURVE_HEADER_SIZE + 2 * count;
+    return (end - 1) / 1024 - address / 1024 + 1; };
+  // one curve: nothing is written by beginCurve(), the last step says there is no more; it is read back as it was, by its sequence
+  fill(10, 84); EEPROM.blockOps = 0;
   j.beginCurve(7, samples, 84);
-  CHECK(j.curvePending() && !j.readCurve(0, sequence, back, n));                               // nothing to read before the end
+  CHECK(j.curvePending() && !j.readCurve(7, back, n) && EEPROM.blockOps == 0);
   int steps = 0;
   while (j.stepCurve()) steps++;
-  CHECK(!j.curvePending() && steps == 1 + (2 * 84 + CURVE_CHUNK - 1) / CURVE_CHUNK + 0);       // the blank header, the pieces, then the header: the last call returns false
-  CHECK(j.readCurve(0, sequence, back, n) && sequence == 7 && n == 84 && memcmp(back, samples, 2 * 84) == 0);
-  CHECK(!j.readCurve(1, sequence, back, n));
-  CHECK(!j.stepCurve());                                                                       // nothing pending: nothing done
-  // the writes of a curve of 84 samples: its bytes, the header and the position of the ring, no more
-  fill(33, 84); EEPROM.writes = 0;
-  j.beginCurve(8, samples, 84); j.flushCurve();
-  CHECK(EEPROM.writes <= 2 * 84 + 2 * 2 + 1 + CURVE_CHUNK);
-  // several curves: the last one first
-  fill(1, 10); j.beginCurve(9, samples, 10); j.flushCurve();
-  CHECK(j.readCurve(0, sequence, back, n) && sequence == 9 && n == 10 && back[0] == 1 && back[19] == 20);
-  CHECK(j.readCurve(1, sequence, back, n) && sequence == 8 && n == 84 && back[0] == 33);
-  CHECK(j.readCurve(2, sequence, back, n) && sequence == 7 && n == 84 && back[0] == 10);
-  CHECK(!j.readCurve(3, sequence, back, n));
-  // a full curve (CURVE_SAMPLES), and more of them than the ring holds: only the last CURVE_COUNT remain
+  CHECK(!j.curvePending() && steps + 1 == blocksOf(7, 84) && EEPROM.blockOps == blocksOf(7, 84));   // one block operation per step
+  CHECK(j.readCurve(7, back, n) && n == 84 && memcmp(back, samples, 2 * 84) == 0);
+  CHECK(!j.readCurve(8, back, n) && !j.readCurve(27, back, n) && !j.readCurve(6, back, n));         // other sequences: not there (27 has the same slot)
+  CHECK(!j.stepCurve());                                                                            // nothing pending: nothing done
+  // every slot, with the longest curve: at most two block operations, exactly the blocks it touches, and the header block comes last
+  for (int sequence = 0; sequence < CURVE_COUNT; sequence++) {
+    fill((uint8_t)(sequence * 3), CURVE_SAMPLES);
+    EEPROM.blockOps = 0; j.beginCurve((uint8_t)sequence, samples, CURVE_SAMPLES);
+    const int address = CURVE_ADDRESS + sequence * CURVE_SLOT_SIZE;
+    int ops = 0;
+    do {
+      const bool more = j.stepCurve(); ops++;
+      CHECK(more == j.curvePending());
+      CHECK(EEPROM.blockOps == ops);
+      if (more) CHECK(!j.readCurve((uint8_t)sequence, back, n) && EEPROM.mem[address] == 0xFF);      // the header is not written yet: no curve
+    } while (j.curvePending());
+    CHECK(ops <= 2 && ops == blocksOf((uint8_t)sequence, CURVE_SAMPLES));
+    CHECK(j.readCurve((uint8_t)sequence, back, n) && n == CURVE_SAMPLES && memcmp(back, samples, CURVE_BYTES) == 0);
+  }
+  // the same curve again: nothing changes, nothing is written
+  EEPROM.blockOps = 0; j.beginCurve(5, samples, CURVE_SAMPLES); fill(15, CURVE_SAMPLES); j.beginCurve(5, samples, CURVE_SAMPLES); j.flushCurve();
+  CHECK(EEPROM.blockOps == 0 && j.readCurve(5, back, n));
+  // a shorter curve in the same slot (an older curve with the same slot number, 20 extractions before): replaced, with the new header
+  fill(77, 40); j.beginCurve(25, samples, 40); j.flushCurve();
+  CHECK(j.readCurve(25, back, n) && n == 40 && back[0] == 77 && !j.readCurve(5, back, n));
+  // more of them than the ring holds: only the last CURVE_COUNT remain
   for (int i = 0; i < 40; i++) { fill((uint8_t)i, CURVE_SAMPLES); j.beginCurve((uint8_t)(100 + i), samples, CURVE_SAMPLES); j.flushCurve(); }
   for (int age = 0; age < CURVE_COUNT; age++) {
-    CHECK(j.readCurve(age, sequence, back, n) && sequence == 139 - age && n == CURVE_SAMPLES && back[0] == (uint8_t)(39 - age) && back[CURVE_BYTES - 1] == (uint8_t)(39 - age + CURVE_BYTES - 1));
+    CHECK(j.readCurve((uint8_t)(139 - age), back, n) && n == CURVE_SAMPLES && back[0] == (uint8_t)(39 - age) && back[CURVE_BYTES - 1] == (uint8_t)(39 - age + CURVE_BYTES - 1));
   }
-  CHECK(!j.readCurve(CURVE_COUNT, sequence, back, n));
-  // a power cut in the middle of a curve: the slot has no valid header, the curve is not there (the one before stays)
-  fill(200, 50); j.beginCurve(150, samples, 50);
-  for (int i = 0; i < 3; i++) j.stepCurve();                                                   // the blank header and two pieces
-  CHECK(j.readCurve(0, sequence, back, n) && sequence == 139 && j.readCurve(CURVE_COUNT - 2, sequence, back, n));   // the slot of the cut is the oldest of the ring: the others stay
+  CHECK(!j.readCurve(119, back, n) && !j.readCurve(99, back, n));
+  // a power cut in the middle of a curve whose slot has two blocks (the second one is written first): the old curve of the slot is not
+  // valid any more, the new one is not there, the others stay
+  fill(200, CURVE_SAMPLES); j.beginCurve(140, samples, CURVE_SAMPLES);                            // slot 0: the same as 120
+  CHECK(j.stepCurve());                                                                          // the second block only
+  CHECK(!j.readCurve(140, back, n) && !j.readCurve(120, back, n) && j.readCurve(139, back, n) && j.readCurve(121, back, n));
   j.flushCurve();
-  CHECK(j.readCurve(0, sequence, back, n) && sequence == 150 && n == 50 && back[0] == 200);
-  // nothing to write (no sample), too many samples, or a damaged position of the ring: no crash
+  CHECK(j.readCurve(140, back, n) && n == CURVE_SAMPLES && back[0] == 200);
+  // damaged curves are not shown: a wrong sample, a wrong checksum, another sequence number, a count that is too large or zero
+  fill(1, 50); j.beginCurve(3, samples, 50); j.flushCurve();
+  const int a3 = CURVE_ADDRESS + 3 * CURVE_SLOT_SIZE;
+  CHECK(j.readCurve(3, back, n));
+  EEPROM.mem[a3 + 3 + 10] ^= 1; CHECK(!j.readCurve(3, back, n)); EEPROM.mem[a3 + 3 + 10] ^= 1; CHECK(j.readCurve(3, back, n));      // a sample
+  EEPROM.mem[a3 + 2] ^= 0x10; CHECK(!j.readCurve(3, back, n)); EEPROM.mem[a3 + 2] ^= 0x10; CHECK(j.readCurve(3, back, n));            // the checksum
+  EEPROM.mem[a3 + 1] = CURVE_SAMPLES + 1; CHECK(!j.readCurve(3, back, n)); EEPROM.mem[a3 + 1] = 0; CHECK(!j.readCurve(3, back, n)); EEPROM.mem[a3 + 1] = 50; CHECK(j.readCurve(3, back, n));   // the count
+  EEPROM.mem[a3] = 23; CHECK(!j.readCurve(3, back, n) && !j.readCurve(23, back, n)); EEPROM.mem[a3] = 3; CHECK(j.readCurve(3, back, n));   // another sequence (23 is the same slot, with the checksum of 3)
+  // the layout of an older version (a next slot byte, slots of 362 bytes) or any other data: not a curve
+  for (int i = CURVE_ADDRESS; i < 8192; i++) EEPROM.mem[i] = (uint8_t)(i * 7 + 3);
+  { int shown = 0; for (int sequence = 0; sequence < 256; sequence++) shown += j.readCurve((uint8_t)sequence, back, n); CHECK(shown <= 1); }   // (1 in 256 can pass by chance)
+  memset(EEPROM.mem + CURVE_ADDRESS, 0, 8192 - CURVE_ADDRESS);
+  { int shown = 0; for (int sequence = 0; sequence < 256; sequence++) shown += j.readCurve((uint8_t)sequence, back, n); CHECK(shown == 0); }
+  // nothing to write (no sample), too many samples: no crash, nothing pending
   j.beginCurve(1, samples, 0); CHECK(!j.curvePending());
   j.beginCurve(1, samples, CURVE_SAMPLES + 1); CHECK(!j.curvePending());
-  EEPROM.mem[CURVE_ADDRESS] = 200;
-  fill(5, 4); j.beginCurve(77, samples, 4); j.flushCurve();
-  CHECK(j.readCurve(0, sequence, back, n) && sequence == 77 && n == 4);
+  // the sequence wraps at 256 (slot 15 for 255, 0 for 0): both curves are there
+  memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
+  fill(9, 12); j.beginCurve(255, samples, 12); j.flushCurve(); fill(8, 12); j.beginCurve(0, samples, 12); j.flushCurve();
+  CHECK(j.readCurve(255, back, n) && back[0] == 9 && j.readCurve(0, back, n) && back[0] == 8);
   // the entries of the journal are not touched by the curves
   memset(EEPROM.mem, 0xFF, sizeof(EEPROM.mem));
   j.add(entry(END_TARGET, 11)); fill(0, CURVE_SAMPLES); j.beginCurve(0, samples, CURVE_SAMPLES); j.flushCurve();
