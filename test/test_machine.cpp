@@ -252,6 +252,14 @@ static void autoSave(){
   m.screen_.adjustActiveParameter(2); w=EEPROM.writes; m.handleShortPush(); settle(m);
   CHECK(EEPROM.mem[8]==1 && EEPROM.writes>=w+1 && EEPROM.blockOps==ops+1);
   w=EEPROM.writes; m.handleShortPush(); settle(m); CHECK(EEPROM.mem[8]==0 && EEPROM.writes==w+1 && EEPROM.blockOps==ops+2);
+  // the store itself: the 22 bytes are ONE block operation, nothing when nothing changed; the stop delay too
+  { SettingsStore s; Settings x=s.load(); const int o=EEPROM.blockOps;
+    s.save(x); CHECK(EEPROM.blockOps==o);
+    x.volume=x.volume+1; x.temperature=x.temperature+1; x.manual=!x.manual; x.loss=x.loss+1.5f; x.flowLimit=20; s.save(x); CHECK(EEPROM.blockOps==o+1);   // five fields, one operation
+    s.save(x); CHECK(EEPROM.blockOps==o+1);
+    Settings y=s.load(); CHECK(y.volume==x.volume && y.temperature==x.temperature && y.manual==x.manual && y.loss==x.loss && y.flowLimit==20);
+    s.saveStopDelay(0.42f); CHECK(EEPROM.blockOps==o+2); s.saveStopDelay(0.42f); CHECK(EEPROM.blockOps==o+2 && s.loadStopDelay()==0.42f);
+    s.save(x); CHECK(EEPROM.blockOps==o+2 && s.loadStopDelay()==0.42f); }   // the settings keep the stop delay as it is
   printf("auto save: ok\n");
 }
 // Calibration of the loss: CAL appears after a normal AUTO extraction, the cup weight corrects the loss

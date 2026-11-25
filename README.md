@@ -51,7 +51,7 @@ Built and used every day on an **Ascaso Steel Uno Pro**: it controls the boiler 
 - **A round 240 x 240 colour screen** (GC9A01) that only redraws what changed: no flicker, even while a value is edited.
 - **One rotary encoder with a push button**: turn to change the value shown in large digits, double push to go to the next
   setting. A separate **start / stop button** brews and stops. There is no "save": the settings are stored in the
-  EEPROM as they are set.
+  EEPROM a moment (1.5 s) after they are set, never during an extraction.
 - **A welcome picture** at start-up and in standby.
 
 ### Journal
