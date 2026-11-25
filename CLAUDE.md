@@ -109,6 +109,9 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   volume does NOT roll (user, 2026-11-24, after trying the tens only). A change of parameter or mode fades out (`FADE_OUT_MS` 60 ms) then
   fades in (`FADE_IN_MS` 550 ms, from `FADE_IN_START_PERCENT` 20 %), uniform for every row, the drop and its letter, no zoom, old and
   new never drawn together. All validated by the user on the real screen; ask before changing a timing.
+  A phase tag that appears or disappears (PRE, WAIT, FLUSH: `showExtractionValues()`) and the return to ready (`showReady()`, also when only the number changes) fade the row the same way
+  (`fadeRow()`, from the look the row has to the look the state gives; the blinking of the FLUSH tag waits during its fade; the frames of a fade in follow the number as it is now). `tools/render_screens.cpp` settles the fades before saving
+  (the `set-*` pictures of docs/images showed the screen before the fade and were corrected on 2026-11-25).
   Big changes of the screen (steaming mode in / out, standby in / out; branch smooth-ui, 2026-11-25, not yet seen on the board): the backlight (D9, PWM through `analogWrite` ONLY, never `digitalWrite`
   again; `setBacklight(level)` squares the level) fades out (`BACKLIGHT_FADE_OUT_MS` 150), `ScreenController::stepBacklight()` draws the new screen in the dark (`drawNewScreen()`:
   clear + redraw, or the standby picture; always the screen of the state at that moment, so a second change during the fade only changes what is drawn), then fades in (`BACKLIGHT_FADE_IN_MS` 250).

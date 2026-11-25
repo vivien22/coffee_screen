@@ -225,7 +225,7 @@ void ScreenController::update(uint32_t now) {
     if (tagBlinkPending_) {
       tagBlinkPending_ = false;
       tagToggleAt_ = now + FLUSH_BLINK_MS;
-    } else if ((int32_t)(now - tagToggleAt_) >= 0) {
+    } else if ((int32_t)(now - tagToggleAt_) >= 0 && !fade_[ROW_DURATION].active) {   // (not while the tag fades in: the blinking waits)
       tagVisible_ = !tagVisible_;
       tagToggleAt_ = now + FLUSH_BLINK_MS;
       dirty_ |= DIRTY_TAG;
@@ -546,13 +546,26 @@ uint16_t ScreenController::readyDuration() const {
 
 // Nothing is going on: the fields show the target volume (0 in MANUAL) and 0 s (the MANUAL time in MANUAL).
 void ScreenController::showReady() {
+  // The rows that change (their tag, or their number: "27 s" -> "0 s") fade, as at a change of parameter. A row that is in a fade already
+  // (a change of mode) goes on with it.
+  const bool animate = canAnimate();
+  RowLook before[2] = {lookOf(ROW_VOLUME, active_), lookOf(ROW_DURATION, active_)};
+  if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
+    before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
+  }
+
   volumeShown_ = readyVolume();   // the target volume, not the last extraction
   durationShown_ = readyDuration();
   volumeTagShown_ = PHASE_TAG_NONE;
   durationTagShown_ = PHASE_TAG_NONE;
   tagBlinking_ = false;
   tagVisible_ = true;
-  dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+  if (!(animate && !fade_[ROW_VOLUME].active && fadeRow(ROW_VOLUME, before[0], true))) {
+    dirty_ |= DIRTY_VOLUME;
+  }
+  if (!(animate && !fade_[ROW_DURATION].active && fadeRow(ROW_DURATION, before[1], true))) {
+    dirty_ |= DIRTY_DURATION;
+  }
 }
 
 // The next four functions give the screen the values of the phase in progress, each with its tag.
@@ -590,11 +603,25 @@ void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool f
 
 // A whole field is redrawn when its tag changes; when only the number changes (countdown,
 // elapsed time, volume), the tag is left alone.
+// A tag that appears or disappears (PRE, WAIT, FLUSH) fades like a change of parameter (the look of the row changes).
 void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag) {
+  const bool animate = (volumeTag != volumeTagShown_ || durationTag != durationTagShown_) && canAnimate();
+  RowLook before[2];
+  if (animate) {
+    before[0] = lookOf(ROW_VOLUME, active_);
+    before[1] = lookOf(ROW_DURATION, active_);
+    if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
+      before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
+    }
+    finishFades();   // a row that was fading shows its final look: the next change starts from it
+  }
+
   if (volumeTag != volumeTagShown_) {
     volumeShown_ = (int16_t)volumeValue;
     volumeTagShown_ = volumeTag;
-    dirty_ |= DIRTY_VOLUME;
+    if (!(animate && fadeRow(ROW_VOLUME, before[0], false))) {
+      dirty_ |= DIRTY_VOLUME;
+    }
   } else if ((int16_t)volumeValue != volumeShown_) {
     if (volumeRoll_.active) {                         // the roll in progress ends at once, then the new one starts
       volumeRoll_.finishFirst = true;
@@ -609,7 +636,9 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
     durationTagShown_ = durationTag;
     tagBlinking_ = false;     // a new tag is drawn whole, and visible
     tagVisible_ = true;
-    dirty_ |= DIRTY_DURATION;
+    if (!(animate && fadeRow(ROW_DURATION, before[1], false))) {
+      dirty_ |= DIRTY_DURATION;
+    }
   } else if ((int16_t)durationValue != durationShown_) {
     if (durationRoll_.active) {
       durationRoll_.finishFirst = true;
@@ -718,8 +747,9 @@ void ScreenController::render(uint32_t now) {
       drawDurationValue(durationShown_, redrawTag, DISPLAY_ROLL_DONE);
     }
   }
-  // The blinking tag, after the duration: it also gives the right state to a tag just redrawn
-  if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && active_ != PARAMETER_FLUSH) {
+  // The blinking tag, after the duration: it also gives the right state to a tag just redrawn. Not while the duration row shows a setting
+  // (wait, flush, manual time): the tag of that setting, or none, is on the screen.
+  if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && rowOf(active_) != ROW_DURATION) {
     drawPhaseTag(durationTagShown_, tagVisible_);
   }
   if (dirty & DIRTY_HEATER) {
@@ -865,6 +895,27 @@ uint8_t ScreenController::dirtyOf(Row row) const {
   return row == ROW_TEMPERATURE ? DIRTY_TEMPERATURE : (row == ROW_VOLUME ? DIRTY_VOLUME : DIRTY_DURATION);
 }
 
+bool ScreenController::canAnimate() const {
+  return !steaming_ && canDraw() && FADE_OUT_MS + FADE_IN_MS > 0;
+}
+
+bool ScreenController::fadeRow(Row row, const RowLook &before, bool numberToo) {
+  const RowLook after = lookOf(row, active_);
+  if (numberToo ? after == before : after.sameShape(before)) {
+    return false;
+  }
+  if (row == ROW_VOLUME) {
+    volumeRoll_ = Roll();   // its number is drawn as it is, by the fade
+  } else if (row == ROW_DURATION) {
+    durationRoll_ = Roll();
+  }
+  fade_[row] = Fade();
+  fade_[row].active = true;
+  fade_[row].from = before;
+  fade_[row].to = after;
+  return true;
+}
+
 // The dirty flags of the rows that are in a fade
 uint8_t ScreenController::fadingRows() const {
   uint8_t flags = DIRTY_NONE;
@@ -955,14 +1006,24 @@ void ScreenController::stepFades(uint32_t now) {
       const uint32_t start = 255 * FADE_IN_START_PERCENT / 100;
       level = (uint8_t)(start + eased * (255 - start) / 255);
     }
+    // The look that comes in shows the number as it is now (the countdown of a phase goes on while its tag fades in). A new number has
+    // another width: that frame is drawn whole, erased first, like the first one of a phase.
+    bool numberChanged = false;
+    if (!dimming && row != ROW_MODE) {
+      const RowLook now = lookOf((Row)row, active_);
+      if (now.sameShape(fade.to) && now.value != fade.to.value) {
+        fade.to = now;
+        numberChanged = true;
+      }
+    }
     const int16_t step = (int16_t)level - (int16_t)fade.level;
-    if (dimming == fade.dimming && step < 8 && step > -8 && level != 0) {
+    if (dimming == fade.dimming && step < 8 && step > -8 && level != 0 && !numberChanged) {
       continue;   // hardly different from the last frame: nothing is drawn
     }
     // The first frame of a phase is drawn whole, erased first: in the first one of the fade the screen may not show the old look yet (a value
     // that was set just before is still waiting to be drawn), and the first of the fade in replaces the (dark) old look by a new one. The next
     // frames of a phase are drawn over the last one.
-    const bool newPhase = (dimming != fade.dimming) || !fade.drawn;
+    const bool newPhase = (dimming != fade.dimming) || !fade.drawn || numberChanged;
     fade.drawn = true;
     fade.dimming = dimming;
     fade.level = level;

@@ -59,7 +59,8 @@ static void run(ScreenController &sc, uint32_t ms) {
   }
 }
 
-enum Op { PUSH, MODE, UP, EXTRACT };
+// PRE and WAIT: a phase of the pre-infusion starts (its tag appears, the previous one goes), READY: the result is over, the target volume and 0 s come back
+enum Op { PUSH, MODE, UP, EXTRACT, PRE, WAIT, READY };
 
 // An extraction ends: the result stays, and the flush starts (what the machine does through showExtractionProgress / showFlush)
 static void apply(ScreenController &sc, Op op) {
@@ -69,6 +70,15 @@ static void apply(ScreenController &sc, Op op) {
     sc.showFlush(resultMl, 5, true);
     flushing = true;
     flushLeft = 5;
+  } else if (op == PRE) {
+    flushing = false;
+    sc.showPreinfusion(7, 3);
+  } else if (op == WAIT) {
+    flushing = false;
+    sc.showPreinfusionWait(10, 4);
+  } else if (op == READY) {
+    flushing = false;
+    sc.showReady();
   } else if (op == PUSH) {
     if (flushing) {           // a double push skips the flush, then the next parameter is selected
       flushing = false;
@@ -95,7 +105,7 @@ static uint32_t random(uint32_t n) {
 int main() {
   const uint32_t SETTLE = FADE_OUT_MS + FADE_IN_MS + 400;
   int bad = 0;
-  for (int sequence = 0; sequence < 400; sequence++) {
+  for (int sequence = 0; sequence < 1500; sequence++) {
     flushing = false;
     const int count = 2 + (int)random(6);
     std::vector<Op> ops;
@@ -104,7 +114,7 @@ int main() {
     gaps.push_back(random(3) == 0 ? random(300) : 600 + random(4000));
     for (int i = 1; i < count; i++) {
       const uint32_t r = random(100);
-      ops.push_back(r < 70 ? PUSH : (r < 80 ? MODE : UP));
+      ops.push_back(r < 45 ? PUSH : (r < 53 ? MODE : (r < 60 ? UP : (r < 70 ? PRE : (r < 80 ? WAIT : (r < 90 ? READY : EXTRACT))))));
       const uint32_t g = random(100);
       gaps.push_back(g < 30 ? 0 : (g < 60 ? random(120) : random(1500)));
     }
@@ -157,7 +167,7 @@ int main() {
         }
         printf("sequence %d differs:", sequence);
         for (int i = 0; i < count; i++) {
-          printf(" %s +%lu", ops[i] == PUSH ? "push" : (ops[i] == MODE ? "mode" : (ops[i] == UP ? "up" : "extract")), (unsigned long)gaps[i]);
+          printf(" %d +%lu", (int)ops[i], (unsigned long)gaps[i]);
         }
         printf("  (pixels differ in x %d..%d, y %d..%d)\n", minX, maxX, minY, maxY);
       }

@@ -237,6 +237,10 @@ class ScreenController {
     static Row rowOf(ActiveParameter parameter);   // the row (volume, duration, temperature) that shows a parameter
     uint8_t dirtyOf(Row row) const;
     uint8_t fadingRows() const;
+    bool canAnimate() const;   // a row can fade now: no steaming screen, nothing going dark, the fades are not switched off
+    // A row changed (the state is already the new one): starts its fade from the look it had (before) to the look it has now. Only when the
+    // look changed (its size, kind or tag; numberToo: its number too). false: nothing started, the caller marks the row dirty.
+    bool fadeRow(Row row, const RowLook &before, bool numberToo);
     void finishFades();      // the rows in a fade show their look as it is, at once
     void stepFades(uint32_t now);
 

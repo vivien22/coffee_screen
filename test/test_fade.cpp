@@ -312,6 +312,109 @@ int main() {
     CHECK(sameIn(late, finalPicture, VOLUME_ROW) && sameIn(late, finalPicture, DURATION_ROW));
   }
 
+  // 7. A phase tag that appears (PRE at the start of the pre-infusion): the volume row fades out and in like a change of parameter, the others are
+  // not touched, and the end is the row as it is. animating() is true meanwhile.
+  {
+    Picture preScreen;
+    {
+      ScreenController sc;
+      ready(sc);
+      sc.showPreinfusion(10, 0);
+      run(sc, TOTAL + 200);
+      preScreen = snapshot();
+    }
+    ScreenController sc;
+    ready(sc);
+    const Picture start = snapshot();
+    sc.showPreinfusion(10, 0);
+    CHECK(sc.animating());
+    t++;
+    sc.update(t);   // the clock of the fade starts here
+    bool darkSeen = false, otherStill = true, monotoneIn = true;
+    int bright = 0;
+    for (uint32_t i = 0; i < TOTAL + 100; i++) {
+      t++;
+      sc.update(t);
+      const Picture now = snapshot();
+      otherStill = otherStill && sameIn(now, start, TEMPERATURE_ROW) && sameIn(now, start, DURATION_ROW);
+      const int ink = inkIn(now, VOLUME_ROW);
+      if (ink == 0) {
+        darkSeen = true;
+      } else if (darkSeen) {
+        const int b = brightestIn(now, VOLUME_ROW);
+        monotoneIn = monotoneIn && b >= bright;
+        bright = b;
+      }
+    }
+    CHECK(darkSeen && monotoneIn && otherStill);
+    CHECK(!sc.animating());
+    CHECK(sameIn(snapshot(), preScreen, VOLUME_ROW));
+  }
+
+  // 8. The return to ready after a result ("27 s" -> "0 s", the volume of the extraction -> the target): both rows fade, the temperature does not
+  {
+    Picture readyScreen;
+    {
+      ScreenController sc;
+      ready(sc);
+      readyScreen = snapshot();
+    }
+    ScreenController sc;
+    ready(sc);
+    sc.showExtractionStarted();
+    sc.showExtractionProgress(35, 27);
+    run(sc, ROLL_DURATION_MS + 200);
+    const Picture result = snapshot();
+    CHECK(!sameIn(result, readyScreen, DURATION_ROW));
+    sc.showReady();
+    CHECK(sc.animating());
+    t++;
+    sc.update(t);
+    bool durationDark = false, volumeDark = false, temperatureStill = true;
+    for (uint32_t i = 0; i < TOTAL + 100; i++) {
+      t++;
+      sc.update(t);
+      const Picture now = snapshot();
+      temperatureStill = temperatureStill && sameIn(now, result, TEMPERATURE_ROW);
+      durationDark = durationDark || inkIn(now, DURATION_ROW) == 0;
+      volumeDark = volumeDark || inkIn(now, VOLUME_ROW) == 0;
+    }
+    CHECK(durationDark && volumeDark && temperatureStill);
+    CHECK(!sc.animating());
+    CHECK(sameIn(snapshot(), readyScreen, VOLUME_ROW) && sameIn(snapshot(), readyScreen, DURATION_ROW));
+    // already ready: nothing changes, nothing fades
+    sc.showReady();
+    CHECK(!sc.animating());
+  }
+
+  // 9. The tag FLUSH that appears fades in; its blinking waits for the end of the fade (the tag is not hidden or shown in the middle of it)
+  // and then goes on
+  {
+    ScreenController sc;
+    ready(sc);
+    sc.showExtractionStarted();
+    sc.showExtractionProgress(40, 27);
+    run(sc, 400);
+    sc.showFlush(40, 5, true);
+    CHECK(sc.animating());
+    bool visibleThroughout = true;
+    t++;
+    sc.update(t);
+    for (uint32_t i = 0; i < TOTAL; i++) {
+      t++;
+      sc.update(t);
+      if (i > FADE_OUT_MS + 2 * FADE_FRAME_MS) visibleThroughout = visibleThroughout && inkIn(snapshot(), DURATION_ROW) > 0;
+    }
+    CHECK(visibleThroughout);
+    const Zone TAG = {DURATION_TAG_X, DURATION_TAG_BASELINE - DURATION_TAG_HEIGHT, 70, DURATION_TAG_HEIGHT};
+    int shown = 0, hidden = 0;
+    for (int i = 0; i < 40; i++) {
+      run(sc, FLUSH_BLINK_MS / 4);
+      if (inkIn(snapshot(), TAG) > 0) shown++; else hidden++;
+    }
+    CHECK(shown > 5 && hidden > 5);   // it blinks
+  }
+
   if (fails == 0) printf("test_fade: ALL OK\n");
   return fails ? 1 : 0;
 }

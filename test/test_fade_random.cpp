@@ -30,7 +30,9 @@ static Settings settings() {
   return s;
 }
 
+static bool blinking = false;   // the last phase shown is FLUSHING (its tag blinks)
 static void ready(ScreenController &sc) {
+  blinking = false;
   sc.begin(settings());
   sc.finishWelcome();
   sc.showLiveTemperature(0, 92.4);
@@ -60,7 +62,11 @@ static void settleTemperature(ScreenController &sc) {
   liveVaries = true;
 }
 
-enum Op { PUSH, MODE, UP };
+// The phases of an extraction as the machine shows them: PRE, WAIT, the main extraction, FLUSH waiting for the push or counting down, the
+// result over (ready). Their tags appear and disappear with a fade.
+enum Op { PUSH, MODE, UP, PRE, WAIT, MAIN, FLUSH_WAIT, FLUSHING, READY };
+static int opNumber = 0;
+static uint16_t flushMl = 0, flushLeft = 0;
 
 static void apply(ScreenController &sc, Op op) {
   if (op == PUSH) {
@@ -68,8 +74,25 @@ static void apply(ScreenController &sc, Op op) {
   } else if (op == MODE) {
     sc.toggleMode();
     sc.showReady();   // what CoffeeMachine does just after
-  } else {
+  } else if (op == UP) {
     sc.adjustActiveParameter(1);
+  } else {
+    const int n = ++opNumber;   // the numbers shown depend on the operation only: both runs of a sequence show the same ones
+    blinking = false;
+    if (op == PRE) sc.showPreinfusion(10 - n % 9, n % 20);
+    else if (op == WAIT) sc.showPreinfusionWait(10 + n % 9, 1 + n % 5);
+    else if (op == MAIN) sc.showExtractionProgress(20 + n % 40, 10 + n % 20);
+    else if (op == FLUSH_WAIT) sc.showFlush(30 + n % 30, 20 + n % 9, false);
+    else if (op == FLUSHING) { flushMl = 30 + n % 30; flushLeft = 1 + n % 9; blinking = true; sc.showFlush(flushMl, flushLeft, true); }
+    else sc.showReady();
+  }
+}
+
+// The blinking tag of FLUSHING is shown or hidden according to the time: the end of a sequence that left it blinking shows it fixed (the same
+// tag, no blinking; other operations of the sequence do not stop it), as the machine does when the flush waits for the push, so that both runs of a sequence can be compared
+static void stopBlinking(ScreenController &sc) {
+  if (blinking) {
+    sc.showFlush(flushMl, flushLeft, false);
   }
 }
 
@@ -82,13 +105,13 @@ static uint32_t random(uint32_t n) {
 int main() {
   const uint32_t SETTLE = FADE_OUT_MS + FADE_IN_MS + 400;
   int bad = 0;
-  for (int sequence = 0; sequence < 600; sequence++) {
+  for (int sequence = 0; sequence < 1500; sequence++) {
     const int count = 1 + (int)random(7);
     std::vector<Op> ops;
     std::vector<uint32_t> gaps;
     for (int i = 0; i < count; i++) {
       const uint32_t r = random(100);
-      ops.push_back(r < 70 ? PUSH : (r < 85 ? MODE : UP));
+      ops.push_back(r < 40 ? PUSH : (r < 50 ? MODE : (r < 55 ? UP : (r < 65 ? PRE : (r < 72 ? WAIT : (r < 79 ? MAIN : (r < 86 ? FLUSH_WAIT : (r < 93 ? FLUSHING : READY))))))));
       const uint32_t g = random(100);
       gaps.push_back(g < 30 ? 0 : (g < 60 ? random(120) : random(1500)));
     }
@@ -98,9 +121,11 @@ int main() {
       ScreenController sc;
       ready(sc);
       for (int i = 0; i < count; i++) {
+        opNumber = i * 7;
         apply(sc, ops[i]);
         run(sc, gaps[i]);
       }
+      stopBlinking(sc);
       settleTemperature(sc);
       got = snapshot();
     }
@@ -108,9 +133,11 @@ int main() {
       ScreenController sc;
       ready(sc);
       for (int i = 0; i < count; i++) {
+        opNumber = i * 7;
         apply(sc, ops[i]);
         run(sc, SETTLE);
       }
+      stopBlinking(sc);
       settleTemperature(sc);
       expected = snapshot();
     }
@@ -118,7 +145,7 @@ int main() {
       bad++;
       if (bad <= 3) {
         printf("sequence %d differs:", sequence);
-        for (int i = 0; i < count; i++) printf(" %s +%lu", ops[i] == PUSH ? "push" : (ops[i] == MODE ? "mode" : "up"), (unsigned long)gaps[i]);
+        for (int i = 0; i < count; i++) printf(" %d +%lu", (int)ops[i], (unsigned long)gaps[i]);
         int minX = 240, minY = 240, maxX = -1, maxY = -1;
         for (int y = 0; y < 240; y++) {
           for (int x = 0; x < 240; x++) {

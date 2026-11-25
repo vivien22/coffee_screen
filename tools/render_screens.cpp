@@ -48,9 +48,14 @@ static void ready(ScreenController &sc, bool manual = false) {
   sc.update(now_);
 }
 
+// The state is drawn, and the fades of a tag that appears (PRE, WAIT, FLUSH) are over: the picture is the settled screen
 static void redraw(ScreenController &sc) {
   now_ += 2000;
   sc.update(now_);
+  for (int i = 0; i < 200 && sc.animating(); i++) {
+    now_ += 20;
+    sc.update(now_);
+  }
 }
 
 int main(int argc, char **argv) {

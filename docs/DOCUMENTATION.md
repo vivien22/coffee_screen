@@ -144,6 +144,11 @@ The screen moves a little when something changes, and never blinks:
   look is drawn at its own size and place: no zoom, the old and the new are never drawn together. When the selection goes to another
   row (temperature, volume, duration), the row that was selected goes back to its normal size at once.
 - **Change of mode** (short push): the drop, its letter A / M and the rows that change fade the same way.
+- **Phase tags and return to ready** (extraction): a tag that appears or disappears (PRE, WAIT, FLUSH) fades the row it belongs to with the
+  same timings and mechanism as a change of parameter (out, then in, no zoom, old and new never drawn together; started only when the
+  look of the row changes). So does the return to ready after the result (`showReady()`: "27 s" -> "0 s", the volume of the extraction ->
+  the target), whose rows fade when their tag or their number changes. The blinking of the FLUSH tag during the flush is unchanged (it
+  waits while the tag fades in). A countdown goes on during the fade in: the look that comes in shows the number as it is.
 - **Big changes of the screen** (entering and leaving the steaming mode, entering and leaving the standby): the **backlight** fades out
   in `BACKLIGHT_FADE_OUT_MS` = 150 ms, the new screen is drawn while it is off (nothing of it is drawn while the old one is lit), then
   the backlight fades in in `BACKLIGHT_FADE_IN_MS` = 250 ms. The backlight (D9) is driven by PWM (`analogWrite`, never `digitalWrite`) with
@@ -687,8 +692,8 @@ mock of the flow sensor in `test/mock`. The Arduino API that all the tests share
 `test_sim_*` tests use a flow simulator (`test/mock/FlowSimulator.h`, the simulated water follows the pump relay).
 
 The screen animations have their own tests: `test_roll` (the rolling digits), `test_fade` (fade out / fade in of a parameter or of
-the mode, frame by frame), `test_fade_random` (random pushes, then the screen must equal the one of quiet pushes) and
-`test_fade_machine` (the same during a whole extraction and its flush, against a full redraw) and `test_backlight` (the fade of the
+the mode, frame by frame), `test_fade_random` (random pushes and phase changes, then the screen must equal the one of quiet ones) and
+`test_fade_machine` (the same during a whole extraction and its flush, with the phases and the return to ready, against a full redraw) and `test_backlight` (the fade of the
 backlight at the steaming mode and the standby: the old screen untouched until the backlight is off, the new one drawn in the dark,
 durations, a change during a fade). The tests of the logic of the
 screen are built without animation (`run.sh` passes `-DROLL_*_MS=0 -DFADE_*_MS=0 -DBACKLIGHT_FADE_*_MS=0`), and the tests that follow the cup volume number
