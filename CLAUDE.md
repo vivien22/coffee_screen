@@ -103,6 +103,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   `python3 tools/generate_fonts.py Poppins-Bold.ttf` (needs Pillow; the TTF is not in the repository, the URL is in the script header).
   Do not edit `Fonts.h` by hand. The structure is Adafruit GFX (`GFXfont` / `GFXglyph`) but `Display.cpp` reads the masks itself.
   The sizes are those of the old pixel fonts so that `Layout.h` did not change. After a change of a font run `render_screens.sh`.
+- SPI speed (2026-11-25): on this core Adafruit_SPITFT sends every pixel as two `SPI.transfer(uint8_t)`. `Screen` (Display.cpp) has `pushPixels()` / `pushColor()` (big-endian bytes in a 256-byte buffer, `SPI.transfer(buffer, count)` by chunks, refilled each time because the transfer overwrites it) and overrides `fillRect()` (so `fillScreen()` too); every pixel sent by Display.cpp goes through them on the board. The host tests keep the library calls (`ARDUINO_STUB`). The byte order was NOT yet confirmed on the board (wrong colors would show at once).
 - Digits are drawn as opaque glyph blocks with fixed-width cells so a number changes without a blank moment.
 - Transitions (`ScreenController`: `Fade`, `stepFades`, `stepRolls`; timings in `Config.h`): the seconds roll (`ROLL_DURATION_MS`), the
   volume does NOT roll (user, 2026-11-24, after trying the tens only). A change of parameter or mode fades out (`FADE_OUT_MS` 60 ms) then
