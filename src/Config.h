@@ -6,8 +6,8 @@
 #include <Arduino.h>
 
 // ---------- Pins ----------
-#define PIN_ENCODER_GA    2     // interrupt pins: D2 and D3 on Nano
-#define PIN_ENCODER_GB    3
+#define PIN_ENCODER_GA    3     // interrupt pins: D2 and D3 on Nano (Ga on D3, Gb on D2)
+#define PIN_ENCODER_GB    2
 #define PIN_TFT_CS        10
 #define PIN_TFT_DC        7
 #define PIN_TFT_RST       8

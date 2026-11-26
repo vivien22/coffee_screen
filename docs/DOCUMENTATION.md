@@ -559,7 +559,7 @@ before the target and learns the delay itself, see [The stop before the target](
 
 | Function | Nano pin |
 |---|---|
-| Encoder (rotation and push button) | D2 / D3 (interrupts): the CJMCU-111 signals the push on the same two lines Ga / Gb |
+| Encoder (rotation and push button) | Ga D3, Gb D2 (interrupts): the CJMCU-111 signals the push on the same two lines Ga / Gb |
 | TFT chip select | D10 |
 | TFT data / command | D7 |
 | TFT reset | D8 |
