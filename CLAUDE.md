@@ -208,6 +208,10 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   valve closed (`ExtractionController::setRefillPump`), until the Out (OPV return) flow reaches half the In flow, 100 ml, 30 s, or no
   water. The start button stops it; no flash write meanwhile. `STEAM_TIMEOUT_MINUTES` (10) leaves the mode without refill.
 - The local branch `steam-flow-test` (serial `s<n>` / `x`) is a measurement tool only: never merge or push it.
+- 2026-11-26: the Out sensor melted (steam back through the OPV return). `FLOW_OUT_SENSOR` is commented out: A2 not read, Out = 0,
+  so the AUTO cup volume also counts the OPV return (docs "Without the Out sensor"). The refill also stops on the drop of In
+  (`BOILER_REFILL_IN_DROP`). Planned: a Digmesa Nano Brass Ø1.2 (no divider, ~31 pulses/ml) at the boiler inlet, behind a check
+  valve, measuring In − Out directly: the firmware will then use it as the net flow.
 
 ## Flow limit of the main extraction
 - `src/coffee/FlowLimit.{h,cpp}`: during RUNNING only (not the pre-infusion, not MANUAL), the pump is a pattern of 20 ms slots (one

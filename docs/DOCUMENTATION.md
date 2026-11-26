@@ -232,7 +232,8 @@ The PID keeps running and takes over above that.
   fill it instead of the cup. Leaving the mode with the long push refills it at once: the pump runs at full power with the valve closed,
   so the water can only go into the boiler. When it is full its pressure rises to the OPV valve, which sends the water back to the tank
   through the Out sensor: the pump stops when the Out flow reaches half the In flow (`BOILER_REFILL_FULL_RATIO`, compared over
-  0.5 s windows from 1.5 s on). It also stops after 100 ml (`BOILER_REFILL_MAX_ML`: **close the steam wand before leaving the mode**,
+  0.5 s windows from 1.5 s on), or when the In flow of a window drops to 80 % of its highest (`BOILER_REFILL_IN_DROP`: the pump
+  slows down against the pressure, measured 5.2 then 3.2 ml/s; this one needs no Out sensor). It also stops after 100 ml (`BOILER_REFILL_MAX_ML`: **close the steam wand before leaving the mode**,
   or the water comes out of it), after 30 s, or without water (less than 1 ml after 3 s). A push of the start / stop button stops
   it (and starts nothing), and so does entering the steaming mode again. The data flash is not written while it runs.
 - **Forgotten**: after 10 minutes without any action (`STEAM_TIMEOUT_MINUTES`; the start / stop button counts as an action) the
@@ -471,6 +472,29 @@ In practice the final volume converges on the target (±0.3 ml in the tests) aft
 learns is now the real one (puck and backflush) and no longer hides the water of the stop: **do a CAL (weigh a cup) after
 the update.**
 
+### Without the Out sensor
+
+On 2026-11-26 the Out sensor melted: in the steaming mode, steam came back from the boiler through the OPV return, where the
+sensor is. Until it is replaced, `FLOW_OUT_SENSOR` is commented out in `Config.h`: the input A2 is not read at all (the broken
+sensor could send noise), Out counts 0 everywhere, and **In − Out is In**. Define it again once a working sensor is in place.
+
+What changes:
+
+- **The cup volume in AUTO counts the water the OPV sends back to the tank.** When the puck makes the pressure reach the OPV
+  (about 9 bar), part of the water pumped goes back to the tank: it is now counted as if it had gone to the cup, so the
+  extraction stops early and the cup is smaller than the target. Nothing in the software can tell the two apart. What helps:
+  - **CAL** (weigh a cup): the loss then also takes the average water of the OPV. It is good for the shots that look like the
+    one that was weighed (same grind and dose); the loss may need more than the usual 50 ml (it is capped at `LOSS_MAX_ML`, 200).
+  - **A flow limit (LIMIT)**: the pump only gives the flow set, so the pressure stays under the OPV in most shots and nearly
+    nothing goes back to the tank.
+  - **MANUAL** mode (time, or a second push) does not depend on the volume.
+- **The heater feedforward** heats for the water of In, including the water the OPV sends back: a little too much when the
+  OPV is open; the PID corrects it.
+- **The pre-infusion** (its volume is In − Out) and the stop before the target work on In: the pressure is low in the
+  pre-infusion, so the OPV is closed and nothing changes there.
+- **The refill of the boiler** after the steaming mode still stops when the boiler is full: from the drop of the flow In
+  (see [Steaming mode](#steaming-mode)), which does not need the Out sensor.
+
 ---
 
 ## 📏 Calibration of the flow sensors
@@ -642,7 +666,8 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `STEAM_FULL_POWER_BELOW` | 1.0 | Steaming mode: full power this many °C under the setpoint |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
 | `STEAM_TIMEOUT_MINUTES` | 10 | The steaming mode is left by itself after this long without action (0 = never) |
-| `BOILER_REFILL_MAX_ML` / `_MAX_MS` / `_FULL_RATIO` | 100 / 30000 / 0.5 | The refill of the boiler when the steaming mode is left: its limits, and the Out / In flow that says it is full |
+| `BOILER_REFILL_MAX_ML` / `_MAX_MS` / `_FULL_RATIO` / `_IN_DROP` | 100 / 30000 / 0.5 / 0.8 | The refill of the boiler when the steaming mode is left: its limits, and the Out / In flow or the drop of In that says it is full |
+| `FLOW_OUT_SENSOR` | commented out | Defined when the Out sensor works; commented out, A2 is not read and Out counts 0 (see [Without the Out sensor](#without-the-out-sensor)) |
 | `BACKLIGHT_FADE_OUT_MS` / `BACKLIGHT_FADE_IN_MS` | 150 / 250 | Fade of the backlight at the big changes of the screen: steaming mode and standby (0 and 0 = instant) |
 | `WELCOME_MS` | 2000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |

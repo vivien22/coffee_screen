@@ -26,9 +26,10 @@ void platformWatchdogKick() {
 // attachInterrupt() on this core.
 void platformPulsesBegin() {
   pinMode(PIN_FLOW_IN, INPUT_PULLUP);
-  pinMode(PIN_FLOW_OUT, INPUT_PULLUP);
-
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW_IN), flowPulseIn, FALLING);
+#ifdef FLOW_OUT_SENSOR
+  pinMode(PIN_FLOW_OUT, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIN_FLOW_OUT), flowPulseOut, FALLING);
+#endif
 }
 

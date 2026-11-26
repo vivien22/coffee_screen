@@ -2,7 +2,8 @@
   BoilerRefill: the boiler is refilled when the steaming mode is left (the steam took some of its water). The pump runs at full
   power with the valve closed, so the water can only go into the boiler. When the boiler is full its pressure rises to the OPV
   valve, which sends the water back to the tank through the Out sensor: the refill stops when the Out flow reaches
-  BOILER_REFILL_FULL_RATIO of the In flow. It also stops after BOILER_REFILL_MAX_ML (the steam wand left open), BOILER_REFILL_MAX_MS,
+  BOILER_REFILL_FULL_RATIO of the In flow, or when the In flow drops to BOILER_REFILL_IN_DROP of its highest (the pump slows down
+  against the pressure; this one works without the Out sensor). It also stops after BOILER_REFILL_MAX_ML (the steam wand left open), BOILER_REFILL_MAX_MS,
   or without water (less than BOILER_REFILL_NO_FLOW_ML after BOILER_REFILL_NO_FLOW_MS).
 
   Pure logic (no Arduino): the time and the volumes In and Out are given by the caller (test/test_boiler_refill.cpp).
@@ -39,4 +40,5 @@ class BoilerRefill {
     float inWindow_ = 0.0f;
     float outWindow_ = 0.0f;
     float netMl_ = 0.0f;
+    float inPeak_ = 0.0f;   // the highest flow In of a window (ml per window)
 };

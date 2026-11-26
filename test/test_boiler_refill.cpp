@@ -33,6 +33,25 @@ int main() {
     CHECK(r.netMl() > 19.0f && r.netMl() < 23.0f);
     CHECK(!r.update(now + 10, in, out)); }
 
+  // ---- without the Out sensor (Out stays 0): full when the flow In drops (the pressure rises), as measured: 5.2 ml/s, then 3.2
+  { BoilerRefill r; uint32_t now = 0; float in = 0, out = 0;
+    r.begin(now, in, out);
+    run(r, now, in, out, 3.8f, 0.0f, 500);                      // the pump starts
+    run(r, now, in, out, 5.2f, 0.0f, 2500);
+    CHECK(r.active());
+    const uint32_t ran = run(r, now, in, out, 3.2f, 0.0f, 3000);
+    CHECK(!r.active() && r.end() == REFILL_FULL && ran <= 2 * BOILER_REFILL_WINDOW_MS + 20); }
+
+  // ---- a drop before BOILER_REFILL_MIN_MS is not taken, a small one (10 %) never; the flow that rises is not a drop
+  { BoilerRefill r; uint32_t now = 0; float in = 0, out = 0;
+    r.begin(now, in, out);
+    run(r, now, in, out, 5.2f, 0.0f, 500);
+    run(r, now, in, out, 3.0f, 0.0f, 400);                      // a dip, over before 1 s
+    run(r, now, in, out, 6.0f, 0.0f, 2000);                     // up again: the highest is now 6
+    CHECK(r.active());
+    run(r, now, in, out, 6.0f * 0.9f, 0.0f, 3000);
+    CHECK(r.active()); }
+
   // ---- what the Out sensor counts at the very start (the steaming) does not end it
   { BoilerRefill r; uint32_t now = 0; float in = 0, out = 0;
     r.begin(now, in, out);

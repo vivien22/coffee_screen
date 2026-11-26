@@ -65,6 +65,11 @@
 #define BOILER_REFILL_MIN_MS          1500UL   // the boiler is not considered full before
 #define BOILER_REFILL_WINDOW_MS       500UL    // the flows In and Out are compared over this window
 #define BOILER_REFILL_FULL_RATIO      0.5f
+// Also full when the flow In of a window falls to BOILER_REFILL_IN_DROP of the highest one: the pressure rises when the boiler is full
+// (measured 2026-11-26, valve closed: 5.2 ml/s, then 3.2 ml/s once full). It works without the Out sensor. Not below
+// BOILER_REFILL_IN_MIN_ML per window (a trickle of pulses is not a flow).
+#define BOILER_REFILL_IN_DROP         0.8f
+#define BOILER_REFILL_IN_MIN_ML       0.5f
 #define BOILER_REFILL_NO_FLOW_MS      3000UL   // less than BOILER_REFILL_NO_FLOW_ML by then: no water, the pump stops
 #define BOILER_REFILL_NO_FLOW_ML      1.0f
 // The settings are written to the EEPROM this long after the last change (a block of the data flash is erased and programmed, the
@@ -147,6 +152,10 @@
 // In: 25 runs (pulses against the volume measured at the output), docs/calibration/in_flow_sensor.csv.
 #define FLOW_K_FACTOR_IN             12.56f
 #define FLOW_K_FACTOR_OUT            74.18f
+// Defined: the Out sensor is connected and works. Commented out (2026-11-26: the sensor melted, steam came back through the OPV return): the input
+// is not read at all, Out counts 0, so In - Out is In. The cup volume in AUTO then also counts the water the OPV sends back to the
+// tank (see "Without the Out sensor" in docs/DOCUMENTATION.md); the refill of the boiler still sees it full from the drop of In.
+// #define FLOW_OUT_SENSOR
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 // The curve of the flow In and Out of each AUTO extraction, kept in the journal (see settings/Journal.h, coffee/FlowRecorder.h): one sample
 // every CURVE_SAMPLE_MS (twice the period of the sensors: the pulses of In are 0.08 ml each, so a sample is good to 0.2 ml/s), up to
