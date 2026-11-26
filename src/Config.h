@@ -60,7 +60,7 @@
 #define STEAM_TIMEOUT_MINUTES         10
 // Leaving the steaming mode with the long push refills the boiler (coffee/BoilerRefill.h): the pump at full power, the valve closed,
 // until the OPV sends back BOILER_REFILL_FULL_RATIO of the water (the boiler is full), or one of the limits.
-#define BOILER_REFILL_MAX_ML          60.0f    // the steam wand left open: at most this much water
+#define BOILER_REFILL_MAX_ML          100.0f    // the steam wand left open: at most this much water
 #define BOILER_REFILL_MAX_MS          20000UL
 #define BOILER_REFILL_MIN_MS          1500UL   // the boiler is not considered full before
 #define BOILER_REFILL_WINDOW_MS       500UL    // the flows In and Out are compared over this window
