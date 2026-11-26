@@ -211,11 +211,16 @@ void ScreenController::update(uint32_t now) {
 
   if (steaming_) {   // the temperature alone: no tag, no drop
     if (steamSetpointShown_ && (int32_t)(now - steamSetpointUntil_) >= 0) {
+      const RowLook before = lookOf(ROW_TEMPERATURE, active_);
       steamSetpointShown_ = false;      // the setpoint was shown long enough: the measured temperature (or ERR) comes back
       temperatureKey_ = -1;
       temperatureShown_ = liveTemperature_;
       dirty_ |= DIRTY_TEMPERATURE;
+      if (canDraw() && FADE_OUT_MS + FADE_IN_MS > 0) {
+        fadeRow(ROW_TEMPERATURE, before, false);   // as a change of parameter: the setpoint fades out, the measured temperature fades in
+      }
     }
+    stepFades(now);
     render(now);
     return;
   }
@@ -460,10 +465,16 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
   if (active_ == PARAMETER_VOLUME) {
     volumeShown_ = newValue;
   } else if (active_ == PARAMETER_TEMPERATURE) {
+    const RowLook before = lookOf(ROW_TEMPERATURE, active_);
     temperatureShown_ = newValue;
     if (steaming_) {
       steamSetpointShown_ = true;
       steamSetpointUntil_ = millis() + STEAM_SETPOINT_SHOW_MS;
+      // The first turn: the measured temperature fades out and the setpoint fades in, as at a change of parameter (the next turns only
+      // change the number, which the fade in follows)
+      if (canDraw() && FADE_OUT_MS + FADE_IN_MS > 0) {
+        fadeRow(ROW_TEMPERATURE, before, false);
+      }
     }
   }
   dirty_ |= dirtyField;
@@ -814,6 +825,11 @@ ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter acti
   RowLook look;
   if (row == ROW_MODE) {
     look.value = settings_.manual ? 1.0 : 0.0;   // the letter: A (0) or M (1)
+  } else if (row == ROW_TEMPERATURE && steaming_) {
+    // The steaming mode: large digits, the setpoint being set or the measured temperature (or ERR)
+    look.size = TEXT_SIZE_LARGE;
+    look.kind = steamSetpointShown_ ? LOOK_STEAM_SETPOINT : (temperatureError_ ? LOOK_ERROR : LOOK_VALUE);
+    look.value = temperatureShown_;
   } else if (row == ROW_TEMPERATURE) {
     if (temperatureError_ && active != PARAMETER_TEMPERATURE) {
       look.kind = LOOK_ERROR;
@@ -866,6 +882,12 @@ void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness
     repaintField(row);
   }
   setTextBrightness(brightness);
+  if (row == ROW_TEMPERATURE && steaming_) {
+    drawSteamTemperature(look.value, look.kind == LOOK_ERROR);
+    setTextBrightness(255);
+    drawHeaterIndicator(heaterShown_, true);   // the zone of the temperature reaches the edge of the dot
+    return;
+  }
   if (row == ROW_TEMPERATURE) {
     if (look.kind == LOOK_ERROR) {
       drawTemperatureError();

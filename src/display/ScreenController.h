@@ -211,7 +211,9 @@ class ScreenController {
     // Change of parameter (see FADE_OUT_MS in Config.h): the rows whose look changes fade out, then the new ones fade in.
     // ROW_MODE is not a row of numbers: it is the letter of the mode (A / M) in the drop, which fades with the rows at a change of mode.
     enum Row : uint8_t { ROW_TEMPERATURE, ROW_VOLUME, ROW_DURATION, ROW_MODE, ROW_COUNT };
-    enum LookKind : uint8_t { LOOK_VALUE, LOOK_ERROR, LOOK_PREINFUSION, LOOK_FLOW_LIMIT, LOOK_CALIBRATION, LOOK_WAIT, LOOK_FLUSH, LOOK_MANUAL };
+    // LOOK_STEAM_SETPOINT: the steaming mode shows the setpoint being set (the measured temperature is LOOK_VALUE): a change between the two fades
+    enum LookKind : uint8_t { LOOK_VALUE, LOOK_ERROR, LOOK_PREINFUSION, LOOK_FLOW_LIMIT, LOOK_CALIBRATION, LOOK_WAIT, LOOK_FLUSH, LOOK_MANUAL,
+                              LOOK_STEAM_SETPOINT };
     // What a row shows: kind of the content, size of the digits, tag and number. Two rows with the same kind, size and tag differ only by the number.
     struct RowLook {
       uint8_t kind = LOOK_VALUE;
