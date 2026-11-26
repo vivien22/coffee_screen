@@ -205,7 +205,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   it worse (cold water). So no pump "steam assist"; instead full power more than `STEAM_FULL_POWER_BELOW` (1 C) under the setpoint
   (the ~5 C overshoot after it was accepted by the user).
 - `src/coffee/BoilerRefill.{h,cpp}` (pure logic): leaving the mode with the long push refills the boiler, pump at full power and
-  valve closed (`ExtractionController::setRefillPump`), until the Out (OPV return) flow reaches half the In flow, 100 ml, 20 s, or no
+  valve closed (`ExtractionController::setRefillPump`), until the Out (OPV return) flow reaches half the In flow, 100 ml, 30 s, or no
   water. The start button stops it; no flash write meanwhile. `STEAM_TIMEOUT_MINUTES` (10) leaves the mode without refill.
 - The local branch `steam-flow-test` (serial `s<n>` / `x`) is a measurement tool only: never merge or push it.
 
