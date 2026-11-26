@@ -528,6 +528,7 @@ static void steaming(){
   // a long push enters it: the screen is cleared, the heater regulates SteamingTemp, BrewingTemp stays
   calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
   CHECK(m.steaming_ && m.screen_.steaming() && has("clearscreen(0,0,0,0)") && has("steamicon(0,0,0,0)") && !lastSteam().empty());   // the thermometer stays
+  CHECK(m.heater_.fullPowerBelow_==STEAM_FULL_POWER_BELOW);   // full power under the setpoint in the steaming mode
   CHECK(m.heater_.setpoint_==135+TEMPERATURE_OFFSET && m.screen_.settings().temperature==DEFAULT_TEMPERATURE);
   // no extraction: the start button does nothing (held or not), the pushes of the encoder neither, the pump and the valve stay off
   pushButton(m); CHECK(!m.extraction_.isActive() && !PUMPON && pins[PIN_VALVE_RELAY]==0); releaseButton(m);
@@ -551,6 +552,7 @@ static void steaming(){
   // a long push leaves it: the brewing again (BrewingTemp), the real screen in full, the volume selected
   calls.clear(); m.handlePush(PUSH_LONG); t+=100; m.update();
   CHECK(!m.steaming_ && !m.screen_.steaming() && has("clearscreen(0,0,0,0)") && m.screen_.activeParameter()==PARAMETER_VOLUME);
+  CHECK(m.heater_.fullPowerBelow_==0.0);
   { bool temp=false; for(auto&c:calls) temp|=c.rfind("temp(",0)==0||c.rfind("temperr(",0)==0;
     CHECK(has("icons(0,0,0,0)") && has("vol(40,1,0,1)") && has("dur(0,0,0,1)") && temp); }
   CHECK(m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET);

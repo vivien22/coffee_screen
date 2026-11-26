@@ -78,7 +78,8 @@ void HeaterController::update(uint32_t now, bool temperatureValid, double temper
   }
 
   const uint32_t elapsedInWindow = (uint32_t)(now - windowStart_);
-  const int onTimeMs = constrain((int)output_ + feedforwardMs_, 0, PID_WINDOW_MS);
+  const bool forced = fullPowerBelow_ > 0.0 && setpoint_ - input_ > fullPowerBelow_;
+  const int onTimeMs = forced ? PID_WINDOW_MS : constrain((int)output_ + feedforwardMs_, 0, PID_WINDOW_MS);
   setRelay(elapsedInWindow < (uint32_t)onTimeMs);
 
   if ((uint32_t)(now - lastDebugAt_) >= 1000UL) {

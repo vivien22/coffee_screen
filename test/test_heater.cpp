@@ -34,6 +34,16 @@ int main() {
     int on = onMs(h, 0, 3, true, 60.0, 0.0f);
     CHECK(on >= 3 * PID_WINDOW_MS - 2); }
 
+  // ---- the steaming mode: full power more than STEAM_FULL_POWER_BELOW under the setpoint, the PID (0 here) above; off again with 0
+  { HeaterController h(PIN_HEATER_RELAY); t = 0; h.begin(); h.setSetpoint(130);
+    CHECK(onMs(h, 0, 2, true, 130.0 - STEAM_FULL_POWER_BELOW - 0.5, 0.0f) == 0);
+    h.setFullPowerBelow(STEAM_FULL_POWER_BELOW);
+    CHECK(onMs(h, 2 * PID_WINDOW_MS, 2, true, 130.0 - STEAM_FULL_POWER_BELOW - 0.5, 0.0f) >= 2 * PID_WINDOW_MS - 2);
+    CHECK(onMs(h, 4 * PID_WINDOW_MS, 2, true, 130.0 - STEAM_FULL_POWER_BELOW + 0.5, 0.0f) == 0);
+    CHECK(onMs(h, 6 * PID_WINDOW_MS, 2, false, 120.0, 0.0f) == 0);   // an invalid probe still switches it off
+    h.setFullPowerBelow(0.0);
+    CHECK(onMs(h, 8 * PID_WINDOW_MS, 2, true, 120.0, 0.0f) == 0); }
+
   // ---- full power drops at once when the probe becomes invalid, and comes back with it
   { HeaterController h(PIN_HEATER_RELAY); t = 0; h.begin(); h.setSetpoint(97);
     onMs(h, 0, 1, true, 60.0, 0.0f); CHECK(h.isOn());

@@ -552,6 +552,7 @@ void CoffeeMachine::saveSettingsNow() {
 void CoffeeMachine::applySetpoint() {
   const Settings &settings = screen_.settings();
   heater_.setSetpoint((steaming_ ? settings.steamingTemperature : settings.temperature) + TEMPERATURE_OFFSET);
+  heater_.setFullPowerBelow(steaming_ ? STEAM_FULL_POWER_BELOW : 0.0);
 }
 
 // Short push of the encoder: clears the no-water error, or switches between AUTO and MANUAL when nothing is going on.

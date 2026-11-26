@@ -18,6 +18,9 @@ class HeaterController {
 
     void setSetpoint(double celsius);
 
+    // Full power whenever the temperature is more than `degrees` under the setpoint, the PID running all the same (0 = off).
+    void setFullPowerBelow(double degrees) { fullPowerBelow_ = degrees; }
+
     // Call on every loop pass.
     // If the temperature is not valid, the heater is switched off.
     // inflowMlPerSec: flow of the water entering the boiler (0 when nothing flows).
@@ -39,6 +42,7 @@ class HeaterController {
 
     bool on_;
     bool manualMode_;           // far from the setpoint: full power, PID off
+    double fullPowerBelow_ = 0.0;
     int feedforwardMs_;         // part of the window given by the feedforward; the PID output is added to it
     uint32_t windowStart_;
     uint32_t lastDebugAt_;

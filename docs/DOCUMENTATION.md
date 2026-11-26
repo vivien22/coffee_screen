@@ -217,7 +217,9 @@ A second push button, between **A0 and GND** (no resistor: the internal pull-up 
 A **long push** of the encoder (800 ms), with nothing going on, enters the steaming mode; another long push leaves it (a long push
 during an extraction does nothing). The machine then only regulates the boiler (PID and heater) at the **steaming temperature**
 (**SteamingTemp**, 135 °C by default, `DEFAULT_STEAMING_TEMPERATURE`); the temperature of the brewing (**BrewingTemp**) is the one of the
-other modes, and both are kept in the EEPROM.
+other modes, and both are kept in the EEPROM. The heater is at **full power** as soon as the temperature is more than 1 °C under
+SteamingTemp (`STEAM_FULL_POWER_BELOW`): the steam drawn makes it drop about 12 °C in a few seconds, and the PID alone stayed near 80 %.
+The PID keeps running and takes over above that.
 
 - **No extraction**: the extraction is not updated (no volume is read), the pump and the valve stay off, the start / stop button does
   nothing, and the short and double pushes neither.
@@ -628,6 +630,7 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `CALIBRATION_GAIN` | 0.75 | How far a weighing moves the loss (1 = it replaces it) |
 | `ROLL_DURATION_MS` / `FADE_OUT_MS` / `FADE_IN_MS` | 260 / 60 / 550 | Rolling seconds, fade out and fade in of a change of parameter or of mode (0 = instant, see [Fonts and transitions](#fonts-and-transitions)) |
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.3 / 500 | PID gains, over a 1 s window |
+| `STEAM_FULL_POWER_BELOW` | 1.0 | Steaming mode: full power this many °C under the setpoint |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
 | `BACKLIGHT_FADE_OUT_MS` / `BACKLIGHT_FADE_IN_MS` | 150 / 250 | Fade of the backlight at the big changes of the screen: steaming mode and standby (0 and 0 = instant) |
 | `WELCOME_MS` | 2000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |

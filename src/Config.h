@@ -111,6 +111,9 @@
 #define PID_KP               40.0
 #define PID_KI               0.3   // measured on the boiler (tuning/README.md on pid-tuning): no permanent offset
 #define PID_KD               500.0
+// The steaming mode: full power as soon as the temperature is STEAM_FULL_POWER_BELOW under the setpoint (the steam drawn makes it drop
+// ~12 C in a few seconds, measured 2026-11-26, and the PID alone stayed at 80 %); the PID still runs and takes over above it
+#define STEAM_FULL_POWER_BELOW  1.0
 
 // The water that goes through the boiler (In - Out of the flow sensors: what the OPV valve sends back is not heated) is cold. Heating that
 // water from WATER_INLET_TEMPERATURE to the setpoint takes
