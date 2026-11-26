@@ -122,4 +122,4 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, u
 void drawPhaseTag(PhaseTag tag, bool visible);
 
 // Dot next to the temperature, visible while the heater is on
-void drawHeaterIndicator(bool visible);
+void drawHeaterIndicator(bool visible, bool steaming = false);   // steaming: the place of the steaming screen

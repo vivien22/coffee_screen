@@ -167,7 +167,7 @@ void ScreenController::redrawScreen() {
     drawDrop(dropVisible_, settings_.manual);
   }
 #endif
-  dirty_ = steaming_ ? DIRTY_TEMPERATURE : (DIRTY_ALL_VALUES | DIRTY_HEATER);
+  dirty_ = steaming_ ? (DIRTY_TEMPERATURE | DIRTY_HEATER) : (DIRTY_ALL_VALUES | DIRTY_HEATER);
   temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
   temperatureKey_ = -1;             // the live temperature is drawn again at once
   volumeRoll_ = Roll();             // the fields are drawn as they are: no roll goes on
@@ -664,10 +664,13 @@ void ScreenController::render(uint32_t now) {
   const uint8_t dirty = dirty_ & ~fadingRows();
   dirty_ = DIRTY_NONE;
 
-  if (steaming_) {   // the temperature alone
+  if (steaming_) {   // the temperature alone, and the heater dot
     if (dirty & DIRTY_TEMPERATURE) {
       const bool error = temperatureError_ && !steamSetpointShown_;
       drawSteamTemperature(temperatureShown_, error);
+    }
+    if (dirty & (DIRTY_HEATER | DIRTY_TEMPERATURE)) {   // after the temperature: its zone can erase the edge of the dot
+      drawHeaterIndicator(heaterShown_, true);
     }
     return;
   }

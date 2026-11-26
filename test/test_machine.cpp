@@ -27,7 +27,7 @@ static void L(const char*f,double a=0,int b=0,int c=0,int d=0){char s[80];snprin
 void beginDisplay(){} void showDisplay(){} void setBacklight(uint8_t v){L("backlight",v);} void beginWelcome(){L("welcome"); welcomeAt=t;} void endWelcome(){L("endwelcome"); welcomeEnd=t;} void showStandbyPicture(){L("standbypic");} void drawIcons(){L("icons");}
 void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16_t v,TextSize s,PhaseTag g,bool r,uint8_t p){if(p==DISPLAY_ROLL_DONE)L("vol",v,s,g,r);}
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r,uint8_t p){if(p==DISPLAY_ROLL_DONE)L("dur",v,s,g,r);}
-void clearTemperature(){} void clearVolume(){} void clearDuration(){} void setTextBrightness(uint8_t){} void forgetField(uint8_t){} void repaintField(uint8_t){} void drawHeaterIndicator(bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawModeLetter(bool){} void drawDropFrame(bool){} void drawTemperatureError(){L("temperr");}
+void clearTemperature(){} void clearVolume(){} void clearDuration(){} void setTextBrightness(uint8_t){} void forgetField(uint8_t){} void repaintField(uint8_t){} void drawHeaterIndicator(bool,bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawModeLetter(bool){} void drawDropFrame(bool){} void drawTemperatureError(){L("temperr");}
 void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 
 #define PUMPON (pins[PIN_PUMP_RELAY]==1)

@@ -758,8 +758,9 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
   }
 }
 
-// The small dot next to the temperature that shows the heater is on.
-void drawHeaterIndicator(bool visible) {
+// The small dot next to the temperature that shows the heater is on (it blinks with the heater). steaming: the place of the steaming screen.
+void drawHeaterIndicator(bool visible, bool steaming) {
   // Glyph '5' of FontUnit, centered on the cursor: drawn in the background color it erases the dot
-  putText(FONT_UNIT, TEMPERATURE_DOT_X, TEMPERATURE_DOT_Y, visible ? COLOR_TEXT : COLOR_BG, F("5"));
+  putText(FONT_UNIT, steaming ? STEAM_DOT_X : TEMPERATURE_DOT_X, steaming ? STEAM_DOT_Y : TEMPERATURE_DOT_Y,
+          visible ? COLOR_TEXT : COLOR_BG, F("5"));
 }

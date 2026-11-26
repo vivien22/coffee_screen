@@ -73,6 +73,10 @@
 // --------------------- Blinking dot for PID output ---------------------
 #define TEMPERATURE_DOT_X       80
 #define TEMPERATURE_DOT_Y       39
+// The same dot in the steaming mode: at the same place relative to the thermometer icon. Its right edge (x 59) enters the zone of the
+// steaming temperature (from x 58) by two columns: it is drawn again after each drawing of that temperature.
+#define STEAM_DOT_X             (STEAM_ICON_X + TEMPERATURE_DOT_X - ICON_THERMOMETER_X)
+#define STEAM_DOT_Y             (STEAM_ICON_Y + TEMPERATURE_DOT_Y - ICON_THERMOMETER_Y)
 
 // ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
 #define VOLUME_X                      80    // left edge of the number
