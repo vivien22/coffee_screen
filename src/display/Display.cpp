@@ -89,7 +89,7 @@ class Screen : public Adafruit_GC9A01A {
 
   private:
     static const uint16_t CHUNK_PIXELS = 128;                 // 256 bytes per transfer
-    uint8_t buffer_[2 * CHUNK_PIXELS] __attribute__((aligned(4)));   // the core reads it as 32-bit words
+    uint8_t buffer_[2 * CHUNK_PIXELS] __attribute__((aligned(4))) = {};   // the core reads it as 32-bit words
 #endif
 };
 static Screen tft(PIN_TFT_CS, PIN_TFT_DC, PIN_TFT_RST);

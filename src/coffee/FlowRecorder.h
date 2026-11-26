@@ -30,7 +30,7 @@ class FlowRecorder {
     const uint8_t *samples() const { return samples_; }
 
   private:
-    uint8_t samples_[2 * CURVE_SAMPLES];
+    uint8_t samples_[2 * CURVE_SAMPLES] = {};
     uint16_t count_ = 0;
     bool recording_ = false;
     uint32_t nextAt_ = 0;

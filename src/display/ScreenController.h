@@ -156,7 +156,7 @@ class ScreenController {
     uint16_t readyDuration() const;
     void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);
 
-    Settings settings_;
+    Settings settings_ = {};
     ActiveParameter active_ = PARAMETER_VOLUME;
 
     // What each field shows
