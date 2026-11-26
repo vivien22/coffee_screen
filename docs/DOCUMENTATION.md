@@ -206,7 +206,7 @@ A second push button, between **A0 and GND** (no resistor: the internal pull-up 
   again and an extraction starts, whichever parameter the screen was on. If it was CAL, the weight being entered is validated first
   (the loss is corrected, as the double push does). It starts in AUTO or MANUAL as the mode says.
 - **During an extraction**: it ends it (AUTO: the flush waits; MANUAL: the pump stops); then
-  it starts the flush, and the next push stops the flush.
+  it starts the flush, and the next push stops the flush. If the push is held **at least 800 ms** (`LONG_PUSH_MS`) while in AUTO mode, the extraction becomes MANUAL at that moment (the pump keeps running, the button still held); the letter changes to M. At the end of that extraction, AUTO is selected again, and the mode is not saved.
 - **After a no-water error** it does nothing (the short push of the encoder clears the error); **in standby** the first push only wakes the
   machine, like any action.
 - The push counts when the level has stayed 30 ms (`START_BUTTON_DEBOUNCE_MS`), once, however long it is held; a button held at
@@ -221,10 +221,8 @@ other modes, and both are kept in the EEPROM.
 
 - **No extraction**: the extraction is not updated (no volume is read), the pump and the valve stay off, the start / stop button does
   nothing, and the short and double pushes neither.
-- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon on its left as in the other modes, three volutes of steam above and the text `STEAM` under, both centered on the screen (no other icon, no volume, no duration, no heater dot); `ERR` if
-  the probe fails.
-- **The encoder** sets SteamingTemp: the setpoint is shown for 2 s after each turn (`STEAM_SETPOINT_SHOW_MS`), then the measured
-  temperature comes back. It is saved at each change and applied to the heater at once.
+- **The screen** shows the temperature alone, in large digits in the middle, with the thermometer icon on its left as in the other modes, three volutes of steam above and the text `STEAM` under, both centered on the screen (no other icon, no volume, no duration); the **heater dot** appears next to the thermometer and blinks with the heater as in the other modes; `ERR` if the probe fails.
+- **The encoder** sets SteamingTemp: the first turn fades the measured temperature out and the setpoint in, as a parameter change does in the other modes; the setpoint stays visible for 2 s after the last turn (`STEAM_SETPOINT_SHOW_MS`), then the measured temperature fades back in with the same transition. It is saved at each change and applied to the heater at once.
 - **The offset** (`TEMPERATURE_OFFSET`) applies as in the other modes: the probe is regulated at SteamingTemp + offset and the screen shows probe − offset.
 - **Leaving it**: the brewing setpoint is applied again, the real screen is drawn again in full with the volume selected. The mode is
   not saved: after a reboot the machine is in brewing mode. The standby works as in the other modes.
