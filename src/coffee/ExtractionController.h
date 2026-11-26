@@ -95,6 +95,10 @@ class ExtractionController {
     // or FINISHED if the flush time is 0. Ignored in any other state.
     void finish(uint32_t now);
 
+    // The pump alone with the valve closed, so the water only goes into the boiler (the refill after the steaming mode, see
+    // BoilerRefill.h). Ignored during an extraction.
+    void setRefillPump(bool on);
+
     // FLUSH_WAIT -> FLUSHING (pump on, valve open for the flush time). Ignored in any other state.
     void startFlush(uint32_t now);
 

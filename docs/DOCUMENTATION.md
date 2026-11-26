@@ -228,6 +228,15 @@ The PID keeps running and takes over above that.
 - **The offset** (`TEMPERATURE_OFFSET`) applies as in the other modes: the probe is regulated at SteamingTemp + offset and the screen shows probe − offset.
 - **Leaving it**: the brewing setpoint is applied again, the real screen is drawn again in full with the volume selected. The mode is
   not saved: after a reboot the machine is in brewing mode. The standby works as in the other modes.
+- **The refill of the boiler**: the steam took water from the boiler (about 20 g for a pitcher of milk), and the next extraction would
+  fill it instead of the cup. Leaving the mode with the long push refills it at once: the pump runs at full power with the valve closed,
+  so the water can only go into the boiler. When it is full its pressure rises to the OPV valve, which sends the water back to the tank
+  through the Out sensor: the pump stops when the Out flow reaches half the In flow (`BOILER_REFILL_FULL_RATIO`, compared over
+  0.5 s windows from 1.5 s on). It also stops after 60 ml (`BOILER_REFILL_MAX_ML`: **close the steam wand before leaving the mode**,
+  or the water comes out of it), after 20 s, or without water (less than 1 ml after 3 s). A push of the start / stop button stops
+  it (and starts nothing), and so does entering the steaming mode again. The data flash is not written while it runs.
+- **Forgotten**: after 10 minutes without any action (`STEAM_TIMEOUT_MINUTES`; the start / stop button counts as an action) the
+  machine leaves the steaming mode by itself, without refill (nobody is there to see the pump run).
 
 ![steaming](images/steaming.png)
 
@@ -632,6 +641,8 @@ Every pin, limit, timing and tuning constant is in `src/Config.h`, with comments
 | `PID_KP` / `PID_KI` / `PID_KD` | 40 / 0.3 / 500 | PID gains, over a 1 s window |
 | `STEAM_FULL_POWER_BELOW` | 1.0 | Steaming mode: full power this many °C under the setpoint |
 | `STANDBY_MINUTES` | 30 | 0 = no standby |
+| `STEAM_TIMEOUT_MINUTES` | 10 | The steaming mode is left by itself after this long without action (0 = never) |
+| `BOILER_REFILL_MAX_ML` / `_MAX_MS` / `_FULL_RATIO` | 60 / 20000 / 0.5 | The refill of the boiler when the steaming mode is left: its limits, and the Out / In flow that says it is full |
 | `BACKLIGHT_FADE_OUT_MS` / `BACKLIGHT_FADE_IN_MS` | 150 / 250 | Fade of the backlight at the big changes of the screen: steaming mode and standby (0 and 0 = instant) |
 | `WELCOME_MS` | 2000 | The welcome picture stays this long at start-up, ms (0 = no picture, at start-up nor in standby: about 1.2 KB of flash back, 40 bytes more than master then) |
 | `NO_FLOW_TIMEOUT_MS` / `NO_FLOW_MIN_ML` | 5000 / 2 | No-flow safety |

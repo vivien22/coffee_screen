@@ -556,6 +556,23 @@ static void steaming(){
   { bool temp=false; for(auto&c:calls) temp|=c.rfind("temp(",0)==0||c.rfind("temperr(",0)==0;
     CHECK(has("icons(0,0,0,0)") && has("vol(40,1,0,1)") && has("dur(0,0,0,1)") && temp); }
   CHECK(m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET);
+  // the boiler is refilled at once: the pump, the valve closed, no extraction; it stops when the OPV sends the water back (Out)
+  CHECK(m.refill_.active() && PUMPON && pins[PIN_VALVE_RELAY]==0 && !m.extraction_.isActive());
+  { const int ops=EEPROM.blockOps;
+    for(int i=0;i<40;i++){ t+=100; m.flow_.in+=0.5f; m.update(); }   // 4 s, 20 ml go into the boiler
+    CHECK(m.refill_.active() && PUMPON && pins[PIN_VALVE_RELAY]==0 && EEPROM.blockOps==ops);   // nothing is written while the pump runs
+    for(int i=0;i<15 && m.refill_.active();i++){ t+=100; m.flow_.in+=0.5f; m.flow_.out+=0.4f; m.update(); }
+    CHECK(!m.refill_.active() && m.refill_.end()==REFILL_FULL && !PUMPON && pins[PIN_VALVE_RELAY]==0 && !m.extraction_.isActive());
+  }
+  // a push of the start button during the refill stops it and starts nothing
+  m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(m.steaming_);
+  m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(!m.steaming_ && m.refill_.active() && PUMPON);
+  pushButton(m); CHECK(!m.refill_.active() && m.refill_.end()==REFILL_STOPPED && !PUMPON && !m.extraction_.isActive()); releaseButton(m);
+  CHECK(!m.extraction_.isActive() && !PUMPON);
+  // entering the steaming mode again during the refill stops it
+  m.handlePush(PUSH_LONG); t+=100; m.update(); m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(!m.steaming_ && m.refill_.active());
+  m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(m.steaming_ && !m.refill_.active() && !PUMPON);
+  m.handlePush(PUSH_LONG); t+=100; m.update(); pushButton(m); releaseButton(m); CHECK(!m.steaming_ && !m.refill_.active() && !PUMPON);
   // an extraction works again, and a long push during it does nothing
   pushButton(m); CHECK(m.extraction_.isActive() && PUMPON); releaseButton(m);
   m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(!m.steaming_ && m.extraction_.isActive());
@@ -563,6 +580,23 @@ static void steaming(){
   // SteamingTemp is remembered at the next start
   { CoffeeMachine m2; t=1000; m2.begin(); m2.handlePush(PUSH_LONG); CHECK(m2.heater_.setpoint_==140+TEMPERATURE_OFFSET); }
   printf("steaming: ok\n");
+}
+// The steaming mode left alone STEAM_TIMEOUT_MINUTES: back to the brewing, without refill (the pump never runs); an action restarts the time
+static void steamTimeout(){
+  memset(EEPROM.mem,0xFF,64);
+  pins[PIN_START_BUTTON]=1;
+  CoffeeMachine m; t=1000; m.begin(); for(int i=0;i<10;i++){ t+=20; m.update(); }
+  m.handlePush(PUSH_LONG); t+=100; m.update(); CHECK(m.steaming_);
+  bool pump=false;
+  for(unsigned long s=0;s<STEAM_TIMEOUT_MINUTES*60UL/2;s++){ t+=1000; m.update(); pump|=PUMPON; }
+  pushButton(m); releaseButton(m);                                     // an action: the time starts again
+  for(unsigned long s=0;s<STEAM_TIMEOUT_MINUTES*60UL-5;s++){ t+=1000; m.update(); pump|=PUMPON; }
+  CHECK(m.steaming_ && !pump);
+  for(int s=0;s<10;s++){ t+=1000; m.update(); pump|=PUMPON; }
+  CHECK(!m.steaming_ && !m.screen_.steaming() && !m.refill_.active() && !pump && !m.standby_);
+  CHECK(m.heater_.setpoint_==DEFAULT_TEMPERATURE+TEMPERATURE_OFFSET && m.heater_.fullPowerBelow_==0.0);
+  for(int s=0;s<60;s++){ t+=1000; m.update(); pump|=PUMPON; } CHECK(!pump && !m.steaming_);
+  printf("steam timeout: ok\n");
 }
 // The journal of the last extractions: how each AUTO one ended and the volumes it counted (see Journal.h)
 static void journal(){
@@ -695,4 +729,4 @@ static void stopDelay(){
   { CoffeeMachine m2; t+=1000; m2.begin(); CHECK(m2.extraction_.stopDelaySeconds()==learned); }   // saved, given back at the start
   printf("stop delay: ok\n");
 }
-int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); journal(); coldBoiler(); steaming(); flashOutsideExtraction(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }
+int main(){ SPI.hook=answer; probeAt(93.0); scenario(0); scenario(3); autoSave(); noWater(); temperatureError(); startup(); manualMode(); manualTime(); calibration(); startButton(); journal(); coldBoiler(); steaming(); steamTimeout(); flashOutsideExtraction(); stopDelay(); standby(); printf(fails?"%d FAIL\n":"ALL OK\n",fails); return fails!=0; }

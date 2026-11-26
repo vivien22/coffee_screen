@@ -2,6 +2,7 @@
 
 #include "CoffeeMachine.h"
 #include "../Config.h"
+#include "../Debug.h"
 
 // screen_ is set up by begin(): its members are not given a value by the constructor
 // cppcheck-suppress uninitMemberVar
@@ -77,7 +78,13 @@ void CoffeeMachine::update() {
   // ----- 2. Extraction (not in the steaming mode: no extraction, no volume is read) -----
   if (!steaming_) {
     updateExtraction(now);
+    updateRefill(now);
   }
+#if STEAM_TIMEOUT_MINUTES > 0
+  if (steaming_ && (uint32_t)(now - lastActivityAt_) >= STEAM_TIMEOUT_MINUTES * 60000UL) {
+    leaveSteaming(false);   // forgotten: back to the brewing, without refill (nobody is there)
+  }
+#endif
   writeFlash(now);   // the settings, the journal, the stop delay and the curves that wait for a quiet moment
 
   // ----- 3. Temperature, standby and heater -----
@@ -181,7 +188,7 @@ void CoffeeMachine::writeJournal() {
 // Nothing that a block operation of the data flash (an erase and a program of 1 KB, some milliseconds) could delay: no extraction,
 // except while it waits for the push that starts the flush (the pump is off and nothing is timed). The stop of the pump must never wait.
 bool CoffeeMachine::flashQuiet() const {
-  return !extraction_.isActive() || extraction_.state() == EXTRACTION_FLUSH_WAIT;
+  return (!extraction_.isActive() || extraction_.state() == EXTRACTION_FLUSH_WAIT) && !refill_.active();
 }
 
 // The writes to the data flash that are due: ONE block operation at most per pass (the loop never waits for two), and none while the
@@ -332,15 +339,47 @@ void CoffeeMachine::toggleSteaming() {
   if (extraction_.isActive()) {
     return;
   }
-  saveSettings();
-  steaming_ = !steaming_;
   if (steaming_) {
-    screen_.enterSteaming();
-  } else {
-    screen_.leaveSteaming();
-    resultShown_ = false;
+    leaveSteaming(true);
+    return;
   }
+  stopRefill();
+  saveSettings();
+  steaming_ = true;
+  screen_.enterSteaming();
   saveSettings();   // the setpoint of the mode that starts
+}
+
+// Back to the brewing. refill: the steam took water from the boiler, it is refilled at once (the pump, the valve closed, see
+// BoilerRefill.h), so that the next extraction does not fill it instead of the cup.
+void CoffeeMachine::leaveSteaming(bool refill) {
+  saveSettings();
+  steaming_ = false;
+  screen_.leaveSteaming();
+  resultShown_ = false;
+  saveSettings();   // the brewing setpoint
+  if (refill) {
+    refill_.begin(millis(), flow_.getVolumeIn(), flow_.getVolumeOut());
+    extraction_.setRefillPump(true);
+  }
+}
+
+void CoffeeMachine::updateRefill(uint32_t now) {
+  if (!refill_.active()) {
+    return;
+  }
+  lastActivityAt_ = now;
+  if (!refill_.update(now, flow_.getVolumeIn(), flow_.getVolumeOut())) {
+    extraction_.setRefillPump(false);
+    DEBUG_PRINT(F("Refill end ")); DEBUG_PRINT((int)refill_.end()); DEBUG_PRINT(F(" net ml ")); DEBUG_PRINTLN(refill_.netMl());
+  }
+}
+
+void CoffeeMachine::stopRefill() {
+  if (refill_.active()) {
+    refill_.stop();
+    extraction_.setRefillPump(false);
+  }
 }
 
 // The end of the standby: the heater works again and the real screen comes back (see ScreenController::leaveStandby()).
@@ -474,6 +513,10 @@ void CoffeeMachine::switchToManual(uint32_t now) {
 //   after a no-water error: nothing (the long push of the encoder clears it);
 //   nothing is running: whatever was being set is kept, the volume is selected again and an extraction starts.
 void CoffeeMachine::handleStartButton() {
+  if (refill_.active()) {   // the push stops the refill of the boiler, nothing else
+    stopRefill();
+    return;
+  }
   switch (extraction_.state()) {
     case EXTRACTION_ERROR_NO_WATER:
       return;

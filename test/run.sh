@@ -27,7 +27,7 @@ for t in test/test_*.cpp; do
   # the tests that follow the cup volume number by number were written for a loss of 30 ml: the default of the machine is free to change
   case "$n" in test_volume|test_pre|test_manual|test_sim_flow) EXTRA="$EXTRA -DDEFAULT_LOSS_ML=30.0f";; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
-  C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp"
+  C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp $B/$d/src/coffee/BoilerRefill.cpp"
   case "$n" in
     test_flow_recorder) C="$B/$d/src/coffee/FlowRecorder.cpp";;
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp $B/$d/src/display/ScreenController.cpp";;

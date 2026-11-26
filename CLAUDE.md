@@ -200,6 +200,15 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - The phase table (one table row per phase) was tried on a branch, saved about 400 B and was merged into `master`
   on 2026-11-17; the user found it harder to read at first.
 
+## Steaming mode: heater, refill, timeout (2026-11-26)
+- Measured on the boiler: frothing drops the temperature 12-20 C and the 1100 W heater is the limit; the pump during the steam makes
+  it worse (cold water). So no pump "steam assist"; instead full power more than `STEAM_FULL_POWER_BELOW` (1 C) under the setpoint
+  (the ~5 C overshoot after it was accepted by the user).
+- `src/coffee/BoilerRefill.{h,cpp}` (pure logic): leaving the mode with the long push refills the boiler, pump at full power and
+  valve closed (`ExtractionController::setRefillPump`), until the Out (OPV return) flow reaches half the In flow, 60 ml, 20 s, or no
+  water. The start button stops it; no flash write meanwhile. `STEAM_TIMEOUT_MINUTES` (10) leaves the mode without refill.
+- The local branch `steam-flow-test` (serial `s<n>` / `x`) is a measurement tool only: never merge or push it.
+
 ## Flow limit of the main extraction
 - `src/coffee/FlowLimit.{h,cpp}`: during RUNNING only (not the pre-infusion, not MANUAL), the pump is a pattern of 20 ms slots (one
   mains period, the SSR switches on the zero crossings) spread evenly. The flow per click is MEASURED from the In sensor over the

@@ -56,6 +56,17 @@
 // is set with the encoder (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one is shown again).
 #define DEFAULT_STEAMING_TEMPERATURE  135    // used when the EEPROM has never been written
 #define STEAM_SETPOINT_SHOW_MS        2000UL
+// Without any action for STEAM_TIMEOUT_MINUTES the steaming mode is left by itself (no refill: nobody is there). 0 = never.
+#define STEAM_TIMEOUT_MINUTES         10
+// Leaving the steaming mode with the long push refills the boiler (coffee/BoilerRefill.h): the pump at full power, the valve closed,
+// until the OPV sends back BOILER_REFILL_FULL_RATIO of the water (the boiler is full), or one of the limits.
+#define BOILER_REFILL_MAX_ML          60.0f    // the steam wand left open: at most this much water
+#define BOILER_REFILL_MAX_MS          20000UL
+#define BOILER_REFILL_MIN_MS          1500UL   // the boiler is not considered full before
+#define BOILER_REFILL_WINDOW_MS       500UL    // the flows In and Out are compared over this window
+#define BOILER_REFILL_FULL_RATIO      0.5f
+#define BOILER_REFILL_NO_FLOW_MS      3000UL   // less than BOILER_REFILL_NO_FLOW_ML by then: no water, the pump stops
+#define BOILER_REFILL_NO_FLOW_ML      1.0f
 // The settings are written to the EEPROM this long after the last change (a block of the data flash is erased and programmed, the
 // loop waits for it): turning the encoder in the steaming mode writes once, when the user stops, and never during an extraction.
 #define SETTINGS_SAVE_DELAY_MS        1500UL

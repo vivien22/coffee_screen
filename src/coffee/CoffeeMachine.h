@@ -18,6 +18,7 @@
 #include "../settings/Settings.h"
 #include "../settings/Journal.h"
 #include "FlowRecorder.h"
+#include "BoilerRefill.h"
 #include "../drivers/SerialConsole.h"
 #include "../drivers/Perf.h"
 #include "../heating/TemperatureSensor.h"
@@ -48,6 +49,9 @@ class CoffeeMachine {
     void handleDoublePush();   // select the next parameter (volume, pre-infusion, wait, flush, temperature); ignored during
                                // the extraction, skips the flush if it is waiting or running
     void toggleSteaming();     // the long push: enter / leave the steaming mode (nothing going on)
+    void leaveSteaming(bool refill);   // refill: the boiler is refilled (the long push; not when the mode times out)
+    void updateRefill(uint32_t now);
+    void stopRefill();
     void captureJournal();     // the extraction is over: its line for the journal is made (and the recording of its curve stops)
     void writeJournal();       // that line goes to the journal of the last extractions (EEPROM), its curve is started
     void validateCalibration();   // CAL validated: the weight goes to the journal (if changed), the loss is corrected
@@ -71,6 +75,7 @@ class CoffeeMachine {
     HeaterController heater_;
     ExtractionController extraction_;
     ScreenController screen_;
+    BoilerRefill refill_;     // the refill of the boiler after the steaming mode
 
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)

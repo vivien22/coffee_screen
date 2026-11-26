@@ -103,6 +103,14 @@ void ExtractionController::begin() {
   setValve(false);
 }
 
+void ExtractionController::setRefillPump(bool on) {
+  if (isActive()) {
+    return;
+  }
+  setValve(false);
+  setPump(on);
+}
+
 // Clears the no-water error (the user did a long push).
 void ExtractionController::clearError() {
   if (state_ == EXTRACTION_ERROR_NO_WATER) {
