@@ -435,6 +435,18 @@ void ExtractionController::settle(uint32_t now) {
 // Enter a phase: the table gives the state of the pump and of the valve. The valve is opened BEFORE the
 // pump is started, so the pump never pushes against a closed valve. Stopping the pump is the opposite:
 // pump first.
+bool ExtractionController::switchToManual(uint32_t now, uint16_t seconds) {
+  if (manual_ || (state_ != EXTRACTION_PREINFUSION && state_ != EXTRACTION_RUNNING)) {
+    return false;
+  }
+  manual_ = true;
+  phaseSeconds_[DURATION_MANUAL] = (uint8_t)seconds;
+  enterPhase(EXTRACTION_MANUAL, now);   // the pump stays on (it is set on again), the valve stays open
+  phaseStartedAt_ = startedAt_;         // the MANUAL time counts from the push, as the duration
+  DEBUG_PRINTLN(F("Switched to MANUAL"));
+  return true;
+}
+
 void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   state_ = phase;
   phaseStartedAt_ = now;

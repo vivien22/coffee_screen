@@ -261,6 +261,14 @@ void CoffeeMachine::showExtraction(uint32_t now) {
     lastState_ = extraction_.state();
   }
 
+  // A MANUAL extraction that came from a long push of the start button: AUTO is selected again at its end (the values stay shown)
+  if (justStopped && autoAfterManual_) {
+    autoAfterManual_ = false;
+    if (screen_.settings().manual) {
+      screen_.toggleMode();
+    }
+  }
+
   // An extraction that ended (without flush, or at the end of the flush, never before it): its values stay
   // EXTRACTION_RESULT_DISPLAY_MS, then the target volume and 0 s are shown. A new extraction cancels it.
   if (justStopped) {
@@ -427,16 +435,38 @@ void CoffeeMachine::pollStartButton() {
   }
   if (buttonRaw_ != buttonDown_ && (uint32_t)(now - buttonChangedAt_) >= START_BUTTON_DEBOUNCE_MS) {
     buttonDown_ = buttonRaw_;
+    longPushPending_ = false;
     if (buttonDown_) {
       lastActivityAt_ = now;
+      buttonDownAt_ = now;
       if (standby_) {
         wakeUp();
       } else if (!steaming_) {   // the steaming mode has no extraction
+        const bool wasRunning = extraction_.isActive();
         handleStartButton();
+        // A push that started an AUTO extraction: held LONG_PUSH_MS, it becomes a MANUAL one (below)
+        longPushPending_ = !wasRunning && extraction_.isActive() && !extraction_.isManual();
       }
     }
   }
+  // The long push: the button is still held, the extraction it started becomes a MANUAL one at once (no wait for the release)
+  if (buttonDown_ && longPushPending_ && (uint32_t)(now - buttonDownAt_) >= LONG_PUSH_MS) {
+    longPushPending_ = false;
+    switchToManual(now);
+  }
 #endif
+}
+
+// The AUTO extraction started by this push becomes a MANUAL one. The mode is shown (letter M) but not saved: AUTO comes back at the end
+// of this extraction. It is not an AUTO extraction any more: it does not go to the journal.
+void CoffeeMachine::switchToManual(uint32_t now) {
+  if (!extraction_.switchToManual(now, screen_.settings().manualSeconds)) {
+    return;
+  }
+  journalPending_ = false;
+  recorder_.stop();
+  autoAfterManual_ = true;
+  screen_.toggleMode();
 }
 
 // The push of the start / stop button:

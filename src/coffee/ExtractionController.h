@@ -85,6 +85,11 @@ class ExtractionController {
     // Ignored if an extraction is in progress or after a no-water error.
     void startManual(uint32_t pressTime, uint16_t seconds);
 
+    // An AUTO extraction that is pumping (PREINFUSION or RUNNING) becomes a MANUAL one at once (the long push of the start button): the
+    // pump keeps running, the water counted so far and the duration (from the push) are kept, the MANUAL time counts from the push too.
+    // Returns false (nothing changed) in any other state.
+    bool switchToManual(uint32_t now, uint16_t seconds);
+
     // Normal end of the extraction, from PREINFUSION, PREINFUSION_WAIT or RUNNING: the pump is
     // switched off, then the valve closes, the final values are kept. Next phase is FLUSH_WAIT,
     // or FINISHED if the flush time is 0. Ignored in any other state.

@@ -433,6 +433,41 @@ static void startButton(){
   releaseButton(m); pushButton(m); CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON);
   releaseButton(m); m.handleShortPush(); CHECK(!m.screen_.settings().manual);
 
+  // The long push in AUTO: the extraction starts at the push (AUTO), and at LONG_PUSH_MS, the button still held, it becomes a MANUAL one:
+  // the pump never stops, the letter is M, the next push stops it, then AUTO is selected again. Not in the journal, the mode never saved.
+  {
+    Journal jl; JournalEntry je; const bool had=jl.read(0,je); const uint8_t lastSeq=had?je.sequence:0;
+    pins[PIN_START_BUTTON]=0;
+    bool pumpAlways=true;
+    unsigned long held=0;
+    while(held<LONG_PUSH_MS-100){ t+=20; held+=20; m.flow_.in=m.flow_.in+0.1f; m.update(); if(held>=100) pumpAlways=pumpAlways&&PUMPON; }
+    CHECK(m.extraction_.isActive() && !m.extraction_.isManual() && !m.screen_.settings().manual);   // still AUTO before the long push
+    while(held<LONG_PUSH_MS+200){ t+=20; held+=20; m.flow_.in=m.flow_.in+0.1f; m.update(); pumpAlways=pumpAlways&&PUMPON; }
+    CHECK(m.extraction_.state()==EXTRACTION_MANUAL && m.extraction_.isManual() && m.screen_.settings().manual);   // MANUAL, button still held
+    CHECK(pumpAlways);
+    pins[PIN_START_BUTTON]=1; for(int i=0;i<20;i++){ t+=20; m.flow_.in=m.flow_.in+0.1f; m.update(); }
+    CHECK(m.extraction_.state()==EXTRACTION_MANUAL && PUMPON);                // the release does nothing
+    pushButton(m); CHECK(m.extraction_.state()==EXTRACTION_FINISHED && !PUMPON);   // the next push stops it
+    releaseButton(m);
+    CHECK(!m.screen_.settings().manual);                                       // AUTO again
+    for(int i=0;i<200;i++){ t+=20; m.update(); }                               // the settings would be saved by now
+    CHECK(!SettingsStore().load().manual);                                     // MANUAL was never saved
+    CHECK(jl.read(0,je)==had && (!had || je.sequence==lastSeq));               // not in the journal
+  }
+  // a short push in AUTO stays AUTO (held less than LONG_PUSH_MS)
+  pushButton(m); CHECK(m.extraction_.isActive() && !m.extraction_.isManual());
+  releaseButton(m); for(int i=0;i<(int)(LONG_PUSH_MS/20)+10;i++){ t+=20; m.flow_.in=m.flow_.in+0.1f; m.update(); }
+  CHECK(!m.extraction_.isManual() && !m.screen_.settings().manual);
+  pushButton(m); releaseButton(m); pushButton(m); releaseButton(m); pushButton(m); releaseButton(m);   // end, flush, stop flush
+  CHECK(!m.extraction_.isActive());
+  // in MANUAL (chosen with the encoder) a long push changes nothing: MANUAL stays after the extraction
+  m.handleShortPush(); CHECK(m.screen_.settings().manual);
+  pins[PIN_START_BUTTON]=0; for(int i=0;i<(int)(LONG_PUSH_MS/20)+20;i++){ t+=20; m.flow_.in=m.flow_.in+0.1f; m.update(); }
+  CHECK(m.extraction_.state()==EXTRACTION_MANUAL);
+  releaseButton(m); pushButton(m); releaseButton(m);
+  CHECK(!m.extraction_.isActive() && m.screen_.settings().manual);
+  m.handleShortPush(); CHECK(!m.screen_.settings().manual);
+
   // the weight that was being entered for CAL is validated (the loss is corrected), then the extraction starts
   { memset(EEPROM.mem,0xFF,64); SettingsStore s2; s2.load(); SAVE(s2,preinfusion,0); SAVE(s2,preinfusionWait,0); SAVE(s2,flush,0);
     CoffeeMachine c; t=1000; c.begin(); pins[PIN_START_BUTTON]=1;
