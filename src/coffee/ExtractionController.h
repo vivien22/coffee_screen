@@ -48,6 +48,7 @@
 #include "../drivers/FlowSensor.h"
 #include "../settings/Journal.h"   // EndReason
 #include "FlowLimit.h"             // the flow limit of RUNNING (test, Nano R4)
+#include "StopDelay.h"             // the stop before the target
 
 // The phases PREINFUSION..MANUAL are described by the phase table of ExtractionController.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.
@@ -170,14 +171,14 @@ class ExtractionController {
     // Flow limit of the main extraction (RUNNING only), ml/s; 0 = no limit. Given before start(). See coffee/FlowLimit.h.
     void setFlowLimit(float mlPerS) { flowLimitMlPerS_ = mlPerS; }
 
-    // The delay (seconds of flow) by which the pump is stopped before the target, see STOP_DELAY_* in Config.h. The machine
-     // gives the saved one at the start-up and saves the new one when stopDelayLearned() says it changed.
-    void setStopDelaySeconds(float seconds) { stopDelayS_ = seconds; }
-    float stopDelaySeconds() const { return stopDelayS_; }
-    bool stopDelayLearned() { const bool was = stopDelayChanged_; stopDelayChanged_ = false; return was; }
+    // The delay (seconds of flow) by which the pump is stopped before the target, see coffee/StopDelay.h. The machine gives the
+    // saved one at the start-up and saves the new one when stopDelayLearned() says it changed.
+    void setStopDelaySeconds(float seconds) { stopDelay_.setSeconds(seconds); }
+    float stopDelaySeconds() const { return stopDelay_.seconds(); }
+    bool stopDelayLearned() { return stopDelay_.takeChanged(); }
 
     // True while the water that comes after a stop is being measured (STOP_SETTLE_MS): the final volume is not known yet
-    bool settlePending() const { return settlePending_; }
+    bool settlePending() const { return stopDelay_.pending(); }
     // True once when that measure is over and volumeMl() / netVolumeMl() have been brought to the final values (the screen
     // shows them again)
     bool takeSettled() { const bool was = settled_; settled_ = false; return was; }
@@ -207,12 +208,11 @@ class ExtractionController {
     // The same at this very moment (the pulses not yet converted included), not rounded, can be negative
     float cupVolumeLiveMl();
 
-    // Flow of In - Out (ml/s) and the volume still to come after the pump stops (see STOP_DELAY_* in Config.h)
+    // Flow of In - Out (ml/s)
     float netRateMlPerSec();
-    float anticipationMl();
 
-    // After finish(): waits STOP_SETTLE_MS, learns the delay from the water that came after the stop, and brings the final
-    // volume of the extraction up to date
+    // After finish(): once the water that came after the stop is measured (StopDelay), the final volume of the extraction is
+    // brought up to date
     void settle(uint32_t now);
 
     void setPump(bool on);
@@ -246,13 +246,6 @@ class ExtractionController {
     FlowLimit flowLimit_;       // the pump as slots while the limit applies (RUNNING)
     float flowLimitMlPerS_ = 0.0f;
 
-    // The stop before the target
-    float stopDelayS_;          // seconds of flow the pump is stopped before the target (learned)
-    bool settlePending_;        // after finish(): the water that comes after the stop is measured
-    bool learning_;             // ... and the delay learns from it
-    bool settled_;              // the measure is over (given once by takeSettled())
-    bool stopDelayChanged_;     // the delay was learned (given once by stopDelayLearned())
-    float stopNetMl_;           // In - Out when the pump was stopped
-    float stopNetRate_;         // its flow (ml/s) at that moment
-    uint32_t settleAt_;         // time of the stop
+    StopDelay stopDelay_;       // the stop before the target, and the delay it learns
+    bool settled_;              // the water after the stop is measured (given once by takeSettled())
 };

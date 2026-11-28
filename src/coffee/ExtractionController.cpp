@@ -84,14 +84,7 @@ ExtractionController::ExtractionController(uint8_t pumpPin, uint8_t valvePin, Fl
   finalOutMl_(0.0f),
   flowCheckMl_(0.0f),
   flowCheckAt_(0),
-  stopDelayS_(STOP_DELAY_DEFAULT_S),
-  settlePending_(false),
-  learning_(false),
-  settled_(false),
-  stopDelayChanged_(false),
-  stopNetMl_(0.0f),
-  stopNetRate_(0.0f),
-  settleAt_(0)
+  settled_(false)
 {
 }
 
@@ -135,8 +128,7 @@ bool ExtractionController::beginExtraction_(uint32_t pressTime) {
   }
 
   flow_.startExtraction();
-  settlePending_ = false;   // a new extraction ends the measure of the previous one
-  learning_ = false;
+  stopDelay_.cancel();   // a new extraction ends the measure of the previous one
   volumeMl_ = 0;
   netMl_ = 0.0f;
   finishedNormally_ = false;
@@ -200,20 +192,15 @@ void ExtractionController::finish(uint32_t now) {
   finishedNormally_ = true;
 
   if (measureTail) {
-    settlePending_ = true;
     settled_ = false;
-    settleAt_ = now;
-    stopNetMl_ = netAtStop;
-    stopNetRate_ = rateAtStop;
-    learning_ = (rateAtStop >= STOP_LEARN_MIN_ML_PER_S);
+    // Nothing is learned from a weak flow.
     // REMINDER (flow_control, decision of the user 2026-11-24, may change): the stop delay is NOT learned while a flow limit
     // applies. The pump then works by slots, the flow read at the stop is noisy, and the water that comes after a stop is probably
     // partly a fixed volume (pipes), so a delay in seconds learned at a limited flow does not suit the full flow (and the other
     // way round). The delay of the normal extractions is kept as it is. To change later: learn a second delay for the limited mode
     // (another EEPROM value), or stop by a fixed volume. Locked by test/test_flow_limit_learning.cpp.
-    if (flowLimitMlPerS_ > 0.0f) {
-      learning_ = false;
-    }
+    const bool learn = rateAtStop >= STOP_LEARN_MIN_ML_PER_S && flowLimitMlPerS_ <= 0.0f;
+    stopDelay_.beginSettle(now, netAtStop, rateAtStop, learn);
   }
 
   // Flush time 0: no flush, the extraction is over
@@ -338,8 +325,8 @@ void ExtractionController::update(uint32_t now, uint16_t targetVolumeMl) {
   // The volume is updated in every phase (the pre-infusion water is counted), but only RUNNING ends
   // on the target volume.
   // The target is checked on every pass, with the volume counted so far (the pulses not yet converted included), and the pump
-  // stops a little BEFORE it: the water that still comes after the stop fills the rest (see anticipationMl()).
-  if (state_ == EXTRACTION_RUNNING && cupVolumeLiveMl() + anticipationMl() >= (float)targetVolumeMl) {
+  // stops a little BEFORE it: the water that still comes after the stop fills the rest (see StopDelay.h).
+  if (state_ == EXTRACTION_RUNNING && cupVolumeLiveMl() + stopDelay_.anticipationMl(netRateMlPerSec()) >= (float)targetVolumeMl) {
     endedBy(END_TARGET);
     finish(now);
     return;
@@ -396,42 +383,20 @@ float ExtractionController::netRateMlPerSec() {
   return (flow_.getInflowRate() - flow_.getOutflowRate()) / 60.0f;
 }
 
-// The volume that still comes after the pump stops: the flow of that moment times the delay that was learned.
-float ExtractionController::anticipationMl() {
-  const float ml = stopDelayS_ * netRateMlPerSec();
-  return constrain(ml, 0.0f, (float)STOP_ANTICIPATION_MAX_ML);
-}
-
 // Called on every pass. After the pump stopped at the end of the main phase, STOP_SETTLE_MS later the water that came after
-// it is known: the delay moves toward the one that would have been right (the water that came / the flow at the stop), and the
-// volume of the extraction is brought up to date (it was taken when the pump stopped, before this water).
+// it is known (StopDelay learns from it): the volume of the extraction is brought up to date (it was taken when the pump stopped,
+// before this water).
 void ExtractionController::settle(uint32_t now) {
-  if (!settlePending_) {
+  if (!stopDelay_.pending()) {
     return;
   }
   // The pump started again (flush) or a new extraction began: the water that comes is not the one of the stop any more
   if (state_ != EXTRACTION_FLUSH_WAIT && state_ != EXTRACTION_FINISHED) {
-    settlePending_ = false;
-    learning_ = false;
+    stopDelay_.cancel();
     return;
   }
-  if ((uint32_t)(now - settleAt_) < STOP_SETTLE_MS) {
+  if (!stopDelay_.settle(now, flow_.getNetVolumeLive())) {
     return;
-  }
-
-  settlePending_ = false;
-
-  if (learning_) {
-    learning_ = false;
-    const float came = flow_.getNetVolumeLive() - stopNetMl_;                 // after the stop
-    if (came >= 0.0f) {
-      const float wanted = constrain(came / stopNetRate_, 0.0f, (float)STOP_DELAY_MAX_S);
-      const float next = stopDelayS_ + STOP_DELAY_GAIN * (wanted - stopDelayS_);
-      if (fabsf(next - stopDelayS_) >= 0.005f) {   // not worth a write of the EEPROM below
-        stopDelayS_ = next;
-        stopDelayChanged_ = true;
-      }
-    }
   }
 
   volumeMl_ = cupVolumeMl();   // with the water that came after the stop (also brings netMl_ up to date)
@@ -440,9 +405,6 @@ void ExtractionController::settle(uint32_t now) {
   settled_ = true;
 }
 
-// Enter a phase: the table gives the state of the pump and of the valve. The valve is opened BEFORE the
-// pump is started, so the pump never pushes against a closed valve. Stopping the pump is the opposite:
-// pump first.
 bool ExtractionController::switchToManual(uint32_t now, uint16_t seconds) {
   if (manual_ || (state_ != EXTRACTION_PREINFUSION && state_ != EXTRACTION_RUNNING)) {
     return false;
@@ -455,6 +417,9 @@ bool ExtractionController::switchToManual(uint32_t now, uint16_t seconds) {
   return true;
 }
 
+// Enter a phase: the table gives the state of the pump and of the valve. The valve is opened BEFORE the
+// pump is started, so the pump never pushes against a closed valve. Stopping the pump is the opposite:
+// pump first.
 void ExtractionController::enterPhase(ExtractionState phase, uint32_t now) {
   state_ = phase;
   phaseStartedAt_ = now;
