@@ -49,6 +49,7 @@
 #include "../settings/Journal.h"   // EndReason
 #include "FlowLimit.h"             // the flow limit of RUNNING (test, Nano R4)
 #include "StopDelay.h"             // the stop before the target
+#include "OutEstimate.h"           // the water of the OPV without the Out sensor
 
 // The phases PREINFUSION..MANUAL are described by the phase table of ExtractionController.cpp
 // (one row per phase, in this order): keep them together and in the same order as the table.
@@ -127,7 +128,7 @@ class ExtractionController {
     // The same while the extraction runs (and the water that comes after the stop): the volumes counted since its start, for the curve of
     // the journal
     float liveInMl() { return flow_.getVolumeIn(); }
-    float liveOutMl() { return flow_.getVolumeOut(); }
+    float liveOutMl() { return flow_.getVolumeOut() + estimatedOutMl(); }
 
     // No-water error: the pump is stopped, the state stays EXTRACTION_ERROR_NO_WATER and start() is
     // ignored until clearError() puts the controller back to IDLE (ignored in any other state).
@@ -211,6 +212,21 @@ class ExtractionController {
     // Flow of In - Out (ml/s)
     float netRateMlPerSec();
 
+    // In - Out (ml): the volume and the volume at this very moment (the pulses not converted yet included). Out is the Out sensor, or the
+    // estimate without it (see OutEstimate.h)
+    float netMl() { return flow_.getNetVolume() - estimatedOutMl(); }
+    float netLiveMl() { return flow_.getNetVolumeLive() - estimatedOutMl(); }
+    float outRateMlPerMin() { return flow_.getOutflowRate() + estimatedOutRate() * 60.0f; }
+
+    // The estimate of the water of the OPV, 0 with the Out sensor
+#ifdef FLOW_OUT_SENSOR
+    float estimatedOutMl() const { return 0.0f; }
+    float estimatedOutRate() const { return 0.0f; }
+#else
+    float estimatedOutMl() const { return outEstimate_.ml(); }
+    float estimatedOutRate() const { return outEstimate_.rateMlPerS(); }
+#endif
+
     // After finish(): once the water that came after the stop is measured (StopDelay), the final volume of the extraction is
     // brought up to date
     void settle(uint32_t now);
@@ -247,5 +263,8 @@ class ExtractionController {
     float flowLimitMlPerS_ = 0.0f;
 
     StopDelay stopDelay_;       // the stop before the target, and the delay it learns
+#ifndef FLOW_OUT_SENSOR
+    OutEstimate outEstimate_;   // the water of the OPV, estimated from the flow In
+#endif
     bool settled_;              // the water after the stop is measured (given once by takeSettled())
 };

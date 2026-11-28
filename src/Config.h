@@ -152,10 +152,18 @@
 // In: 25 runs (pulses against the volume measured at the output), docs/calibration/in_flow_sensor.csv.
 #define FLOW_K_FACTOR_IN             12.56f
 #define FLOW_K_FACTOR_OUT            74.18f
-// Defined: the Out sensor is connected and works. Commented out (2026-11-26: the sensor melted, steam came back through the OPV return): the input
-// is not read at all, Out counts 0, so In - Out is In. The cup volume in AUTO then also counts the water the OPV sends back to the
-// tank (see "Without the Out sensor" in docs/DOCUMENTATION.md); the refill of the boiler still sees it full from the drop of In.
+// Defined: the Out sensor is connected and works. Commented out (2026-11-26: the sensor melted, steam came back through the OPV return):
+// the input is not read at all, and the water the OPV sends back to the tank is ESTIMATED from the drop of the flow In (see "Without
+// the Out sensor" in docs/DOCUMENTATION.md); the refill of the boiler still sees it full from the drop of In.
 // #define FLOW_OUT_SENSOR
+// The estimate (coffee/OutEstimate.h): Out = GAIN x (FREE_FLOW - flow In), while the pump runs at full power in RUNNING or MANUAL (no
+// flow limit), from OUT_ESTIMATE_SETTLE_MS after the start of the phase. Fitted on extraction #2 of the journal (2026-11-26): over the
+// part where it applies, 35.2 ml estimated, 35.0 measured. Not used with the Out sensor.
+#define OUT_ESTIMATE_FREE_FLOW       5.15f     // ml/s: the flow In of the pump that nothing holds back (measured: 5.0 to 5.2)
+#define OUT_ESTIMATE_GAIN            1.10f
+#define OUT_ESTIMATE_WINDOW_MS       2000UL    // the flow In is taken over this window
+#define OUT_ESTIMATE_SETTLE_MS       3000UL    // the pump that starts gives a low flow that is not the pressure: not before
+#define OUT_ESTIMATE_MIN_FLOW        1.0f      // ml/s: under it the pump does not really run (its stop, no water)
 #define FLOW_UPDATE_MS               250UL     // period of the volume / flow rate computation
 // The curve of the flow In and Out of each AUTO extraction, kept in the journal (see settings/Journal.h, coffee/FlowRecorder.h): one sample
 // every CURVE_SAMPLE_MS (twice the period of the sensors: the pulses of In are 0.08 ml each, so a sample is good to 0.2 ml/s), up to

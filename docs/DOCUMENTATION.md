@@ -476,24 +476,30 @@ the update.**
 
 On 2026-11-26 the Out sensor melted: in the steaming mode, steam came back from the boiler through the OPV return, where the
 sensor is. Until it is replaced, `FLOW_OUT_SENSOR` is commented out in `Config.h`: the input A2 is not read at all (the broken
-sensor could send noise), Out counts 0 everywhere, and **In − Out is In**. Define it again once a working sensor is in place.
+sensor could send noise), and **the water the OPV sends back is estimated** from the flow In (`coffee/OutEstimate.h`). Define
+`FLOW_OUT_SENSOR` again once a working sensor is in place: the estimate is then not used.
 
-What changes:
+**The estimate.** The vibration pump gives less water as the pressure rises, and once the pressure reaches the OPV, the OPV sends a
+part of it back to the tank. The drop of the flow In below the free flow of the pump tells how much:
 
-- **The cup volume in AUTO counts the water the OPV sends back to the tank.** When the puck makes the pressure reach the OPV
-  (about 9 bar), part of the water pumped goes back to the tank: it is now counted as if it had gone to the cup, so the
-  extraction stops early and the cup is smaller than the target. Nothing in the software can tell the two apart. What helps:
-  - **CAL** (weigh a cup): the loss then also takes the average water of the OPV. It is good for the shots that look like the
-    one that was weighed (same grind and dose); the loss may need more than the usual 50 ml (it is capped at `LOSS_MAX_ML`, 200).
-  - **A flow limit (LIMIT)**: the pump only gives the flow set, so the pressure stays under the OPV in most shots and nearly
-    nothing goes back to the tank.
-  - **MANUAL** mode (time, or a second push) does not depend on the volume.
-- **The heater feedforward** heats for the water of In, including the water the OPV sends back: a little too much when the
-  OPV is open; the PID corrects it.
-- **The pre-infusion** (its volume is In − Out) and the stop before the target work on In: the pressure is low in the
-  pre-infusion, so the OPV is closed and nothing changes there.
-- **The refill of the boiler** after the steaming mode still stops when the boiler is full: from the drop of the flow In
-  (see [Steaming mode](#steaming-mode)), which does not need the Out sensor.
+```
+Out (ml/s) = 1.10 × (5.15 − flow In)        (0 when the flow In is 5.15 ml/s or more)
+```
+
+- 5.15 ml/s is the flow In when nothing holds the pump back (`OUT_ESTIMATE_FREE_FLOW`, measured 5.0 to 5.2); 1.10 is
+  `OUT_ESTIMATE_GAIN`. The flow In is taken over the last 2 s (`OUT_ESTIMATE_WINDOW_MS`).
+- It applies only while the pump runs at full power in a pressure phase: the main extraction (RUNNING) without a flow limit, and
+  MANUAL, from 3 s after the start of the phase (`OUT_ESTIMATE_SETTLE_MS`: the pump that starts gives a low flow that is not the
+  pressure). Not in the pre-infusion (low pressure, the OPV stays closed), nor with a flow limit (the pump works by slots, its flow
+  drops by design and the pressure stays under the OPV).
+- The estimate counts as Out everywhere: the cup volume (In − Out − loss), the stop before the target, the heater feedforward, and
+  the journal and its curves (the "out" there is then the estimate).
+- **Fitted on one extraction only** (#2 of the journal, the last one with the Out sensor: 42 s, In 159.2 ml, Out 41.9 ml). Over the
+  part where the estimate applies it gives 35.2 ml for 35.0 measured; the starts of the phases (about 7 ml there) are not estimated.
+  `test/test_out_estimate.cpp` replays that extraction. Another grind, another dose or another pump may differ: **weigh some cups
+  (CAL)**, the loss then takes up what the estimate misses.
+- The refill of the boiler after the steaming mode stops when the boiler is full from the drop of the flow In (see
+  [Steaming mode](#steaming-mode)): it does not use the estimate.
 
 ---
 
@@ -760,6 +766,7 @@ src/
     StopDelay              the stop before the target and the delay it learns (pure logic)
     FlowLimit              the flow limit of the main extraction: the pump as slots (pure logic)
     BoilerRefill           the refill of the boiler when the steaming mode is left (pure logic)
+    OutEstimate            the water of the OPV estimated from the flow In, without the Out sensor (pure logic)
     ExtractionJournal      the line and the flow curve of the AUTO extraction, for the journal
     FlowRecorder           the curve of the flow In and Out of an extraction
   heating/

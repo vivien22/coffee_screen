@@ -20,6 +20,8 @@ for t in test/test_*.cpp; do
   # no fade of the backlight at a big change of the screen (steaming, standby): the new screen is drawn at once; test_backlight has its own
   EXTRA="-DBACKLIGHT_FADE_OUT_MS=0UL -DBACKLIGHT_FADE_IN_MS=0UL"
   case "$n" in test_backlight) EXTRA="-DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
+  # the tests count the water of the OPV with the Out sensor (their flows are made up): the estimate without it has its own test
+  case "$n" in test_out_estimate) ;; *) EXTRA="$EXTRA -DFLOW_OUT_SENSOR";; esac
   # the tests of the logic of the screen look at what is drawn after each update(): no rolling digits and no fades there (test_roll and test_fade have them)
   case "$n" in test_flush|test_pre|test_machine) EXTRA="$EXTRA -DROLL_VOLUME_MS=0UL -DROLL_DURATION_MS=0UL -DFADE_OUT_MS=0UL -DFADE_IN_MS=0UL";; esac
   # the volume does not roll in the machine (ROLL_VOLUME_MS is 0 in Config.h); test_roll tests the roll of its digits all the same
@@ -27,7 +29,7 @@ for t in test/test_*.cpp; do
   # the tests that follow the cup volume number by number were written for a loss of 30 ml: the default of the machine is free to change
   case "$n" in test_volume|test_pre|test_manual|test_sim_flow) EXTRA="$EXTRA -DDEFAULT_LOSS_ML=30.0f";; esac
   # sources linked with the test (the test provides the stubs of what it does not link)
-  C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp $B/$d/src/coffee/BoilerRefill.cpp $B/$d/src/coffee/StopDelay.cpp"
+  C="$B/$d/src/coffee/ExtractionController.cpp $B/$d/src/coffee/FlowLimit.cpp $B/$d/src/coffee/BoilerRefill.cpp $B/$d/src/coffee/StopDelay.cpp $B/$d/src/coffee/OutEstimate.cpp"
   case "$n" in
     test_flow_recorder) C="$B/$d/src/coffee/FlowRecorder.cpp";;
     test_flush|test_pre) C="$C $B/$d/src/settings/Settings.cpp $B/$d/src/settings/Flash.cpp $B/$d/src/drivers/Perf.cpp $B/$d/src/display/ScreenController.cpp $B/$d/src/display/ParameterEditor.cpp $B/$d/src/display/DigitRoll.cpp $B/$d/src/display/BacklightFade.cpp";;

@@ -182,7 +182,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   on a long extraction). If the overshoot stays, the other cause is the heat stored in the boiler body (the probe is outside).
 - Out flow sensor (2026-11-19): it was wired in series with the In one, calibrated against it (10 sequences of 100 ml, the
   sixth left out: `FLOW_K_FACTOR_OUT` 74.18, report and raw data in `docs/DOCUMENTATION.md` and `docs/calibration/`) and is READ
-  (pin A2; there is no option any more to run without it: the options `FLOW_OUT_SENSOR`, with an estimated Out volume, and `FLOW_SIMULATOR` were removed on 2026-11-21 at the user's request). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
+  (pin A2; the options `FLOW_OUT_SENSOR`, with an estimated Out volume, and `FLOW_SIMULATOR` were removed on 2026-11-21 at the user's request; `FLOW_OUT_SENSOR` came back on 2026-11-26, the sensor having melted, see below). The pump and the valve relays were then wired too (the pump and the valve are always driven: there is no option to leave them off). On 2026-11-19 the pins were changed so that the same wiring works on the Nano R3 and R4 (the R4 flow inputs need an external interrupt): pump D4, valve A3, flow In A1, flow Out A2 (see Config.h; the user went through a few combinations that day, this is the last one).
 - Above about 120-130 °C the water turns to steam: another system (why `pid-tuning` cuts the heater at 110 °C). No
   software safety replaces an independent thermal fuse. Typical water inlet 22-24 °C (32 °C in summer).
 
@@ -208,8 +208,10 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   valve closed (`ExtractionController::setRefillPump`), until the Out (OPV return) flow reaches half the In flow, 100 ml, 30 s, or no
   water. The start button stops it; no flash write meanwhile. `STEAM_TIMEOUT_MINUTES` (10) leaves the mode without refill.
 - The local branch `steam-flow-test` (serial `s<n>` / `x`) is a measurement tool only: never merge or push it.
-- 2026-11-26: the Out sensor melted (steam back through the OPV return). `FLOW_OUT_SENSOR` is commented out: A2 not read, Out = 0,
-  so the AUTO cup volume also counts the OPV return (docs "Without the Out sensor"). The refill also stops on the drop of In
+- 2026-11-26: the Out sensor melted (steam back through the OPV return). `FLOW_OUT_SENSOR` is commented out: A2 not read, and Out is
+  ESTIMATED (`coffee/OutEstimate.h`, 2026-11-28): 1.10 x (5.15 - flow In) in RUNNING without limit and MANUAL, 3 s after the phase
+  starts; fitted on journal extraction #2 only (the user asked to use only that one). The host tests build with -DFLOW_OUT_SENSOR
+  (their made up flows), `test_out_estimate` without it. The refill also stops on the drop of In
   (`BOILER_REFILL_IN_DROP`). Planned: a Digmesa Nano Brass Ø1.2 (no divider, ~31 pulses/ml) at the boiler inlet, behind a check
   valve, measuring In − Out directly: the firmware will then use it as the net flow.
 
