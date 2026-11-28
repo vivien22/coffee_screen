@@ -11,11 +11,11 @@
 #include "src/drivers/Perf.h"
 #include "TestSupport.h"
 
-static JournalEntry entry(uint8_t reason, uint8_t phase, uint8_t pre, uint8_t duration, uint16_t in, uint16_t out, uint8_t loss4,
+static JournalEntry entry(uint8_t reason, uint8_t phase, uint8_t pre, uint8_t duration, uint16_t in, uint16_t out, uint8_t loss,
                           uint8_t cup, uint8_t cal, uint8_t delay100, uint8_t t0, uint8_t t1) {
   JournalEntry e; memset(&e, 0, sizeof(e));
   e.reason = reason; e.phase = phase; e.target = 60; e.preinfusion = pre; e.wait = 5; e.duration = duration;
-  e.inTenths = in; e.outTenths = out; e.loss4 = loss4; e.cup = cup; e.cal = cal; e.delay100 = delay100; e.tempStart = t0; e.tempEnd = t1;
+  e.inTenths = in; e.outTenths = out; e.loss = loss; e.cup = cup; e.cal = cal; e.delay100 = delay100; e.tempStart = t0; e.tempEnd = t1;
   return e;
 }
 
@@ -26,11 +26,11 @@ static std::string line(const JournalEntry &e) {
 }
 
 int main() {
-  // ---- the text of one entry: the numbers of the extraction #4 of the R4 (loss 149 quarters = 37.25 ml, shown 37.3)
-  CHECK(line(entry(END_TARGET, 3, 40, 40, 1504, 541, 149, 59, 42, 39, 90, 84)) ==
-        "#0 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.3 cup 59 cal 42 | delay 0.39 | 90 -> 84 C");
+  // ---- the text of one entry: the numbers of the extraction #4 of the R4 (the loss in whole ml: 37, shown 37.0)
+  CHECK(line(entry(END_TARGET, 3, 40, 40, 1504, 541, 37, 59, 42, 39, 90, 84)) ==
+        "#0 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.0 cup 59 cal 42 | delay 0.39 | 90 -> 84 C");
   // no CAL: no "cal" in the line; a stop during the pre-infusion; a loss of exactly 30 ml; the delay keeps two digits
-  CHECK(line(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 5, 18, 18)) ==
+  CHECK(line(entry(END_USER, 1, 5, 0, 14, 0, 30, 0, 0, 5, 18, 18)) ==
         "#0 USER  ended in PRE  tgt 60 pre 5 wait 5 | 0 s | in 1.4 out 0.0 net 1.4 loss 30.0 cup 0 | delay 0.05 | 18 -> 18 C");
   // more water out than in (noise of the sensors): a negative net; a wait phase; the other end reasons; an unknown one
   CHECK(line(entry(END_NO_WATER, 2, 40, 12, 100, 250, 0, 0, 0, 37, 60, 65)).find("net -15.0 loss 0.0") != std::string::npos);
@@ -66,13 +66,13 @@ int main() {
   CHECK(Serial.out == "JOURNAL\n(no extraction in the journal)\nEND\n");
 
   // two entries, the last one first; the capital letter and a newline work too; two commands give two answers
-  j.add(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 39, 18, 18));
-  j.add(entry(END_TARGET, 3, 40, 40, 1504, 541, 149, 59, 42, 39, 90, 84));
+  j.add(entry(END_USER, 1, 5, 0, 14, 0, 30, 0, 0, 39, 18, 18));
+  j.add(entry(END_TARGET, 3, 40, 40, 1504, 541, 37, 59, 42, 39, 90, 84));
   Serial.out.clear();
   Serial.in = "J\n";
   console.update(j);
   const std::string once = "JOURNAL\n"
-    "#1 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.3 cup 59 cal 42 | delay 0.39 | 90 -> 84 C\n"
+    "#1 TARGET  ended in RUN  tgt 60 pre 40 wait 5 | 40 s | in 150.4 out 54.1 net 96.3 loss 37.0 cup 59 cal 42 | delay 0.39 | 90 -> 84 C\n"
     "#0 USER  ended in PRE  tgt 60 pre 5 wait 5 | 0 s | in 1.4 out 0.0 net 1.4 loss 30.0 cup 0 | delay 0.39 | 18 -> 18 C\n"
     "END\n";
   CHECK(Serial.out == once);
@@ -131,7 +131,7 @@ int main() {
     CHECK(Serial.out == head + "CURVE #0 500 ms 3 | in 1,3,5 | out 2,4,6\n" "END\n");
     // only the curves of the last CURVE_COUNT entries are looked for: 30 more entries, the curves of #0 and #1 are not printed any more,
     // the one of #21 (written above, its entry is the 11th) is
-    for (int i = 0; i < 30; i++) j.add(entry(END_USER, 1, 5, 0, 14, 0, 120, 0, 0, 39, 18, 18));
+    for (int i = 0; i < 30; i++) j.add(entry(END_USER, 1, 5, 0, 14, 0, 30, 0, 0, 39, 18, 18));
     Serial.out.clear(); Serial.in = "j";
     console.update(j);
     CHECK(Serial.out.find("CURVE #0 ") == std::string::npos && Serial.out.find("CURVE #1 ") == std::string::npos);

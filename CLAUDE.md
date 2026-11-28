@@ -33,7 +33,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 ## The journal of the last extractions (2026-11-22, asked by the user to understand a cup of 12 ml)
 - `src/settings/Journal.{h,cpp}`: a ring of 50 entries of 16 bytes in the EEPROM from address 24 (25..824; 66 entries became 62 when `cal` was added and 50 on 2026-11-24 for the flow curves, as the user allowed; the
   settings are at 0..19): `JournalEntry` = reason + phase (4 bits each), target, pre-infusion, wait, duration, In and Out in tenths of ml
-  (16 bits), loss in quarters of ml, cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
+  (16 bits), loss in whole ml (quarters of ml before 2026-11-28: wrapped above 63.75; the journal of that day is in docs/calibration/journal_2026-11-28.txt), cup, stop delay in hundredths of s, temperature at the start and at the end, sequence number, `cal` (the cup weight entered in CAL: written afterwards by
   `CoffeeMachine::validateCalibration()` through `Journal::setLastCal()`, only when the weight was changed, else 0). The
   user asked for 100 compact entries, then for all these fields back "even if there are fewer entries": do not trade them again
   without asking. If the entry layout changes, run `pio run -e journal_clear -t upload` once (tools/journal_clear.cpp erases EEPROM 24..8191, settings kept) before flashing the machine, or the old entries are misread. AUTO extractions only (`journalPending_` is not set in MANUAL), whichever phase they ended in.

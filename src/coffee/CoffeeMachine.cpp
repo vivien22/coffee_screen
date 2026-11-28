@@ -166,7 +166,7 @@ void CoffeeMachine::captureJournal() {
   entry.duration = (uint8_t)extraction_.durationSeconds();   // 120 s at most (DURATION_MAX)
   entry.inTenths = (uint16_t)(extraction_.volumeInMl() * 10.0f + 0.5f);
   entry.outTenths = (uint16_t)(extraction_.volumeOutMl() * 10.0f + 0.5f);
-  entry.loss4 = (uint8_t)(extraction_.loss() * 4.0f + 0.5f);
+  entry.loss = (uint8_t)constrain(extraction_.loss() + 0.5f, 0.0f, 255.0f);
   entry.cup = (uint8_t)extraction_.volumeMl();
   entry.delay100 = (uint8_t)(extraction_.stopDelaySeconds() * 100.0f + 0.5f);
   entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);

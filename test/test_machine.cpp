@@ -610,9 +610,9 @@ static void journal(){
   CHECK(!j.read(0,e));                                                 // the pump just stopped: the water that comes after is being counted
   for(int i=0;i<40;i++){ t+=100; m.update(); }
   CHECK(j.read(0,e) && e.reason==END_TARGET && e.phase==EXTRACTION_RUNNING && e.sequence==0);
-  CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.wait==0 && e.duration>=(DEFAULT_VOLUME+DEFAULT_LOSS_ML)/3-2 && e.duration<=(DEFAULT_VOLUME+DEFAULT_LOSS_ML)/3+2 && e.outTenths==0 && e.loss4==(uint8_t)(DEFAULT_LOSS_ML*4));
+  CHECK(e.target==DEFAULT_VOLUME && e.preinfusion==0 && e.wait==0 && e.duration>=(DEFAULT_VOLUME+DEFAULT_LOSS_ML)/3-2 && e.duration<=(DEFAULT_VOLUME+DEFAULT_LOSS_ML)/3+2 && e.outTenths==0 && e.loss==(uint8_t)(DEFAULT_LOSS_ML+0.5f));
   CHECK(e.cup>=DEFAULT_VOLUME-1 && e.cup<=DEFAULT_VOLUME+2 && e.delay100>0 && e.tempStart>=85 && e.tempStart<=90 && e.tempEnd>=85 && e.tempEnd<=90);
-  { const float cup=(e.inTenths-e.outTenths)/10.0f-e.loss4/4.0f; CHECK(cup>e.cup-1.0f && cup<e.cup+1.0f); }   // the volumes add up: cup = In - Out - loss
+  { const float cup=(e.inTenths-e.outTenths)/10.0f-e.loss; CHECK(cup>e.cup-1.0f && cup<e.cup+1.0f); }   // the volumes add up: cup = In - Out - loss
   CHECK(!j.read(1,e));
   for(int i=0;i<50;i++){ t+=100; m.update(); } CHECK(!j.read(1,e));    // written once
   // the curve of the flow In and Out of that extraction: in the curve ring, with the sequence of its entry; it adds up to the volumes

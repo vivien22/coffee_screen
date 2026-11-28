@@ -338,7 +338,7 @@ It writes `journal.html` (`-o` to change the name); open it in a browser.
 
 *The picture is the example (made up extractions), not a real machine.*
 
-An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in quarters of ml). The map of the EEPROM (8192 bytes; the layout is in
+An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in whole ml, up to 255: before 2026-11-28 it was in quarters of ml and wrapped above 63.75 ml). The map of the EEPROM (8192 bytes; the layout is in
 `src/settings/Journal.h`):
 
 | Addresses | Content |

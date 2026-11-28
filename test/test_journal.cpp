@@ -8,7 +8,7 @@
 static JournalEntry entry(uint8_t reason, uint16_t in) {
   JournalEntry e; memset(&e, 0, sizeof(e));
   e.reason = reason; e.phase = 3; e.target = 60; e.preinfusion = 40; e.wait = 5; e.duration = 27; e.inTenths = in; e.outTenths = 541;
-  e.loss4 = 145; e.cup = 12; e.delay100 = 37; e.tempStart = 88; e.tempEnd = 91;
+  e.loss = 145; e.cup = 12; e.delay100 = 37; e.tempStart = 88; e.tempEnd = 91;
   return e;
 }
 
@@ -21,7 +21,7 @@ int main() {
   // one entry: all the fields come back, the sequence starts at 0
   j.add(entry(END_TARGET, 1023));
   CHECK(j.read(0, e) && e.reason == END_TARGET && e.phase == 3 && e.target == 60 && e.preinfusion == 40 && e.wait == 5 && e.duration == 27);
-  CHECK(e.inTenths == 1023 && e.outTenths == 541 && e.loss4 == 145 && e.cup == 12 && e.delay100 == 37 && e.tempStart == 88 && e.tempEnd == 91 && e.sequence == 0);
+  CHECK(e.inTenths == 1023 && e.outTenths == 541 && e.loss == 145 && e.cup == 12 && e.delay100 == 37 && e.tempStart == 88 && e.tempEnd == 91 && e.sequence == 0);
   CHECK(e.cal == 0);                                                     // CAL not entered
   CHECK(!j.read(1, e));                                                  // only one
   // three more: the last one first, the order is the one of the writes

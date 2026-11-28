@@ -45,7 +45,8 @@ struct __attribute__((packed)) JournalEntry {
   uint8_t duration;      // duration of the extraction (s)
   uint16_t inTenths;     // water counted by the In sensor, in tenths of ml
   uint16_t outTenths;    // water counted by the Out sensor, in tenths of ml
-  uint8_t loss4;         // the loss (CAL) used, in quarters of ml
+  uint8_t loss;          // the loss (CAL) used, in ml, rounded (up to 255: LOSS_MAX_ML is 200). Quarters of ml before 2026-11-28,
+                         // which wrapped above 63.75 ml
   uint8_t cup;           // final volume shown (ml): In - Out - loss
   uint8_t delay100;      // the delay of the stop before the target, in hundredths of a second of flow
   uint8_t tempStart;     // temperature shown at the start of the extraction (degrees C)

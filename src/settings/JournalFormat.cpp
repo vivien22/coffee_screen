@@ -35,7 +35,7 @@ size_t formatJournalEntry(const JournalEntry &entry, char *out, size_t size) {
   const unsigned outTenths = entry.outTenths;
   const int net = (int)inTenths - (int)outTenths;
   const unsigned netAbs = (unsigned)(net < 0 ? -net : net);
-  const unsigned lossTenths = ((unsigned)entry.loss4 * 10 + 2) / 4;   // the loss is kept in quarters of ml: rounded to a tenth
+  const unsigned lossTenths = (unsigned)entry.loss * 10;   // the loss is kept in whole ml
 
   size_t length = (size_t)snprintf(out, size, "#%u %s  ended in %s  tgt %u pre %u wait %u | %u s | in %u.%u out %u.%u net %s%u.%u loss %u.%u cup %u",
                                    sequence, reasonName(entry.reason), phaseName(entry.phase),
