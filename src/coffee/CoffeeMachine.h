@@ -17,8 +17,7 @@
 #include "../drivers/StartButton.h"
 #include "../drivers/FlowSensor.h"
 #include "../settings/Settings.h"
-#include "../settings/Journal.h"
-#include "FlowRecorder.h"
+#include "ExtractionJournal.h"
 #include "BoilerRefill.h"
 #include "../drivers/SerialConsole.h"
 #include "../drivers/Perf.h"
@@ -54,7 +53,6 @@ class CoffeeMachine {
     void updateRefill(uint32_t now);
     void stopRefill();
     void captureJournal();     // the extraction is over: its line for the journal is made (and the recording of its curve stops)
-    void writeJournal();       // that line goes to the journal of the last extractions (EEPROM), its curve is started
     void validateCalibration();   // CAL validated: the weight goes to the journal (if changed), the loss is corrected
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
     void showExtraction(uint32_t now);
@@ -69,8 +67,7 @@ class CoffeeMachine {
     FlowSensor flow_;
     CJMCU111 encoder_;
     SettingsStore store_;
-    Journal journal_;
-    FlowRecorder recorder_;   // the curve of the flow In and Out of the extraction, written in the journal with its entry
+    ExtractionJournal journal_;   // the line and the flow curve of the AUTO extraction, for the journal of the last extractions
     SerialConsole console_;   // the commands of the USB serial line (j = the journal, p = the performance trace)
     TemperatureSensor temperature_;
     HeaterController heater_;
@@ -81,10 +78,6 @@ class CoffeeMachine {
     bool wasExtracting_;   // to show the final values of an extraction
     ExtractionState lastState_ = EXTRACTION_IDLE;   // state seen while the extraction was active (to know if a flush ended)
     bool steaming_ = false;           // steaming mode (see toggleSteaming)
-    uint8_t journalTempStart_ = 0;    // the temperature shown when the extraction started (for the journal)
-    bool journalPending_ = false;     // an extraction was started and is not in the journal yet
-    bool journalWritePending_ = false;   // its line is made (journalEntry_) and waits for the end of the extraction to go to the EEPROM
-    JournalEntry journalEntry_;
     bool settingsPending_ = false;    // settings changed (pendingSettings_) and not written yet
     Settings pendingSettings_;        // as they were at the last change: what is being edited afterwards is not saved with them
     uint32_t settingsChangedAt_ = 0;

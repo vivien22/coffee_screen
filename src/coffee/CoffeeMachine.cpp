@@ -61,7 +61,7 @@ void CoffeeMachine::begin() {
 //   3. temperature and heater (heater off during standby)
 //   4. what the screen shows, then the drawing of what changed
 void CoffeeMachine::update() {
-  console_.update(journal_);   // answers a command of the serial line (reads only; not counted in the pass: see Perf.h)
+  console_.update(journal_.journal());   // answers a command of the serial line (reads only; not counted in the pass: see Perf.h)
 
   PerfScope pass(PERF_LOOP);   // the time of this pass, until the end of update()
 
@@ -126,7 +126,7 @@ void CoffeeMachine::update() {
 // Section 2 of update(): the extraction (phases, volume, safeties) and what follows from it.
 void CoffeeMachine::updateExtraction(uint32_t now) {
   extraction_.update(now, screen_.settings().volume);
-  recorder_.update(now, extraction_.liveInMl(), extraction_.liveOutMl());   // does nothing unless an AUTO extraction is being recorded
+  journal_.record(now, extraction_.liveInMl(), extraction_.liveOutMl());   // does nothing unless an AUTO extraction is being recorded
 
   // The delay of the stop before the target was learned: kept for the next extractions (written by writeFlash())
   if (extraction_.stopDelayLearned()) {
@@ -145,8 +145,7 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
   }
 
   // The journal: the extraction is over (how it ended is known) and its volumes are final
-  if (journalPending_ && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
-    journalPending_ = false;
+  if (journal_.waiting() && extraction_.endReason() != END_NONE && !extraction_.settlePending()) {
     captureJournal();
   }
 
@@ -158,8 +157,7 @@ void CoffeeMachine::updateExtraction(uint32_t now) {
 // writeFlash() when the extraction (its flush) is over: the data flash is never written while the pump may have to stop.
 void CoffeeMachine::captureJournal() {
   const Settings &settings = screen_.settings();
-  JournalEntry &entry = journalEntry_;
-  entry.sequence = 0;   // given by the journal
+  JournalEntry entry;   // the sequence, the temperature at the start and the weight are set by the journal
   entry.reason = extraction_.endReason();
   entry.phase = extraction_.endPhase();
   entry.target = settings.volume;
@@ -171,17 +169,8 @@ void CoffeeMachine::captureJournal() {
   entry.loss4 = (uint8_t)(extraction_.loss() * 4.0f + 0.5f);
   entry.cup = (uint8_t)extraction_.volumeMl();
   entry.delay100 = (uint8_t)(extraction_.stopDelaySeconds() * 100.0f + 0.5f);
-  entry.tempStart = journalTempStart_;
   entry.tempEnd = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);
-  entry.cal = 0;   // set later if the cup weight is entered in CAL
-  recorder_.stop();
-  journalWritePending_ = true;
-}
-
-void CoffeeMachine::writeJournal() {
-  journalWritePending_ = false;
-  const uint8_t sequence = journal_.add(journalEntry_);
-  journal_.beginCurve(sequence, recorder_.samples(), recorder_.count());   // written by the next passes of writeFlash()
+  journal_.capture(entry);
 }
 
 // Nothing that a block operation of the data flash (an erase and a program of 1 KB, some milliseconds) could delay: no extraction,
@@ -198,8 +187,8 @@ void CoffeeMachine::writeFlash(uint32_t now) {
     return;
   }
 
-  if (journalWritePending_) {
-    writeJournal();
+  if (journal_.writePending()) {
+    journal_.write();
   } else if (stopDelayPending_) {
     stopDelayPending_ = false;
     store_.saveStopDelay(extraction_.stopDelaySeconds());
@@ -214,8 +203,8 @@ void CoffeeMachine::writeFlash(uint32_t now) {
 // The weight entered in CAL is validated: written in the journal (last entry = the extraction CAL was offered for) only if it was
 // changed, then the loss is corrected (the same thing for the double push and for the start button).
 void CoffeeMachine::validateCalibration() {
-  if (journalWritePending_) {
-    writeJournal();   // the entry has to be in the journal to receive the weight (no extraction is going on here)
+  if (journal_.writePending()) {
+    journal_.write();   // the entry has to be in the journal to receive the weight (no extraction is going on here)
   }
   if (screen_.calibrationChanged()) {
     journal_.setLastCal(screen_.calibrationWeight());
@@ -450,14 +439,11 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
     extraction_.start(pressTime, settings.preinfusion, settings.preinfusionWait, settings.flush);
   }
   screen_.showExtractionStarted();
-  journalTempStart_ = (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET);   // for the journal
-  journalPending_ = extraction_.isActive() && !settings.manual;   // the journal gets this extraction (AUTO only) when its values are final
-  if (journalPending_) {
-    if (journalWritePending_) {
-      writeJournal();            // (the previous extraction is normally written long before)
-    }
-    journal_.flushCurve();       // the previous curve is in the EEPROM before its buffer is used again
-    recorder_.begin(pressTime);  // the flow In and Out is recorded until the journal gets the extraction
+  // The journal gets this extraction (AUTO only) when its values are final
+  if (extraction_.isActive() && !settings.manual) {
+    journal_.start(pressTime, (uint8_t)(int)(temperature_.celsius() - TEMPERATURE_OFFSET));
+  } else {
+    journal_.forget();
   }
 }
 
@@ -492,8 +478,7 @@ void CoffeeMachine::switchToManual(uint32_t now) {
   if (!extraction_.switchToManual(now, screen_.settings().manualSeconds)) {
     return;
   }
-  journalPending_ = false;
-  recorder_.stop();
+  journal_.forget();
   autoAfterManual_ = true;
   screen_.toggleMode();
 }
