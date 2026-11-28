@@ -49,6 +49,18 @@ int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag
                    int16_t zoneX, int16_t zoneY, int16_t zoneWidth, int16_t zoneHeight,
                    int16_t x, int16_t baseline, bool &moved, bool threeLarge = false, uint8_t progress = DISPLAY_ROLL_DONE);
 
+// COLOR_ICON blended with COLOR_BG, opacity 0 (background) to 15 (full color), computed by the compiler: nothing is calculated on the
+// board (the icons, the progress arc). The colors are RGB565 (5 bits red, 6 green, 5 blue); each channel is
+// background + (icon - background) * opacity / 15.
+#define BLEND_CHANNEL(shift, mask, opacity) \
+  ((int)((COLOR_BG >> (shift)) & (mask)) + \
+   ((int)((COLOR_ICON >> (shift)) & (mask)) - (int)((COLOR_BG >> (shift)) & (mask))) * (opacity) / 15)
+#define BLEND_COLOR(opacity) \
+  ((uint16_t)((BLEND_CHANNEL(11, 0x1F, opacity) << 11) | (BLEND_CHANNEL(5, 0x3F, opacity) << 5) | BLEND_CHANNEL(0, 0x1F, opacity)))
+
+// Erases a zone of a field (a rectangle of COLOR_BG) except where the progress arc may be (DisplayArc.cpp)
+void eraseZone(int16_t x, int16_t y, int16_t width, int16_t height);
+
 // The brightness of the texts (setTextBrightness): 255 = full
 extern uint8_t textBrightness;
 

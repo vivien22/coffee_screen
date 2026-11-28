@@ -66,12 +66,12 @@ int main(int argc, char **argv) {
 
   { ScreenController sc; ready(sc); save("auto-ready"); }
 
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showPreinfusion(7, 3); redraw(sc); save("auto-preinfusion"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showPreinfusionWait(10, 4); redraw(sc); save("auto-wait"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(26, 19); redraw(sc); save("auto-running"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(40, 27); redraw(sc); save("auto-result"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showFlush(40, 27, false); redraw(sc); save("auto-flush-wait"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showFlush(40, 4, true); redraw(sc); save("auto-flushing"); }
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showPreinfusion(7, 3); sc.showWaterSent(33); redraw(sc); save("auto-preinfusion"); }
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showPreinfusionWait(10, 4); sc.showWaterSent(40, 1.0f); redraw(sc); save("auto-wait"); }
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(26, 19); sc.showWaterSent(76, 5.0f); redraw(sc); save("auto-running"); }   // 26 ml in the cup = 76 ml of water (loss 50)
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(40, 27); sc.showWaterSent(90, 5.0f); redraw(sc); save("auto-result"); }
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showFlush(40, 27, false); sc.showWaterSent(90, 5.0f); redraw(sc); save("auto-flush-wait"); }
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showFlush(40, 4, true); sc.showWaterSent(90, 5.0f); redraw(sc); save("auto-flushing"); }
 
   // Settings: a double push selects the next parameter
   { ScreenController sc; ready(sc); sc.selectNextParameter(); redraw(sc); save("set-preinfusion"); }
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   { ScreenController sc; ready(sc); for (int i = 0; i < 3; i++) sc.selectNextParameter(); redraw(sc); save("set-wait"); }
   { ScreenController sc; ready(sc); for (int i = 0; i < 4; i++) sc.selectNextParameter(); redraw(sc); save("set-flush"); }
   { ScreenController sc; ready(sc); for (int i = 0; i < 5; i++) sc.selectNextParameter(); redraw(sc); save("set-temperature"); }
-  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(38, 27); redraw(sc);
+  { ScreenController sc; ready(sc); sc.showExtractionStarted(); sc.showExtractionProgress(38, 27); sc.showWaterSent(88, 5.0f); redraw(sc);
     sc.offerCalibration(38); sc.selectNextParameter(); redraw(sc); save("set-calibration"); }
   { ScreenController sc; ready(sc); sc.adjustActiveParameter(5); redraw(sc); save("set-volume"); }
 

@@ -92,6 +92,12 @@ void drawModeLetter(bool manual);
 // mode).
 void drawDropFrame(bool manual);
 
+// The progress arc: a ring of ARC_SEGMENTS segments along the edge of the screen, clockwise from 12 o'clock, in the icon color
+// with smooth edges. drawArcSegments() draws the segments from first to last - 1 (each pixel belongs to one segment, so the order and
+// the cuts do not matter), eraseArc() clears the whole ring (it is quick: a few rows of pixels).
+void drawArcSegments(uint8_t first, uint8_t last);
+void eraseArc();
+
 // Steaming mode: the screen is cleared (everything gone, the fields are drawn again in full afterwards), then only the
 // temperature is drawn, in large digits in the middle of the screen. error: "ERR" instead (probe fault).
 void clearScreen();

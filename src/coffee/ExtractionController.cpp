@@ -247,6 +247,18 @@ void ExtractionController::stop(ExtractionState finalState) {
   DEBUG_PRINTLN(F("Extraction stopped"));
 }
 
+float ExtractionController::waitElapsedSeconds(uint32_t now) const {
+  const float total = preinfusionMl_ > 0 ? (float)phaseSeconds_[DURATION_WAIT] : 0.0f;
+  if (total <= 0.0f || state_ < EXTRACTION_PREINFUSION_WAIT) {
+    return 0.0f;                                        // no wait, or not there yet
+  }
+  if (state_ == EXTRACTION_PREINFUSION_WAIT) {
+    const float elapsed = (uint32_t)(now - phaseStartedAt_) / 1000.0f;
+    return elapsed < total ? elapsed : total;
+  }
+  return total;                                         // the wait is over
+}
+
 uint32_t ExtractionController::phaseLimitMs() const {
   return phaseSeconds_[durationOf(state_)] * 1000UL;
 }

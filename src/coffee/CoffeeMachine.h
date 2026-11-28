@@ -55,6 +55,9 @@ class CoffeeMachine {
     void captureJournal();     // the extraction is over: its line for the journal is made (and the recording of its curve stops)
     void validateCalibration();   // CAL validated: the weight goes to the journal (if changed), the loss is corrected
     void updateExtraction(uint32_t now);   // sections 2 and 4 of update()
+#ifdef ARC_DEMO
+    void demoExtraction(uint32_t now);     // env arc_demo: the screen plays an extraction in a loop (nothing is started)
+#endif
     void showExtraction(uint32_t now);
     void saveSettings();       // the settings are to be saved (written SETTINGS_SAVE_DELAY_MS after the last change) and the setpoint is applied
     void saveSettingsNow();    // the same, written at once (before an extraction starts)

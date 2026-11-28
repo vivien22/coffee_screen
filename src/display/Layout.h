@@ -15,14 +15,19 @@
 
 // ========================== 2. Positions ============================
 // Icons: X, Y = top-left corner
-#define ICON_THERMOMETER_X            53
+#define ICON_THERMOMETER_X            49
 #define ICON_THERMOMETER_Y            35
-#define ICON_DROP_X                   38
+#define ICON_DROP_X                   34
 #define ICON_DROP_Y                   99
 // Mode letter in the drop (A = AUTO, M = MANUAL): 15 px capital in the tag font and color, centered in the drop by its own width
 #define MODE_LETTER_DY                36    // from ICON_DROP_Y to its baseline (the letter sits in the middle of the round part of the drop)
 #define MODE_LETTER_DX                1     // pixels to the right of the centered position
-#define ICON_CLOCK_X                  56   // ink x 56 -> 94: compromise between the original place (x 65) and the axis of the thermometer (x 46)
+// Progress arc (AUTO extraction): a ring along the edge of the round screen, drawn clockwise from 12 o'clock in ARC_SEGMENTS steps (Config.h).
+// Everything else of the screen is 4 px left of where it was before the arc (the arc is 5 px thick: it takes room on the right).
+#define ARC_OUTER_RADIUS              120.0f   // the screen is 240 px wide: its edge is at 120
+#define ARC_WIDTH                     5.0f    // the inner edge (115) is outside of everything else: the tag FLUSH reaches 112.9
+#define ARC_BRIGHTNESS_PERCENT        80      // the arc is a little darker than the icons (100 = the color of the icons)
+#define ICON_CLOCK_X                  52   // ink x 52 -> 90: compromise between the original place (x 61) and the axis of the thermometer (x 42)
 #define ICON_CLOCK_Y                  167
 // The welcome picture of the start-up: in the middle of the screen
 #define WELCOME_X                     ((240 - ICON_WELCOME_WIDTH) / 2)
@@ -39,12 +44,12 @@
 
 // ---------- Temperature: "92 °C" (left-aligned, up to 3 digits) ----------
 // The row is shifted to the left so that 199 stays inside the round screen.
-#define TEMPERATURE_X                 87    // left edge of the number
+#define TEMPERATURE_X                 83    // left edge of the number
 #define TEMPERATURE_BASELINE          71    // baseline of the number
 #define TEMPERATURE_UNIT_BASELINE     68    // baseline of the "C"
 #define TEMPERATURE_ERROR_BASELINE    64    // baseline of "ERR" (sensor fault): 30 px capitals, centered on the thermometer
 #define TEMPERATURE_DEGREE_Y          53    // center of the degree sign
-#define TEMPERATURE_ZONE_X            86    // zone erased before each update: x 86 -> 220
+#define TEMPERATURE_ZONE_X            82    // zone erased before each update: x 82 -> 216
 #define TEMPERATURE_ZONE_Y            22    // y 22 -> 74
 #define TEMPERATURE_ZONE_WIDTH        134
 #define TEMPERATURE_ZONE_HEIGHT       52
@@ -71,7 +76,7 @@
 #define STEAM_ERROR_BASELINE          142
 
 // --------------------- Blinking dot for PID output ---------------------
-#define TEMPERATURE_DOT_X       80
+#define TEMPERATURE_DOT_X       76
 #define TEMPERATURE_DOT_Y       39
 // The same dot in the steaming mode: at the same place relative to the thermometer icon. Its right edge (x 59) enters the zone of the
 // steaming temperature (from x 58) by two columns: it is drawn again after each drawing of that temperature.
@@ -79,24 +84,24 @@
 #define STEAM_DOT_Y             (STEAM_ICON_Y + TEMPERATURE_DOT_Y - ICON_THERMOMETER_Y)
 
 // ---------- Volume: "38 ml" (left-aligned, up to 3 digits) ----------
-#define VOLUME_X                      80    // left edge of the number
+#define VOLUME_X                      76    // left edge of the number
 #define VOLUME_BASELINE               145   // baseline of the number
 #define VOLUME_UNIT_BASELINE          144   // baseline of "ml"
-#define VOLUME_ZONE_X                 79    // zone erased before each update: x 79 -> 240 (3 digits max, the drop is not touched)
+#define VOLUME_ZONE_X                 75    // zone erased before each update: x 75 -> 240 (3 digits max, the drop is not touched)
 #define VOLUME_ZONE_Y                 96    // y 96 -> 148
-#define VOLUME_ZONE_WIDTH             161
+#define VOLUME_ZONE_WIDTH             165
 #define VOLUME_ZONE_HEIGHT            52
 #define VOLUME_UNIT_DX                5     // offset of "ml" from the end of the number
 // "PRE" tag (pre-infusion volume): top right of the volume field, above the "ml". Fixed position,
 // small or large digits (up to "50", pre-infusion maximum).
-#define VOLUME_TAG_X                  164   // left edge of the tag
+#define VOLUME_TAG_X                  160   // left edge of the tag
 #define VOLUME_TAG_BASELINE           113   // baseline of the tag
 
 // ---------- Duration: "48 s" (left-aligned, up to 3 digits) ----------
 #define DURATION_X                    (ICON_CLOCK_X + 43)   // left edge of the number
 #define DURATION_BASELINE             201   // baseline of the number
 #define DURATION_UNIT_BASELINE        201   // baseline of the "s"
-#define DURATION_ZONE_X               (DURATION_X - 1)   // zone erased before each update: x 98 -> 240 (the clock, up to x 94, is not touched)
+#define DURATION_ZONE_X               (DURATION_X - 1)   // zone erased before each update: x 94 -> 240 (the clock, up to x 90, is not touched)
 #define DURATION_ZONE_Y               152   // y 152 -> 204
 #define DURATION_ZONE_WIDTH           (240 - DURATION_ZONE_X)
 #define DURATION_ZONE_HEIGHT          52
@@ -105,7 +110,7 @@
 // small or large digits (countdown, or setting being edited): it does not move when the number
 // changes width, and it clears "10s" in both sizes (a tag next to the small "10s" would overlap it,
 // and "FLUSH" would not fit on the round screen there).
-#define DURATION_TAG_X                (DURATION_X + 64)   // left edge of the tag
+#define DURATION_TAG_X                (DURATION_X + 63)   // left edge of the tag (one pixel left of what it was: FLUSH must stay inside the progress arc)
 #define DURATION_TAG_BASELINE         169                 // baseline of the tag
 #define DURATION_TAG_HEIGHT           15                  // height of the letters of the tag (erased when the tag blinks)
 

@@ -160,6 +160,10 @@ class ExtractionController {
     // 0 in the other states. The screen shows it instead of the volume during the pre-infusion.
     uint16_t preinfusionMlLeft() const { return preinfusionMlLeft_; }
 
+    // The seconds of the wait of the pre-infusion that went by, with sub-second steps: 0 before the wait, the whole wait after it (0 if there is
+    // none). The progress arc of the screen goes on with it while no water flows. Only meaningful while the extraction is active.
+    float waitElapsedSeconds(uint32_t now) const;
+
     // Flow of the water to heat (ml/s): In - Out, the water that returns through the OPV valve is not heated; never below 0;
     // 0 when no extraction is in progress. The heater uses it as feedforward.
     float inflowMlPerSec();

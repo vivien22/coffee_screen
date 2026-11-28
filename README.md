@@ -90,7 +90,8 @@ No-water detection (the pump stops and the screen says so), maximum duration of 
 
 > These pictures are not mock-ups: they are drawn by the real display code, on a computer (`./tools/render_screens.sh`).
 > The text is anti-aliased (Poppins Bold), and the screen fades smoothly when you change the parameter or the mode
-> ([Fonts and transitions](docs/DOCUMENTATION.md#fonts-and-transitions)).
+> ([Fonts and transitions](docs/DOCUMENTATION.md#fonts-and-transitions)). During an AUTO extraction a thin arc around the screen shows
+> the progress towards the target volume ([Icons and progress arc](docs/DOCUMENTATION.md#icons-and-progress-arc)).
 
 ---
 

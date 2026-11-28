@@ -239,10 +239,10 @@ int16_t drawNumber(NumberField &field, const char *text, TextSize size, PhaseTag
   // Around the blocks: the left margin of the zone (new look), and the right of the number, up to the end of the
   // zone, if it moved (the old one was longer, the unit is going to be drawn again)
   if (!sameLook && !repaint && x > zoneX) {
-    tft.fillRect(zoneX, zoneY, x - zoneX, zoneHeight, COLOR_BG);
+    eraseZone(zoneX, zoneY, x - zoneX, zoneHeight);
   }
   if (moved && !repaint && xEnd < zoneX + zoneWidth) {
-    tft.fillRect(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight, COLOR_BG);
+    eraseZone(xEnd, zoneY, zoneX + zoneWidth - xEnd, zoneHeight);
   }
 
   field.xEnd = xEnd;

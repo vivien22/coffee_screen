@@ -120,6 +120,8 @@ void ScreenController::redrawScreen() {
   }
 #endif
   dirty_ = steaming_ ? (DIRTY_TEMPERATURE | DIRTY_HEATER) : (DIRTY_ALL_VALUES | DIRTY_HEATER);
+  arcShown_ = 0;                    // the ring is drawn again as it is wanted (the screen was cleared, or the ring is not on it)
+  arcErase_ = false;
   temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
   temperatureKey_ = -1;             // the live temperature is drawn again at once
   volumeRoll_ = DigitRoll();             // the fields are drawn as they are: no roll goes on
@@ -128,6 +130,9 @@ void ScreenController::redrawScreen() {
     fade_[row] = Fade();            // nor fade
   }
   render(lastNow_);
+  if (!steaming_) {
+    stepArc(255);
+  }
 }
 
 // Steaming mode: the screen is cleared, the temperature alone is drawn. The encoder sets the steaming temperature.
@@ -193,6 +198,40 @@ void ScreenController::update(uint32_t now) {
   stepFades(now);
   render(now);
   stepRolls(now);
+  stepArc(ARC_SEGMENTS_PER_UPDATE);
+}
+
+// The segments of the arc that are missing are drawn, at most "most" of them (the loop goes on between two calls). A target smaller
+// than what is shown, or none, erases the ring first.
+void ScreenController::stepArc(uint8_t most) {
+  if (arcErase_ || arcTarget_ < arcShown_) {
+    eraseArc();
+    arcShown_ = 0;
+    arcErase_ = false;
+  }
+  if (arcTarget_ > arcShown_) {
+    const uint8_t last = (arcTarget_ - arcShown_ > most) ? arcShown_ + most : arcTarget_;
+    drawArcSegments(arcShown_, last);
+    arcShown_ = last;
+  }
+}
+
+// The arc follows the water that went through the machine (In - Out) against what the target needs: the target volume plus the loss
+// (the cup holds In - Out - loss), plus the wait of the pre-infusion at ARC_WAIT_ML_PER_S. It moves from the first millilitre, even while the
+// cup is still at 0, and it does not stop during the wait. AUTO only: in MANUAL there is no target.
+void ScreenController::showWaterSent(float netMl, float waitSeconds) {
+  // The wait of the pre-infusion counts as water at ARC_WAIT_ML_PER_S: the arc does not stop while the pump is off
+  const float waitMl = settings().preinfusion > 0 ? settings().preinfusionWait * ARC_WAIT_ML_PER_S : 0.0f;
+  const float needed = settings().volume + settings().loss + waitMl;
+  if (settings().manual || needed < 1.0f) {
+    return;
+  }
+  const float water = netMl + (waitMl > 0.0f ? waitSeconds * ARC_WAIT_ML_PER_S : 0.0f);
+  const float segments = water <= 0.0f ? 0.0f : water * ARC_SEGMENTS / needed;
+  const uint8_t target = segments >= ARC_SEGMENTS ? ARC_SEGMENTS : (uint8_t)segments;
+  if (target > arcTarget_ || target + 3 < arcTarget_) {   // it only goes back for a real drop (a new extraction), not for the noise of the sensors
+    arcTarget_ = target;
+  }
 }
 
 // The drop icon blinks while the no-water error lasts, and stays on again once it is cleared.
@@ -416,10 +455,12 @@ void ScreenController::showExtractionStarted() {
   durationTagShown_ = PHASE_TAG_NONE;
   tagBlink_.stop();
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
+  arcTarget_ = 0;   // the ring of the last extraction (if it is still there) goes, the new one starts empty
 }
 
 // Nothing is going on: the fields show the target volume (0 in MANUAL) and 0 s (the MANUAL time in MANUAL).
 void ScreenController::showReady() {
+  arcTarget_ = 0;                 // nothing is going on: no ring
   // The rows that change (their tag, or their number: "27 s" -> "0 s") fade, as at a change of parameter. A row that is in a fade already
   // (a change of mode) goes on with it.
   const bool animate = canAnimate();

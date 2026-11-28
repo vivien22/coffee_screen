@@ -277,6 +277,13 @@
 #ifndef ROLL_DURATION_MS
 #define ROLL_DURATION_MS         260UL
 #endif
+// Progress arc (AUTO extraction, a ring along the edge of the screen, see Layout.h): its number of steps (1.5 degree each, at most 255), and at most
+// ARC_SEGMENTS_PER_UPDATE of them drawn by one update() (the loop goes on between two)
+#define ARC_SEGMENTS             240
+#define ARC_SEGMENTS_PER_UPDATE  12
+// The arc does not stop during the wait of the pre-infusion (no water flows then): it goes on as if the water kept coming at this rate (ml/s, about
+// the flow of the pump), so the whole circle is made of the target, the loss and the seconds of the wait at that rate
+#define ARC_WAIT_ML_PER_S        4.0f
 #define ROLL_FRAME_MS            30UL
 
 // ---------- Change of parameter and of mode ----------

@@ -16,7 +16,7 @@ void drawTemperature(double v,TextSize s){L("temp",v,s);} void drawVolume(uint16
 void drawDuration(uint16_t v,TextSize s,PhaseTag g,bool r,uint8_t p){if(p==DISPLAY_ROLL_DONE)L("dur",v,s,g,r);}
 void clearTemperature(){L("clearTemp");} void clearVolume(){L("clearVol");} void clearDuration(){L("clearDur");}
 void setTextBrightness(uint8_t){} void forgetField(uint8_t){} void repaintField(uint8_t){} void drawHeaterIndicator(bool,bool){} void drawPhaseTag(PhaseTag g,bool v){L("tag",0,g,v);} void drawDrop(bool v,bool m){L("drop",m,v);} void drawModeLetter(bool){} void drawDropFrame(bool){} void drawTemperatureError(){L("temperr");}
-void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
+void drawFlowLimit(uint16_t,bool){} void drawSteamIcon(){L("steamicon");} void drawArcSegments(uint8_t,uint8_t){} void eraseArc(){} void clearScreen(){L("clearscreen");} void drawSteamTemperature(double v,bool e){L("steam",v,e);}
 const char* nm[]={"IDLE","PRE","WAIT","RUN","FLUSH_WAIT","FLUSHING","FIN","ERR"};
 #define PUMP pins[4]
 #define VALVE pins[16]

@@ -110,7 +110,7 @@ void drawSteamTemperature(double value, bool error) {
 
 // "ERR" in white, in 30 px capitals: FontErrorSmall ('0' = E, '1' = R)
 void drawTemperatureError() {
-  tft.fillRect(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT, COLOR_BG);
+  eraseZone(TEMPERATURE_ZONE_X, TEMPERATURE_ZONE_Y, TEMPERATURE_ZONE_WIDTH, TEMPERATURE_ZONE_HEIGHT);
   temperatureField.valid = false;   // the temperature has to be drawn again in full
   putText(FONT_ERROR_SMALL, TEMPERATURE_X, TEMPERATURE_ERROR_BASELINE, COLOR_TEXT, F("011"));
 }
@@ -150,9 +150,9 @@ void drawVolume(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, uin
     // The "ml" (small or large digits) can reach under the tag, in a part of the field that the zone
     // above does not cover: erased too, below the tag.
     if (keepTag) {
-      tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
+      eraseZone(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
                    VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
-                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1));
     }
 
     putText(FONT_UNIT, xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE, COLOR_TEXT, F("21"));
@@ -184,9 +184,9 @@ void drawFlowLimit(uint16_t tenths, bool redrawTag) {
                                         VOLUME_X, VOLUME_BASELINE, moved);
   if (moved) {
     if (keepTag) {
-      tft.fillRect(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
+      eraseZone(VOLUME_TAG_X, VOLUME_TAG_BASELINE + 1,
                    VOLUME_ZONE_X + VOLUME_ZONE_WIDTH - VOLUME_TAG_X,
-                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1), COLOR_BG);
+                   VOLUME_ZONE_Y + VOLUME_ZONE_HEIGHT - (VOLUME_TAG_BASELINE + 1));
     }
     putText(FONT_UNIT, xNumberEnd + VOLUME_UNIT_DX, VOLUME_UNIT_BASELINE, COLOR_TEXT, F("2163"));   // m l / s
   }
@@ -215,11 +215,11 @@ void drawDuration(uint16_t value, TextSize size, PhaseTag tag, bool redrawTag, u
 
   if (moved) {
     // The "s" (or the old one) can be under the tag, in a part of the field that the zone above does not cover: with large digits, and with
-    // small ones too (the "s" of a number of two digits reaches x 169, the tag starts at x 163)
+    // small ones too (the "s" of a number of two digits reaches x 165, the tag starts at x 158)
     if (keepTag) {
-      tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE + 1,
+      eraseZone(DURATION_TAG_X, DURATION_TAG_BASELINE + 1,
                    DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X,
-                   DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1), COLOR_BG);
+                   DURATION_ZONE_Y + DURATION_ZONE_HEIGHT - (DURATION_TAG_BASELINE + 1));
     }
 
     putText(FONT_UNIT, xNumberEnd + DURATION_UNIT_DX, DURATION_UNIT_BASELINE, COLOR_TEXT, F("3"));
@@ -236,8 +236,8 @@ void drawPhaseTag(PhaseTag tag, bool visible) {
     drawTag(tag, DURATION_TAG_X, DURATION_TAG_BASELINE);
   } else {
     // Only the rows of the letters: the number and its unit are not touched
-    tft.fillRect(DURATION_TAG_X, DURATION_TAG_BASELINE - DURATION_TAG_HEIGHT,
-                 DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X, DURATION_TAG_HEIGHT, COLOR_BG);
+    eraseZone(DURATION_TAG_X, DURATION_TAG_BASELINE - DURATION_TAG_HEIGHT,
+                 DURATION_ZONE_X + DURATION_ZONE_WIDTH - DURATION_TAG_X, DURATION_TAG_HEIGHT);
   }
 }
 

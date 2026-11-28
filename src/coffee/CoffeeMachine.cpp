@@ -117,11 +117,87 @@ void CoffeeMachine::update() {
     screen_.showTemperatureError();   // the heater is off (see HeaterController)
   }
   screen_.showHeaterState(heater_.isOn());
+#ifdef ARC_DEMO
+  demoExtraction(now);
+#endif
   {
     PerfScope drawing(PERF_SCREEN);
     screen_.update(now);
   }
 }
+
+#ifdef ARC_DEMO
+// Env arc_demo (see platformio.ini): the screen plays an AUTO extraction in a loop, only through its public methods. The pump, the valve and
+// the extraction controller are not touched. One round lasts 40 s: ready (2 s), pre-infusion (5 s), wait (5 s), extraction (15 s), flush
+// wait then flush (7 s), the result (4 s), ready again: the arc grows from 12 o'clock to the full circle, then goes.
+void CoffeeMachine::demoExtraction(uint32_t now) {
+  static const uint32_t ROUND_MS = 40000UL;
+  const Settings &settings = screen_.settings();
+  const float target = (float)settings.volume;
+  const float needed = target + settings.loss;                 // water that makes a full circle: the target plus the loss
+  const float preMl = (float)settings.preinfusion > 0 ? (float)settings.preinfusion : 40.0f;
+  static uint32_t roundStart = 0;
+  static uint8_t lastPhase = 255;
+  if (roundStart == 0) {
+    roundStart = now;
+  }
+  if ((uint32_t)(now - roundStart) >= ROUND_MS) {
+    roundStart += ROUND_MS;
+  }
+  const float t = (now - roundStart) / 1000.0f;                // seconds in the round
+  uint8_t phase;
+  if (t < 2.0f)       phase = 0;   // ready
+  else if (t < 7.0f)  phase = 1;   // pre-infusion
+  else if (t < 12.0f) phase = 2;   // wait
+  else if (t < 27.0f) phase = 3;   // extraction
+  else if (t < 31.0f) phase = 4;   // waiting for the push of the flush
+  else if (t < 36.0f) phase = 5;   // flushing
+  else                phase = 6;   // the result
+  if (phase != lastPhase) {
+    lastPhase = phase;
+    if (phase == 0) screen_.showReady();
+    if (phase == 1) screen_.showExtractionStarted();
+  }
+  float net = 0.0f;   // water through the machine (In - Out), ml
+  switch (phase) {
+    case 1: {
+      net = preMl * (t - 2.0f) / 5.0f;
+      screen_.showPreinfusion((uint16_t)(preMl - net + 0.5f), (uint16_t)(t - 2.0f));
+      break;
+    }
+    case 2:
+      net = preMl;
+      screen_.showPreinfusionWait(0, (uint16_t)(12.0f - t + 0.99f));
+      break;
+    case 3: {
+      const float k = (t - 12.0f) / 15.0f;
+      net = preMl + (needed - preMl) * k;
+      const float cup = (net - settings.loss) > 0 ? net - settings.loss : 0;
+      screen_.showExtractionProgress((uint16_t)(cup + 0.5f), (uint16_t)(t - 2.0f));
+      break;
+    }
+    case 4:
+      net = needed;
+      screen_.showFlush((uint16_t)target, 25, false);
+      break;
+    case 5:
+      net = needed;
+      screen_.showFlush((uint16_t)target, (uint16_t)(36.0f - t + 0.99f), true);
+      break;
+    case 6:
+      net = needed;
+      screen_.showExtractionProgress((uint16_t)target, 25);
+      break;
+    default:
+      break;
+  }
+  if (phase >= 1) {
+    // the seconds of the wait that went by, as the machine gives them (the demo wait lasts 5 s, the setting may differ: it is scaled)
+    const float waitDone = phase == 2 ? (t - 7.0f) / 5.0f * settings.preinfusionWait : (phase > 2 ? (float)settings.preinfusionWait : 0.0f);
+    screen_.showWaterSent(net, waitDone);
+  }
+}
+#endif
 
 // Section 2 of update(): the extraction (phases, volume, safeties) and what follows from it.
 void CoffeeMachine::updateExtraction(uint32_t now) {
@@ -223,6 +299,9 @@ void CoffeeMachine::showExtraction(uint32_t now) {
     // End of the flush: the values of the extraction are shown again, for EXTRACTION_RESULT_DISPLAY_MS (below)
     screen_.showExtractionProgress(extraction_.volumeMl(), extraction_.durationSeconds());
   } else if (extracting || wasExtracting_) {
+    if (extracting) {
+      screen_.showWaterSent(extraction_.netVolumeMl(), extraction_.waitElapsedSeconds(now));   // the arc around the screen
+    }
     switch (extraction_.state()) {
       case EXTRACTION_PREINFUSION:
         // Millilitres left to send, with the "PRE" tag; the duration runs as usual

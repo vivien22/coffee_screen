@@ -10,7 +10,7 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
 - The PlatformIO project is this folder (the repository): `platformio.ini` is here with `src_dir = .`, run `pio` from here. `pio run`
   builds the machine (env `nano_r4`, platform renesas-ra), `pio run -t upload` flashes it. If the upload cannot find the board, a double
   push on RESET puts it in its bootloader. The USB serial loses what is printed before a monitor has opened the port.
-- There is no flash budget any more (the AVR build flags, `link_flags.py` and the 30720 B limit went with the R3). Last measured (2026-11-25, the 2 KB curve buffer of the serial console removed): 96 KB of 256 KB (36.8 %),
+- There is no flash budget any more (the AVR build flags, `link_flags.py` and the 30720 B limit went with the R3). Last measured (2026-11-25, with the progress arc and the fast SPI output): 102 KB of 256 KB (39.9 %),
   5.1 KB of RAM (was 6.8 KB on 2026-11-24). `./tools/check_flash.sh` builds, shows the size and fails over 24000 B of RAM (a stack overflow
   corrupts the memory without any message); the CI runs it on every push.
 - What is board specific lives in `src/platform/`: `Platform.h` / `PlatformRenesas.cpp` (the external interrupts of the flow pulses, the
@@ -89,6 +89,13 @@ CJMCU-111 encoder, MAX31865 + PT100, PID heater, pump and 3-way valve relays, tw
   Since 2026-11-24 `icons_raw.h` holds 4-bit pixels (levels 0..15, 15ths of the icon color): the thermometer, drop and clock were smoothed
   from the old 4-level ones (contour rebuilt at 16 times the resolution); the steam and the welcome picture use only 0, 5, 10, 15 (and
   `png_to_icon.ps1` writes that 4-bit format too). The token format is described in `tools/compress_icons.cpp` and read by `drawIcon()`.
+- Progress arc (AUTO extraction, branch ui-arc): follows In - Out against target + loss + the wait (`showWaterSent(net, waitSeconds)`, called by `CoffeeMachine::showExtraction` with
+  `ExtractionController::waitElapsedSeconds()`; user choices 2026-11-24: it must move from the start, not with the cup volume, and it must NOT stop during
+  the wait of the pre-infusion: the wait counts as water at `ARC_WAIT_ML_PER_S`). `test_arc_progress` checks it. A ring of `ARC_SEGMENTS` along the edge, drawn by `ScreenController::stepArc()`
+  (12 segments per `update()`), `drawArcSegments()` / `eraseArc()` in `DisplayArc.cpp`. The zones of the fields are erased by `eraseZone()`,
+  which stops at the inner circle of the ring: the ring must stay clear of everything (the ring is 5 px thick and at 80 % of the brightness of the icons (`ARC_BRIGHTNESS_PERCENT`), user choice 2026-11-24, so
+  its inner edge is at 115 from the middle; the tag FLUSH reaches 112.9). For that every x of the content of the screen (icons, temperature,
+  volume, duration and their zones and tags, see `Layout.h`) was moved 4 px left, and `DURATION_TAG_X` one more pixel. `test_arc` checks the geometry.
 
 ## Git rules
 - Commit locally. **Push only when the user says "pousse".** An automatic "Stop hook feedback" about unpushed

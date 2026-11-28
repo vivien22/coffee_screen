@@ -150,7 +150,7 @@ int main() {
     startedAt(sc, 9, 18);
     sc.showExtractionProgress(10, 18);
     run(sc, 1000);
-    { const Picture got = snapshot(); CHECK(got == asItIs(10, 18)); }   // the reference is drawn after: it uses the same frame buffer
+    { const Picture got = snapshot(); const Picture ref = asItIs(10, 18); CHECK(got == ref); if (got != ref) whereDiffer(got, ref); }   // the reference is drawn after: it uses the same frame buffer
   }
 
   // 5. A new number during a roll ends the roll in progress, then the new one rolls

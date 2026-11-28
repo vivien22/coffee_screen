@@ -9,14 +9,7 @@
 // ------------------------------------------------------------
 // Icons
 
-// COLOR_ICON blended with COLOR_BG, opacity 0 (background) to 15 (full color), computed by the
-// compiler: nothing is calculated on the board. The colors are RGB565 (5 bits red, 6 green, 5 blue);
-// each channel is background + (icon - background) * opacity / 15.
-#define BLEND_CHANNEL(shift, mask, opacity) \
-  ((int)((COLOR_BG >> (shift)) & (mask)) + \
-   ((int)((COLOR_ICON >> (shift)) & (mask)) - (int)((COLOR_BG >> (shift)) & (mask))) * (opacity) / 15)
-#define BLEND_COLOR(opacity) \
-  ((uint16_t)((BLEND_CHANNEL(11, 0x1F, opacity) << 11) | (BLEND_CHANNEL(5, 0x3F, opacity) << 5) | BLEND_CHANNEL(0, 0x1F, opacity)))
+// COLOR_ICON blended with COLOR_BG: BLEND_COLOR() in DisplayText.h
 
 // The bits of a compressed icon (PROGMEM), most significant bit first
 struct IconBits {

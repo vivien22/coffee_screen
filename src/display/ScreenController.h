@@ -90,6 +90,12 @@ class ScreenController {
     void showExtractionStarted();
     void showExtractionProgress(uint16_t volumeMl, uint16_t durationSeconds);
 
+    // The progress arc around the screen (AUTO only): netMl is the water that went through the machine (In - Out); the arc is complete when it
+    // reaches the target volume plus the loss. Call it on every pass of an extraction; the arc stays as it is after the last call and goes
+    // with showReady() or the next extraction.
+    // waitSeconds: the seconds of the wait of the pre-infusion that went by (see ARC_WAIT_ML_PER_S): the arc goes on while no water flows.
+    void showWaterSent(float netMl, float waitSeconds = 0.0f);
+
     // Pre-infusion: the volume field counts down the millilitres left to send, with the "PRE" tag;
     // the duration of the extraction runs as usual.
     void showPreinfusion(uint16_t mlLeft, uint16_t durationSeconds);
@@ -158,6 +164,13 @@ class ScreenController {
     bool heaterKnown_ = false;
 
     uint8_t dirty_ = DIRTY_NONE;
+
+    // Progress arc (AUTO extraction, see ARC_SEGMENTS in Config.h): arcTarget_ segments are wanted, arcShown_ are on the screen.
+    // update() draws the missing ones a few at a time (stepArc); a smaller target (or the end) erases the ring first.
+    uint8_t arcTarget_ = 0;
+    uint8_t arcShown_ = 0;
+    bool arcErase_ = false;
+    void stepArc(uint8_t most);
 
     // Rolling digits (see DigitRoll.h): the number of the volume or of the duration that changes during an extraction rolls from the
     // old one to the new one. The frames are drawn by update().
