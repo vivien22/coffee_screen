@@ -1,4 +1,4 @@
-// render_screens: draws the screens of the machine with the real display code (Display.cpp, ScreenController.cpp)
+// render_screens: draws the screens of the machine with the real display code (Display.cpp, ScreenController.cpp and their parts)
 // into frame buffers and writes them as raw RGB565 files (240 x 240). tools/render_screens.sh turns them into PNG.
 //
 //   usage: render_screens <output folder>

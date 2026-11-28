@@ -13,7 +13,7 @@
 # reduced by the mean of 8 x 8 pixels, then the opacity is rounded to 4 levels. The sizes are chosen to be those of the pixel fonts
 # that these ones replace (the height of the ink of a digit: 47 px large, 29 px small; of the "l" of the units: 25 px; of the
 # capitals of the tags: 15 px; of the capitals of "ERR": 30 and 45 px), so that the layout of Layout.h does not change.
-# The structure is the one of Adafruit GFX (GFXfont / GFXglyph); Display.cpp reads the masks itself (the library draws 1 bit fonts).
+# The structure is the one of Adafruit GFX (GFXfont / GFXglyph); DisplayText.cpp reads the masks itself (the library draws 1 bit fonts).
 #
 # The codes of the characters are the ones of the previous fonts (see the comments of the tables): the glyphs start at '0'.
 import sys
@@ -93,7 +93,7 @@ def ring(outer, inner, box, x_offset, y_offset, advance):
 
 
 def crop_to_cell(g, cell):
-    """A digit is drawn as a block of the width of its cell, centered by its advance (as Display.cpp does, with the C division that
+    """A digit is drawn as a block of the width of its cell, centered by its advance (as DisplayText.cpp does, with the C division that
     rounds toward zero): the columns of ink that would go beyond the cell (1 or 2 columns at most: the digits of Poppins Bold are
     wider than the old ones) are cut, so that two digits never overlap and the block of a digit can be replaced alone."""
     left = g.x_offset + int((cell - g.advance) / 2)
