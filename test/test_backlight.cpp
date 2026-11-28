@@ -101,7 +101,7 @@ int main() {
   ScreenController sc;
   ready(sc);
   CHECK(events.back().value == 255);      // the start-up fade in ended
-  CHECK(sc.backlight_.level == 255);
+  CHECK(sc.backlight_.level() == 255);
 
   // ---- the start-up: the welcome picture is drawn in the dark, then the backlight rises to full in steps (no jump)
   CHECK(events.size() > 8 && events[0].value == 0);
@@ -159,8 +159,8 @@ int main() {
   events.clear();
   sc.enterSteaming();
   run(sc, BACKLIGHT_FADE_OUT_MS + 60);      // dark, drawn, rising
-  CHECK(sc.backlight_.phase == ScreenController::BACKLIGHT_IN);
-  const int level = sc.backlight_.level;
+  CHECK(sc.backlight_.phase() == BacklightFade::IN);
+  const int level = sc.backlight_.level();
   CHECK(level > 0 && level < 255);
   const uint32_t steamHash = hashOf();
   CHECK(steamHash != oldHash);
@@ -199,7 +199,7 @@ int main() {
   sc.leaveStandby();
   settle(sc);
   checkFade(oldHash, false);
-  CHECK(sc.backlight_.level == 255 && !sc.standbyShown_);
+  CHECK(sc.backlight_.level() == 255 && !sc.standbyShown_);
   CHECK(snapshot() == completeRedraw(sc));
   CHECK(snapshot().size() == before.size());
 

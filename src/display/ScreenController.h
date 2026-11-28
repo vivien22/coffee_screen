@@ -12,6 +12,10 @@
 #include "../settings/Settings.h"
 #include "Display.h"           // PhaseTag
 #include "ParameterEditor.h"   // ActiveParameter, the settings being edited
+#include "Blinker.h"
+#include "DigitRoll.h"
+#include "BacklightFade.h"
+#include "../Config.h"
 
 
 class ScreenController {
@@ -124,8 +128,6 @@ class ScreenController {
     void redrawScreen();                        // the real screen (or the steaming one) in full
     void changeScreen();                        // a big change of the screen: the backlight fades out, the new screen is drawn in the dark, the backlight fades in
     void drawNewScreen();                       // the new screen as the state says (steaming, standby picture, brewing), over a cleared screen
-    void stepBacklight(uint32_t now);
-    void setLevel(uint8_t level);               // the backlight level (setBacklight() only when it changes)
     bool canDraw() const;                       // the screen shows what the state describes: no drawing on a screen about to be replaced
     void activate(ActiveParameter next, bool animate = false, bool modeChange = false);   // select a parameter and show it (animate: the rows fade, see FADE_OUT_MS)
     uint8_t dirtyOfSetting(ActiveParameter parameter) const;   // the part of the screen that shows a parameter being set
@@ -139,18 +141,9 @@ class ScreenController {
     PhaseTag volumeTagShown_ = PHASE_TAG_NONE;     // tag drawn in the volume field
     PhaseTag durationTagShown_ = PHASE_TAG_NONE;   // tag drawn in the duration field
 
-    // Blinking of the "FLUSH" tag (during FLUSHING)
-    bool tagBlinking_ = false;
-    bool tagBlinkPending_ = false;   // blinking just started: the first toggle time is set by update()
-    bool tagVisible_ = true;
-    uint32_t tagToggleAt_ = 0;
+    Blinker tagBlink_{FLUSH_BLINK_MS, false};   // the "FLUSH" tag blinks during FLUSHING
+    Blinker dropBlink_{DROP_BLINK_MS, true};    // the drop icon blinks while there is no water (it disappears at once)
     double temperatureShown_ = 0.0;
-
-    // Blinking of the drop icon (no-water error)
-    bool dropBlinking_ = false;
-    bool dropBlinkPending_ = false;
-    bool dropVisible_ = true;
-    uint32_t dropToggleAt_ = 0;
 
     bool steaming_ = false;               // steaming mode: only the temperature is shown
     bool steamSetpointShown_ = false;     // steaming: the setpoint is shown (just set), not the measured temperature
@@ -166,17 +159,9 @@ class ScreenController {
 
     uint8_t dirty_ = DIRTY_NONE;
 
-    // Rolling digits (see ROLL_VOLUME_MS in Config.h): the number of the volume or of the duration that changes during an extraction
-    // rolls from the old one to the new one. The frames are drawn by update(), at most every ROLL_FRAME_MS.
-    struct Roll {
-      bool requested = false;     // a new number came: render() starts the roll
-      bool active = false;        // the frames are being drawn
-      bool finishFirst = false;   // a new number came during the roll: the number of that roll is drawn as it is, then the new roll starts
-      int16_t finishValue = 0;    // that number
-      uint32_t start = 0;
-      uint32_t nextFrame = 0;
-    };
-    Roll volumeRoll_, durationRoll_;
+    // Rolling digits (see DigitRoll.h): the number of the volume or of the duration that changes during an extraction rolls from the
+    // old one to the new one. The frames are drawn by update().
+    DigitRoll volumeRoll_, durationRoll_;
     uint32_t lastNow_ = 0;      // the time of the last update(): the rolls started by a redraw outside of update() use it
     void drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress);
     void drawDurationValue(int16_t value, bool redrawTag, uint8_t progress);
@@ -220,18 +205,7 @@ class ScreenController {
     void finishFades();      // the rows in a fade show their look as it is, at once
     void stepFades(uint32_t now);
 
-    // The fade of the backlight at a big change of the screen. OUT: the old screen goes dark (the new one is not drawn yet), then it is
-    // drawn and IN: the backlight comes up. A change that comes during the fade only brings the next screen: the one drawn in the dark is
-    // always the one of the state at that moment.
-    enum BacklightPhase : uint8_t { BACKLIGHT_STEADY, BACKLIGHT_OUT, BACKLIGHT_IN };
-    struct BacklightFade {
-      uint8_t phase = BACKLIGHT_STEADY;
-      bool started = false;      // the start time is taken by the first update() of the phase (the drawing in the dark takes time)
-      uint8_t level = 0;         // the level of the backlight now
-      uint8_t from = 0;          // the level the fade out started from
-      uint32_t start = 0;
-    };
-    BacklightFade backlight_;
+    BacklightFade backlight_;   // the fade of the backlight at a big change of the screen (see BacklightFade.h)
 
     // When the welcome picture was shown (millis). The last member, and only with a picture: a member in the middle
     // of the class moves the ones after it, and the far ones of an object cost more code on the AVR.

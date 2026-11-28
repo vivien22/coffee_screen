@@ -15,8 +15,7 @@ void ScreenController::begin(const Settings &settings) {
 
   beginDisplay();
   beginWelcome();                // the welcome picture is shown (the backlight goes on)
-  backlight_ = BacklightFade();
-  backlight_.level = WELCOME_MS > 0 ? 255 : 0;   // beginDisplay() switched it off, beginWelcome() on
+  backlight_.reset(WELCOME_MS > 0 ? 255 : 0);   // beginDisplay() switched it off, beginWelcome() on
 #if WELCOME_MS > 0
   welcomeStartedAt_ = millis();
 #endif
@@ -33,7 +32,7 @@ void ScreenController::finishWelcome() {
   }
 #endif
   endWelcome();
-  backlight_.level = 0;   // endWelcome() switched it off
+  backlight_.reset(0);   // endWelcome() switched it off
 #ifdef DISPLAY_ICONS
   drawIcons();
   drawDrop(true, settings().manual);   // with the letter of the mode
@@ -43,18 +42,10 @@ void ScreenController::finishWelcome() {
 // The backlight comes up after the first drawing: the whole screen appears at once, and fades in (BACKLIGHT_FADE_IN_MS) while the loop runs.
 void ScreenController::show() {
   if (BACKLIGHT_FADE_IN_MS == 0) {
-    setLevel(255);
+    backlight_.set(255);
     return;
   }
-  backlight_.phase = BACKLIGHT_IN;
-  backlight_.started = false;
-}
-
-void ScreenController::setLevel(uint8_t level) {
-  if (level != backlight_.level) {
-    backlight_.level = level;
-    setBacklight(level);
-  }
+  backlight_.fadeIn();
 }
 
 // The screen is going to be replaced (steaming, standby): the old one must not be drawn on any more, and nothing of the new one may be
@@ -65,7 +56,7 @@ bool ScreenController::canDraw() const {
     return false;
   }
 #endif
-  return backlight_.phase != BACKLIGHT_OUT;
+  return backlight_.phase() != BacklightFade::OUT;
 }
 
 // A big change of the screen. The state (steaming_, standbyShown_...) is already the new one. The backlight fades out, update() draws the new
@@ -75,20 +66,16 @@ void ScreenController::changeScreen() {
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
     fade_[row] = Fade();   // the old screen goes away with what was fading and rolling
   }
-  volumeRoll_ = Roll();
-  durationRoll_ = Roll();
+  volumeRoll_ = DigitRoll();
+  durationRoll_ = DigitRoll();
 
   if (BACKLIGHT_FADE_OUT_MS + BACKLIGHT_FADE_IN_MS == 0) {
-    setLevel(0);
+    backlight_.set(0);
     drawNewScreen();
-    setLevel(255);
+    backlight_.set(255);
     return;
   }
-  if (backlight_.phase != BACKLIGHT_OUT) {   // (during a fade out the new screen is already waiting)
-    backlight_.phase = BACKLIGHT_OUT;
-    backlight_.started = false;
-    backlight_.from = backlight_.level;
-  }
+  backlight_.fadeOut();
 }
 
 // The screen as the state describes it, over a cleared screen
@@ -101,40 +88,6 @@ void ScreenController::drawNewScreen() {
 #endif
   clearScreen();
   redrawScreen();
-}
-
-// The fade of the backlight: linear in the level (setBacklight() applies the perceptual curve). The out phase lasts in proportion to the
-// level it starts from (a change during a fade in does not wait a full fade out). The start of the fade in is taken by the first update()
-// after the new screen was drawn: the drawing takes a few hundred ms, which must not eat the fade.
-void ScreenController::stepBacklight(uint32_t now) {
-  if (backlight_.phase == BACKLIGHT_STEADY) {
-    return;
-  }
-  if (!backlight_.started) {
-    backlight_.started = true;
-    backlight_.start = now;
-  }
-  const uint32_t elapsed = now - backlight_.start;
-
-  if (backlight_.phase == BACKLIGHT_OUT) {
-    const uint32_t span = (uint32_t)BACKLIGHT_FADE_OUT_MS * backlight_.from / 255;
-    if (elapsed < span) {
-      setLevel((uint8_t)(backlight_.from * (span - elapsed) / span));
-      return;
-    }
-    setLevel(0);
-    drawNewScreen();               // in the dark
-    backlight_.phase = BACKLIGHT_IN;
-    backlight_.started = false;
-    return;
-  }
-
-  if (elapsed < BACKLIGHT_FADE_IN_MS) {
-    setLevel((uint8_t)(255UL * elapsed / BACKLIGHT_FADE_IN_MS));
-  } else {
-    setLevel(255);
-    backlight_.phase = BACKLIGHT_STEADY;
-  }
 }
 
 // The standby: the picture replaces the screen. What changes meanwhile (the temperature...) only marks the fields
@@ -163,14 +116,14 @@ void ScreenController::redrawScreen() {
     drawSteamIcon();   // the thermometer stays
   } else {
     drawIcons();
-    drawDrop(dropVisible_, settings().manual);
+    drawDrop(dropBlink_.visible(), settings().manual);
   }
 #endif
   dirty_ = steaming_ ? (DIRTY_TEMPERATURE | DIRTY_HEATER) : (DIRTY_ALL_VALUES | DIRTY_HEATER);
   temperatureErrorShown_ = false;   // ERR is gone with the rest of the screen
   temperatureKey_ = -1;             // the live temperature is drawn again at once
-  volumeRoll_ = Roll();             // the fields are drawn as they are: no roll goes on
-  durationRoll_ = Roll();
+  volumeRoll_ = DigitRoll();             // the fields are drawn as they are: no roll goes on
+  durationRoll_ = DigitRoll();
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
     fade_[row] = Fade();            // nor fade
   }
@@ -198,8 +151,11 @@ void ScreenController::leaveSteaming() {
 // Nothing is drawn when nothing changed, which keeps the loop fast.
 void ScreenController::update(uint32_t now) {
   lastNow_ = now;
-  stepBacklight(now);   // may draw the new screen, in the dark
-  if (backlight_.phase == BACKLIGHT_OUT) {
+  if (backlight_.step(now)) {
+    drawNewScreen();       // the backlight is off: the new screen, in the dark
+    backlight_.fadeIn();
+  }
+  if (backlight_.phase() == BacklightFade::OUT) {
     return;             // the old screen is going dark: nothing is drawn on it
   }
 #if WELCOME_MS > 0
@@ -224,30 +180,14 @@ void ScreenController::update(uint32_t now) {
     return;
   }
 
-  // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each
-  if (tagBlinking_) {
-    if (tagBlinkPending_) {
-      tagBlinkPending_ = false;
-      tagToggleAt_ = now + FLUSH_BLINK_MS;
-    } else if ((int32_t)(now - tagToggleAt_) >= 0 && !fade_[ROW_DURATION].active) {   // (not while the tag fades in: the blinking waits)
-      tagVisible_ = !tagVisible_;
-      tagToggleAt_ = now + FLUSH_BLINK_MS;
-      dirty_ |= DIRTY_TAG;
-    }
+  // Blinking tag: shown and hidden alternately, FLUSH_BLINK_MS each (not while the tag fades in: the blinking waits)
+  if (tagBlink_.update(now, fade_[ROW_DURATION].active)) {
+    dirty_ |= DIRTY_TAG;
   }
 
   // Blinking drop icon (no-water error): hidden at once, then toggled every DROP_BLINK_MS
-  if (dropBlinking_) {
-    if (dropBlinkPending_) {
-      dropBlinkPending_ = false;
-      dropVisible_ = false;
-      dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(false, settings().manual);
-    } else if ((int32_t)(now - dropToggleAt_) >= 0) {
-      dropVisible_ = !dropVisible_;
-      dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(dropVisible_, settings().manual);
-    }
+  if (dropBlink_.update(now)) {
+    drawDrop(dropBlink_.visible(), settings().manual);
   }
 
   stepFades(now);
@@ -257,18 +197,10 @@ void ScreenController::update(uint32_t now) {
 
 // The drop icon blinks while the no-water error lasts, and stays on again once it is cleared.
 void ScreenController::showNoWater(bool error) {
-  if (error && !dropBlinking_) {
-    dropBlinking_ = true;
-    dropBlinkPending_ = true;
-  } else if (!error && dropBlinking_) {
-    dropBlinking_ = false;
-    dropBlinkPending_ = false;
-    if (!dropVisible_) {
-      dropVisible_ = true;
-      if (canDraw()) {
-        drawDrop(true, settings().manual);   // the error is cleared: the drop stays on
-      }
-    }
+  if (error) {
+    dropBlink_.start();
+  } else if (dropBlink_.stop() && canDraw()) {
+    drawDrop(true, settings().manual);   // the error is cleared: the drop stays on
   }
 }
 
@@ -278,12 +210,12 @@ void ScreenController::showNoWater(bool error) {
 // AUTO <-> MANUAL: the letter in the drop changes and the volume is selected again.
 void ScreenController::toggleMode() {
   // The rows whose content changes and the letter of the drop fade, as at a change of parameter (see FADE_OUT_MS in Config.h)
-  const bool animate = dropVisible_ && !steaming_ && canDraw() && FADE_OUT_MS + FADE_IN_MS > 0;
+  const bool animate = dropBlink_.visible() && !steaming_ && canDraw() && FADE_OUT_MS + FADE_IN_MS > 0;
   finishFades();   // a letter that was fading shows its final look: the next change starts from it
   const bool wasManual = settings().manual;
   editor_.toggleMode();
   if (!animate && canDraw()) {
-    drawDrop(dropVisible_, settings().manual);
+    drawDrop(dropBlink_.visible(), settings().manual);
   }
   activate(PARAMETER_VOLUME, animate, animate);   // the selected parameter may not exist in the new mode
   if (animate) {
@@ -354,9 +286,9 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
     }
     // The row takes another look: a roll of its number in progress stops (its frames would be drawn over the new look)
     if (row == ROW_VOLUME) {
-      volumeRoll_ = Roll();
+      volumeRoll_ = DigitRoll();
     } else if (row == ROW_DURATION) {
-      durationRoll_ = Roll();
+      durationRoll_ = DigitRoll();
     }
     if (after.sameShape(before[row]) && !modeChange) {   // at a change of mode a new number fades too
       dirty_ |= dirtyOf((Row)row);
@@ -482,8 +414,7 @@ void ScreenController::showExtractionStarted() {
   durationShown_ = 0;
   volumeTagShown_ = PHASE_TAG_NONE;
   durationTagShown_ = PHASE_TAG_NONE;
-  tagBlinking_ = false;
-  tagVisible_ = true;
+  tagBlink_.stop();
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
@@ -493,7 +424,7 @@ void ScreenController::showReady() {
   // (a change of mode) goes on with it.
   const bool animate = canAnimate();
   RowLook before[2] = {lookOf(ROW_VOLUME, editor_.active()), lookOf(ROW_DURATION, editor_.active())};
-  if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
+  if (tagBlink_.blinking() && !tagBlink_.visible() && before[1].tag == PHASE_TAG_FLUSH) {
     before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
   }
 
@@ -501,8 +432,7 @@ void ScreenController::showReady() {
   durationShown_ = editor_.readyDuration();
   volumeTagShown_ = PHASE_TAG_NONE;
   durationTagShown_ = PHASE_TAG_NONE;
-  tagBlinking_ = false;
-  tagVisible_ = true;
+  tagBlink_.stop();
   if (!(animate && !fade_[ROW_VOLUME].active && fadeRow(ROW_VOLUME, before[0], true))) {
     dirty_ |= DIRTY_VOLUME;
   }
@@ -532,15 +462,10 @@ void ScreenController::showFlush(uint16_t volumeMl, uint16_t secondsLeft, bool f
   showExtractionValues(volumeMl, PHASE_TAG_NONE, secondsLeft, PHASE_TAG_FLUSH);
 
   // The tag blinks while flushing; it is shown again (and stops blinking) otherwise
-  if (flushing && !tagBlinking_) {
-    tagBlinking_ = true;
-    tagBlinkPending_ = true;
-  } else if (!flushing && tagBlinking_) {
-    tagBlinking_ = false;
-    if (!tagVisible_) {
-      tagVisible_ = true;
-      dirty_ |= DIRTY_TAG;
-    }
+  if (flushing) {
+    tagBlink_.start();
+  } else if (tagBlink_.stop()) {
+    dirty_ |= DIRTY_TAG;
   }
 }
 
@@ -553,7 +478,7 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
   if (animate) {
     before[0] = lookOf(ROW_VOLUME, editor_.active());
     before[1] = lookOf(ROW_DURATION, editor_.active());
-    if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
+    if (tagBlink_.blinking() && !tagBlink_.visible() && before[1].tag == PHASE_TAG_FLUSH) {
       before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
     }
     finishFades();   // a row that was fading shows its final look: the next change starts from it
@@ -566,30 +491,21 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
       dirty_ |= DIRTY_VOLUME;
     }
   } else if ((int16_t)volumeValue != volumeShown_) {
-    if (volumeRoll_.active) {                         // the roll in progress ends at once, then the new one starts
-      volumeRoll_.finishFirst = true;
-      volumeRoll_.finishValue = volumeShown_;
-    }
+    volumeRoll_.request(volumeShown_);                // (a roll in progress ends at once, then the new one starts)
     volumeShown_ = (int16_t)volumeValue;
     dirty_ |= DIRTY_VOLUME_NUMBER;
-    volumeRoll_.requested = true;
   }
   if (durationTag != durationTagShown_) {
     durationShown_ = (int16_t)durationValue;
     durationTagShown_ = durationTag;
-    tagBlinking_ = false;     // a new tag is drawn whole, and visible
-    tagVisible_ = true;
+    tagBlink_.stop();     // a new tag is drawn whole, and visible
     if (!(animate && fadeRow(ROW_DURATION, before[1], false))) {
       dirty_ |= DIRTY_DURATION;
     }
   } else if ((int16_t)durationValue != durationShown_) {
-    if (durationRoll_.active) {
-      durationRoll_.finishFirst = true;
-      durationRoll_.finishValue = durationShown_;
-    }
+    durationRoll_.request(durationShown_);
     durationShown_ = (int16_t)durationValue;
     dirty_ |= DIRTY_DURATION_NUMBER;
-    durationRoll_.requested = true;
   }
 }
 
@@ -637,28 +553,25 @@ void ScreenController::render(uint32_t now) {
     // setting (large digits, with its tag).
     // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
     if (editor_.active() == PARAMETER_PREINFUSION) {
-      volumeRoll_ = Roll();   // a setting is drawn as it is: its number does not roll
+      volumeRoll_ = DigitRoll();   // a setting is drawn as it is: its number does not roll
       drawVolume(settings().preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
     } else if (editor_.active() == PARAMETER_FLOW_LIMIT) {
-      volumeRoll_ = Roll();
+      volumeRoll_ = DigitRoll();
       drawFlowLimit(settings().flowLimit, redrawTag);
     } else if (editor_.active() == PARAMETER_CALIBRATION) {
-      volumeRoll_ = Roll();
+      volumeRoll_ = DigitRoll();
       drawVolume(editor_.calibrationValue(), TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
-    } else if (!redrawTag && volumeRoll_.requested) {
+    } else if (!redrawTag && volumeRoll_.requested()) {
       // A new number during an extraction: it rolls. The screen shows the old one until the first frame.
-      if (volumeRoll_.active && volumeRoll_.finishFirst) {
-        drawVolumeValue(volumeRoll_.finishValue, false, DISPLAY_ROLL_DONE);
+      int16_t finished;
+      if (volumeRoll_.start(now, ROLL_VOLUME_MS, finished)) {
+        drawVolumeValue(finished, false, DISPLAY_ROLL_DONE);
       }
-      volumeRoll_.requested = volumeRoll_.finishFirst = false;
-      volumeRoll_.active = ROLL_VOLUME_MS > 0;
-      volumeRoll_.start = now;
-      volumeRoll_.nextFrame = now + ROLL_FRAME_MS;
-      if (!volumeRoll_.active) {
+      if (!volumeRoll_.active()) {
         drawVolumeValue(volumeShown_, false, DISPLAY_ROLL_DONE);
       }
     } else {
-      volumeRoll_ = Roll();
+      volumeRoll_ = DigitRoll();
       drawVolumeValue(volumeShown_, redrawTag, DISPLAY_ROLL_DONE);
     }
   }
@@ -669,34 +582,31 @@ void ScreenController::render(uint32_t now) {
     // While the wait or flush time is selected, the field shows that setting (large digits, with its tag).
     // Otherwise it shows the duration of the extraction (or the countdown of the wait or of the flush).
     if (editor_.active() == PARAMETER_PREINFUSION_WAIT) {
-      durationRoll_ = Roll();
+      durationRoll_ = DigitRoll();
       drawDuration(settings().preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
     } else if (editor_.active() == PARAMETER_FLUSH) {
-      durationRoll_ = Roll();
+      durationRoll_ = DigitRoll();
       drawDuration(settings().flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
     } else if (editor_.active() == PARAMETER_MANUAL_TIME) {
-      durationRoll_ = Roll();
+      durationRoll_ = DigitRoll();
       drawDuration(settings().manualSeconds, TEXT_SIZE_LARGE, PHASE_TAG_NONE, redrawTag);   // no tag: the clock says it
-    } else if (!redrawTag && durationRoll_.requested) {
-      if (durationRoll_.active && durationRoll_.finishFirst) {
-        drawDurationValue(durationRoll_.finishValue, false, DISPLAY_ROLL_DONE);
+    } else if (!redrawTag && durationRoll_.requested()) {
+      int16_t finished;
+      if (durationRoll_.start(now, ROLL_DURATION_MS, finished)) {
+        drawDurationValue(finished, false, DISPLAY_ROLL_DONE);
       }
-      durationRoll_.requested = durationRoll_.finishFirst = false;
-      durationRoll_.active = ROLL_DURATION_MS > 0;
-      durationRoll_.start = now;
-      durationRoll_.nextFrame = now + ROLL_FRAME_MS;
-      if (!durationRoll_.active) {
+      if (!durationRoll_.active()) {
         drawDurationValue(durationShown_, false, DISPLAY_ROLL_DONE);
       }
     } else {
-      durationRoll_ = Roll();
+      durationRoll_ = DigitRoll();
       drawDurationValue(durationShown_, redrawTag, DISPLAY_ROLL_DONE);
     }
   }
   // The blinking tag, after the duration: it also gives the right state to a tag just redrawn. Not while the duration row shows a setting
   // (wait, flush, manual time): the tag of that setting, or none, is on the screen.
   if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && rowOf(editor_.active()) != ROW_DURATION) {
-    drawPhaseTag(durationTagShown_, tagVisible_);
+    drawPhaseTag(durationTagShown_, tagBlink_.visible());
   }
   if (dirty & DIRTY_HEATER) {
     drawHeaterIndicator(heaterShown_);
@@ -715,37 +625,14 @@ void ScreenController::drawDurationValue(int16_t value, bool redrawTag, uint8_t 
   drawDuration(value, TEXT_SIZE_SMALL, durationTagShown_, redrawTag, progress);
 }
 
-// The progress (0 to DISPLAY_ROLL_DONE - 1) of a roll that has lasted elapsed ms of duration: ease-out, fast first, slow at the end
-static uint8_t rollProgress(uint32_t elapsed, uint32_t duration) {
-  if (duration == 0) {
-    return DISPLAY_ROLL_DONE - 1;   // no roll (ROLL_VOLUME_MS is 0): never reached, it only keeps the division safe
-  }
-  const uint32_t remaining = DISPLAY_ROLL_DONE - elapsed * DISPLAY_ROLL_DONE / duration;   // 255 at the start, 0 at the end
-  const uint32_t cubed = remaining * remaining * remaining / (DISPLAY_ROLL_DONE * DISPLAY_ROLL_DONE);
-  return (uint8_t)(DISPLAY_ROLL_DONE - cubed);
-}
-
 // Draws the next frame of each roll in progress, when it is due, and the end of a roll (the new number as it is).
 void ScreenController::stepRolls(uint32_t now) {
-  if (volumeRoll_.active && (int32_t)(now - volumeRoll_.nextFrame) >= 0) {
-    const uint32_t elapsed = now - volumeRoll_.start;
-    if (elapsed >= ROLL_VOLUME_MS) {
-      volumeRoll_.active = false;
-      drawVolumeValue(volumeShown_, false, DISPLAY_ROLL_DONE);
-    } else {
-      volumeRoll_.nextFrame = now + ROLL_FRAME_MS;
-      drawVolumeValue(volumeShown_, false, rollProgress(elapsed, ROLL_VOLUME_MS));
-    }
+  uint8_t progress;
+  if (volumeRoll_.frame(now, ROLL_VOLUME_MS, progress)) {
+    drawVolumeValue(volumeShown_, false, progress);
   }
-  if (durationRoll_.active && (int32_t)(now - durationRoll_.nextFrame) >= 0) {
-    const uint32_t elapsed = now - durationRoll_.start;
-    if (elapsed >= ROLL_DURATION_MS) {
-      durationRoll_.active = false;
-      drawDurationValue(durationShown_, false, DISPLAY_ROLL_DONE);
-    } else {
-      durationRoll_.nextFrame = now + ROLL_FRAME_MS;
-      drawDurationValue(durationShown_, false, rollProgress(elapsed, ROLL_DURATION_MS));
-    }
+  if (durationRoll_.frame(now, ROLL_DURATION_MS, progress)) {
+    drawDurationValue(durationShown_, false, progress);
   }
 }
 
@@ -801,7 +688,7 @@ void ScreenController::drawLook(Row row, const RowLook &look, uint8_t brightness
     // than this one and leave its edges)
     setTextBrightness(brightness);
     if (erase) {
-      drawDrop(dropVisible_, look.value != 0.0);
+      drawDrop(dropBlink_.visible(), look.value != 0.0);
     } else {
       drawDropFrame(look.value != 0.0);
     }
@@ -862,9 +749,9 @@ bool ScreenController::fadeRow(Row row, const RowLook &before, bool numberToo) {
     return false;
   }
   if (row == ROW_VOLUME) {
-    volumeRoll_ = Roll();   // its number is drawn as it is, by the fade
+    volumeRoll_ = DigitRoll();   // its number is drawn as it is, by the fade
   } else if (row == ROW_DURATION) {
-    durationRoll_ = Roll();
+    durationRoll_ = DigitRoll();
   }
   fade_[row] = Fade();
   fade_[row].active = true;
@@ -888,7 +775,7 @@ uint8_t ScreenController::fadingRows() const {
 // A fade (of a row or of the backlight) or a roll is going on or has just been asked for: the frames come from update(), a block operation of the data flash now would
 // make them jerk
 bool ScreenController::animating() const {
-  if (backlight_.phase != BACKLIGHT_STEADY) {
+  if (backlight_.phase() != BacklightFade::STEADY) {
     return true;   // the backlight fades at a big change of the screen
   }
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
@@ -896,7 +783,7 @@ bool ScreenController::animating() const {
       return true;
     }
   }
-  return volumeRoll_.active || volumeRoll_.requested || durationRoll_.active || durationRoll_.requested;
+  return volumeRoll_.busy() || durationRoll_.busy();
 }
 
 // The rows in a fade show what they show now (the final look), as it is
