@@ -351,7 +351,11 @@ An entry is 16 bytes (packed: the volumes in tenths of ml, the loss in whole ml,
 
 After a change of the layout of the ENTRIES, erase the old journal once with `pio run -e journal_clear -t upload` (then flash the machine
 again; it erases the addresses 24 to 8191 block by block, the settings stay): the old entries would be misread. The curves do not need
-it (the checksum and the sequence number reject the old ones). The EEPROM is written only at the
+it (the checksum and the sequence number reject the old ones). A saved journal (the text of `j`) can be written back into the
+empty journal, in the new layout: `python tools/journal_restore_gen.py <file>` writes `tools/journal_restore_data.h`, then
+`pio run -e journal_restore -t upload` writes the entries (with their numbers) and the curves, and the machine is flashed again. It
+refuses a journal that is not empty. The journal of 2026-11-28 (`docs/calibration/journal_2026-11-28.txt`) was restored this way, the
+losses that had wrapped given with `--loss 4-11=64`. The EEPROM is written only at the
 end of an extraction (the entry and its next slot in ONE block operation, one more when CAL is validated, one or two for the curve), far
 from the limit of 100 000 erase cycles of the data flash (a slot of the curves is written once every 20 extractions).
 
