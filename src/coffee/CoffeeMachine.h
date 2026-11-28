@@ -14,6 +14,7 @@
 #include <Arduino.h>
 
 #include "../drivers/CJMCU111.h"
+#include "../drivers/StartButton.h"
 #include "../drivers/FlowSensor.h"
 #include "../settings/Settings.h"
 #include "../settings/Journal.h"
@@ -39,7 +40,7 @@ class CoffeeMachine {
   private:
     // User actions
     void pollEncoder();
-    void pollStartButton();    // the start / stop button (START_BUTTON): debounced, acts on the push
+    void pollStartButton();    // the start / stop button (START_BUTTON): acts on the push, and on the long push
     void switchToManual(uint32_t now);   // the long push of the start button: the AUTO extraction becomes a MANUAL one
     void handleStartButton();  // extraction running: the push of the encoder; nothing running: keep the settings, volume, start
     void startExtraction(uint32_t pressTime);   // keep the settings and start the extraction (AUTO or MANUAL)
@@ -93,10 +94,7 @@ class CoffeeMachine {
     bool calibrationOffered_ = false; // CAL was offered for the last extraction
     bool resultShown_ = false;        // the values of an extraction without flush are still on the screen
 #ifdef START_BUTTON
-    bool buttonRaw_ = false;          // the level of the start / stop button now (true = pushed) ...
-    bool buttonDown_ = false;         // ... and the debounced one
-    uint32_t buttonChangedAt_ = 0;
-    uint32_t buttonDownAt_ = 0;       // when the button was pushed (debounced)
+    StartButton startButton_{PIN_START_BUTTON};
     bool longPushPending_ = false;    // this push started an AUTO extraction: held LONG_PUSH_MS, it becomes a MANUAL one
     bool autoAfterManual_ = false;    // the running MANUAL extraction came from a long push: AUTO is selected again at its end
 #endif

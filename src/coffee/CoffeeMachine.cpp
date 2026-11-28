@@ -46,8 +46,7 @@ void CoffeeMachine::begin() {
   screen_.finishWelcome();   // the rest of the time of the picture, then the icons are drawn in the dark
   encoder_.begin();
 #ifdef START_BUTTON
-  pinMode(PIN_START_BUTTON, INPUT_PULLUP);
-  buttonRaw_ = buttonDown_ = (digitalRead(PIN_START_BUTTON) == LOW);   // a button that is held at power-up does nothing
+  startButton_.begin();   // a button that is held at power-up does nothing
 #endif
   lastActivityAt_ = millis();
   screen_.update(millis());
@@ -462,34 +461,25 @@ void CoffeeMachine::startExtraction(uint32_t pressTime) {
   }
 }
 
-// The start / stop button, read on every pass: the level has to stay START_BUTTON_DEBOUNCE_MS, and the action is taken at the
-// push (not at the release). Like any action it wakes the machine up, and that first action is not handled.
+// The start / stop button (see StartButton.h), read on every pass: the action is taken at the push (not at the release). Like any
+// action it wakes the machine up, and that first action is not handled.
 void CoffeeMachine::pollStartButton() {
 #ifdef START_BUTTON
   const uint32_t now = millis();
-  const bool pushed = (digitalRead(PIN_START_BUTTON) == LOW);
-  if (pushed != buttonRaw_) {
-    buttonRaw_ = pushed;
-    buttonChangedAt_ = now;
-  }
-  if (buttonRaw_ != buttonDown_ && (uint32_t)(now - buttonChangedAt_) >= START_BUTTON_DEBOUNCE_MS) {
-    buttonDown_ = buttonRaw_;
+  const ButtonEvent event = startButton_.update(now);
+  if (event == BUTTON_PUSH) {
     longPushPending_ = false;
-    if (buttonDown_) {
-      lastActivityAt_ = now;
-      buttonDownAt_ = now;
-      if (standby_) {
-        wakeUp();
-      } else if (!steaming_) {   // the steaming mode has no extraction
-        const bool wasRunning = extraction_.isActive();
-        handleStartButton();
-        // A push that started an AUTO extraction: held LONG_PUSH_MS, it becomes a MANUAL one (below)
-        longPushPending_ = !wasRunning && extraction_.isActive() && !extraction_.isManual();
-      }
+    lastActivityAt_ = now;
+    if (standby_) {
+      wakeUp();
+    } else if (!steaming_) {   // the steaming mode has no extraction
+      const bool wasRunning = extraction_.isActive();
+      handleStartButton();
+      // A push that started an AUTO extraction: held LONG_PUSH_MS, it becomes a MANUAL one (below)
+      longPushPending_ = !wasRunning && extraction_.isActive() && !extraction_.isManual();
     }
-  }
-  // The long push: the button is still held, the extraction it started becomes a MANUAL one at once (no wait for the release)
-  if (buttonDown_ && longPushPending_ && (uint32_t)(now - buttonDownAt_) >= LONG_PUSH_MS) {
+  } else if (event == BUTTON_LONG && longPushPending_) {
+    // The long push: the button is still held, the extraction it started becomes a MANUAL one at once (no wait for the release)
     longPushPending_ = false;
     switchToManual(now);
   }
