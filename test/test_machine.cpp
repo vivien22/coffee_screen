@@ -278,25 +278,25 @@ static void calibration(){
   runAuto(m);
   CHECK(m.extraction_.state()==EXTRACTION_FINISHED && m.extraction_.calibratable());
   float net=m.extraction_.netVolumeMl(); CHECK(net>=DEFAULT_LOSS_ML+40 && net<DEFAULT_LOSS_ML+43);
-  CHECK(m.screen_.calibrationAvailable_);
+  CHECK(m.screen_.editor_.calibrationAvailable_);
   // the 10 s of the display of the result pass: CAL does not go away, and what was entered is not touched
-  { const int16_t estimate=m.screen_.calibrationValue_; gotoParam(m,PARAMETER_CALIBRATION); m.screen_.adjustActiveParameter(-3);
+  { const int16_t estimate=m.screen_.editor_.calibrationValue_; gotoParam(m,PARAMETER_CALIBRATION); m.screen_.adjustActiveParameter(-3);
     calls.clear(); unsigned long tr=t; while(t<tr+EXTRACTION_RESULT_DISPLAY_MS+5000){ t+=100; m.update(); }
-    CHECK(m.screen_.calibrationAvailable_ && m.screen_.activeParameter()==PARAMETER_CALIBRATION && m.screen_.calibrationValue_==estimate-3);
+    CHECK(m.screen_.editor_.calibrationAvailable_ && m.screen_.activeParameter()==PARAMETER_CALIBRATION && m.screen_.editor_.calibrationValue_==estimate-3);
     for(auto&c:calls) CHECK(c.rfind("vol(",0)!=0 || c.find(",1,0,")==std::string::npos);   // no vol(...) of the target (no tag) over the CAL one
     m.screen_.adjustActiveParameter(3); }
   gotoParam(m,PARAMETER_CALIBRATION); CHECK(m.screen_.activeParameter()==PARAMETER_CALIBRATION);
-  { char b[40]; snprintf(b,40,"vol(%d,1,%d,0)",m.screen_.calibrationValue_,(int)PHASE_TAG_CALIBRATION);   // (the tag is already drawn)
+  { char b[40]; snprintf(b,40,"vol(%d,1,%d,0)",m.screen_.editor_.calibrationValue_,(int)PHASE_TAG_CALIBRATION);   // (the tag is already drawn)
     calls.clear(); t+=100; m.update(); CHECK(has(b)); }
-  CHECK(m.screen_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
-  m.screen_.adjustActiveParameter(-(m.screen_.calibrationValue_-30)); // the cup really holds 30 g
+  CHECK(m.screen_.editor_.calibrationValue_==m.extraction_.volumeMl());       // starts at the estimate
+  m.screen_.adjustActiveParameter(-(m.screen_.editor_.calibrationValue_-30)); // the cup really holds 30 g
   m.handleDoublePush();                                  // validates
   settle(m);
   { Journal jj; JournalEntry je; CHECK(jj.read(0,je) && je.cal==30 && je.reason==END_TARGET); }   // the weight is in the journal (last entry)
   float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
   CHECK(m.screen_.settings().loss>expect-0.01f && m.screen_.settings().loss<expect+0.01f);
   CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);        // saved
-  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && !m.screen_.calibrationAvailable_);   // modified: back to the volume
+  CHECK(m.screen_.activeParameter()==PARAMETER_VOLUME && !m.screen_.editor_.calibrationAvailable_);   // modified: back to the volume
   { CoffeeMachine m2; m2.begin(); CHECK(m2.screen_.settings().loss>expect-0.01f && m2.screen_.settings().loss<expect+0.01f); }
   gotoParam(m,PARAMETER_VOLUME);
   for(int i=0;i<8;i++){ m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION); }   // gone from the cycle
@@ -313,7 +313,7 @@ static void calibration(){
   gotoParam(m,PARAMETER_FLUSH); for(int i=0;i<2;i++) m.handleDoublePush(); CHECK(m.screen_.activeParameter()!=PARAMETER_CALIBRATION);
   // MANUAL extraction: not offered
   m.handleShortPush(); m.handleStartButton(); for(int i=0;i<60;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
-  m.handleStartButton(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.calibrationAvailable_);
+  m.handleStartButton(); t+=100; m.update(); CHECK(!m.extraction_.calibratable() && !m.screen_.editor_.calibrationAvailable_);
   // the clamp and the validity of the EEPROM value
   { ScreenController sc; Settings in={93,40,10,5,5,0,50.0f,false}; sc.begin(in); sc.offerCalibration(40); sc.selectNextParameter();
     for(int i=0;i<8 && sc.activeParameter()!=PARAMETER_CALIBRATION;i++) sc.selectNextParameter();
@@ -471,13 +471,13 @@ static void startButton(){
   // the weight that was being entered for CAL is validated (the loss is corrected), then the extraction starts
   { memset(EEPROM.mem,0xFF,64); SettingsStore s2; s2.load(); SAVE(s2,preinfusion,0); SAVE(s2,preinfusionWait,0); SAVE(s2,flush,0);
     CoffeeMachine c; t=1000; c.begin(); pins[PIN_START_BUTTON]=1;
-    runAuto(c); float net=c.extraction_.netVolumeMl(); CHECK(c.screen_.calibrationAvailable_);
-    gotoParam(c,PARAMETER_CALIBRATION); c.screen_.adjustActiveParameter(-(c.screen_.calibrationValue_-30));   // the cup holds 30 g
+    runAuto(c); float net=c.extraction_.netVolumeMl(); CHECK(c.screen_.editor_.calibrationAvailable_);
+    gotoParam(c,PARAMETER_CALIBRATION); c.screen_.adjustActiveParameter(-(c.screen_.editor_.calibrationValue_-30));   // the cup holds 30 g
     pushButton(c);
     const float expect=DEFAULT_LOSS_ML+CALIBRATION_GAIN*((net-30)-DEFAULT_LOSS_ML);
     CHECK(c.screen_.settings().loss>expect-0.01f && c.screen_.settings().loss<expect+0.01f);
     CHECK(savedLoss()>expect-0.01f && savedLoss()<expect+0.01f);
-    CHECK(c.screen_.activeParameter()==PARAMETER_VOLUME && c.extraction_.isActive() && !c.screen_.calibrationAvailable_);
+    CHECK(c.screen_.activeParameter()==PARAMETER_VOLUME && c.extraction_.isActive() && !c.screen_.editor_.calibrationAvailable_);
     releaseButton(c); }
 
   // a no-water error: the button does nothing (the short push of the encoder clears it)
@@ -648,7 +648,7 @@ static void journal(){
   // the order and the count: the last one first, four in all
   CHECK(j.read(1,e) && e.reason==END_NO_WATER && j.read(3,e) && e.reason==END_TARGET && !j.read(4,e));
   // 6. with a pre-infusion (10 ml, 3 s of wait): the extractions that end in the pre-infusion or in its wait are kept too, with the phase
-  m.screen_.settings_.preinfusion=10; m.screen_.settings_.preinfusionWait=3;
+  m.screen_.editor_.settings_.preinfusion=10; m.screen_.editor_.settings_.preinfusionWait=3;
   m.handleStartButton(); for(int i=0;i<10;i++){ t+=100; m.flow_.in=m.flow_.in+0.3f; m.update(); }
   CHECK(m.extraction_.state()==EXTRACTION_PREINFUSION);
   m.handleStartButton(); for(int i=0;i<40;i++){ t+=100; m.update(); }   // stopped in the pre-infusion
@@ -691,7 +691,7 @@ static void flashOutsideExtraction(){
   for(int i=0;i<600 && m.extraction_.state()!=EXTRACTION_FLUSH_WAIT;i++){
     last=EEPROM.blockOps;
     m.flow_.in=(t+100-t0)*0.003f; pass(100);
-    if(i==50){ m.screen_.settings_.temperature+=1; m.saveSettings(); }                // a change during the extraction (not the user's way, but it can be pending)
+    if(i==50){ m.screen_.editor_.settings_.temperature+=1; m.saveSettings(); }                // a change during the extraction (not the user's way, but it can be pending)
   }
   CHECK(m.extraction_.state()==EXTRACTION_FLUSH_WAIT && bad==0 && last==ops);   // nothing written from the start of the pump to its stop (the pass that ends it may write)
   for(int i=0;i<40;i++) pass(100);                                                      // waiting for the push of the flush: the pump is off
@@ -699,7 +699,7 @@ static void flashOutsideExtraction(){
   { int16_t temp; EEPROM.get(1,temp); CHECK(temp==DEFAULT_TEMPERATURE+1); }
   m.handleStartButton(); CHECK(m.extraction_.state()==EXTRACTION_FLUSHING && PUMPON);
   ops=EEPROM.blockOps;
-  m.screen_.settings_.temperature+=1; m.saveSettings();
+  m.screen_.editor_.settings_.temperature+=1; m.saveSettings();
   for(int i=0;i<30 && m.extraction_.isActive();i++) pass(100);                          // the flush runs: nothing is written, even long after the delay
   CHECK(m.extraction_.isActive()==false || bad==0);
   for(int i=0;i<60;i++) pass(100);

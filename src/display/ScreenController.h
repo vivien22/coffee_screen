@@ -10,25 +10,9 @@
 #pragma once
 #include <Arduino.h>
 #include "../settings/Settings.h"
-#include "Display.h"   // PhaseTag
+#include "Display.h"           // PhaseTag
+#include "ParameterEditor.h"   // ActiveParameter, the settings being edited
 
-// Parameter selected on the screen (large digits), adjusted by the encoder.
-// A double push selects the next one, in the order of this enum, then loops back to the volume.
-// AUTO mode: volume, CAL (only after an extraction), pre-infusion, wait, flush, temperature. MANUAL mode: volume, MANUAL time,
-// temperature (the other parameters are skipped).
-// The pre-infusion volume is shown in the volume field with the "PRE" tag; the wait and flush times
-// are shown in the duration field with the "WAIT" / "FLUSH" tag.
-enum ActiveParameter {
-  PARAMETER_VOLUME,
-  PARAMETER_CALIBRATION,        // AUTO mode, after an extraction: the real weight of the cup (g), corrects the loss
-  PARAMETER_PREINFUSION,        // pre-infusion volume (ml)
-  PARAMETER_FLOW_LIMIT,         // AUTO, after the pre-infusion: flow limit of the extraction (ml/s, 0.1 steps), 0 = none
-  PARAMETER_PREINFUSION_WAIT,   // wait time after the pre-infusion (s)
-  PARAMETER_FLUSH,              // flush time after the extraction (s)
-  PARAMETER_MANUAL_TIME,        // MANUAL mode: time of the extraction (s), 0 = until the second push
-  PARAMETER_TEMPERATURE,
-  PARAMETER_COUNT
-};
 
 class ScreenController {
   public:
@@ -58,13 +42,13 @@ class ScreenController {
     void update(uint32_t now);
 
     // ----- User actions -----
-    ActiveParameter activeParameter() const { return active_; }
-    const Settings &settings() const { return settings_; }   // working values (may not be saved)
+    ActiveParameter activeParameter() const { return editor_.active(); }
+    const Settings &settings() const { return editor_.settings(); }   // working values (may not be saved)
 
     void selectNextParameter();
 
     // The volume (the main parameter) is selected again, from whichever parameter was being set (the values stay as they are).
-    void selectVolume() { if (active_ != PARAMETER_VOLUME) activate(PARAMETER_VOLUME); }
+    void selectVolume() { if (activeParameter() != PARAMETER_VOLUME) activate(PARAMETER_VOLUME); }
 
     // Steaming mode: the screen shows the temperature alone, in large digits (the rest of the screen is cleared); the encoder sets
     // the steaming temperature (shown STEAM_SETPOINT_SHOW_MS after each turn, then the measured one again). leaveSteaming()
@@ -78,18 +62,14 @@ class ScreenController {
     // The volume is selected again.
     void toggleMode();
 
-    // Calibration of the loss (see Config.h). offerCalibration(): an AUTO extraction that gave
-    // estimateMl is over, the CAL parameter joins the cycle of the double push, starting at estimateMl
-    // (the cup weight is entered there). withdrawCalibration(): it leaves the cycle (new extraction).
-    // applyCalibration(netMl): the double push that validates CAL; netMl is In - Out of the extraction;
-    // corrects settings().loss and selects the volume again; if the value was not changed, nothing is
-    // corrected and CAL stays selected (the caller goes on to the next parameter). Returns the loss.
-    // CAL leaves the cycle.
-    void offerCalibration(uint16_t estimateMl);
-    void withdrawCalibration();
+    // Calibration of the loss (see ParameterEditor.h). applyCalibration(netMl): the double push that validates CAL; netMl is
+    // In - Out of the extraction; corrects settings().loss and selects the volume again; if the value was not changed, nothing is
+    // corrected and CAL stays selected (the caller goes on to the next parameter). Returns the loss. CAL leaves the cycle.
+    void offerCalibration(uint16_t estimateMl) { editor_.offerCalibration(estimateMl); }
+    void withdrawCalibration() { editor_.withdrawCalibration(); }
     float applyCalibration(float netMl);
-    bool calibrationChanged() const { return calibrationValue_ != calibrationStart_; }   // a weight was entered in CAL
-    uint8_t calibrationWeight() const { return (uint8_t)calibrationValue_; }
+    bool calibrationChanged() const { return editor_.calibrationChanged(); }   // a weight was entered in CAL
+    uint8_t calibrationWeight() const { return (uint8_t)editor_.calibrationValue(); }
 
     // Add delta to the selected parameter, kept between VALUE_MIN and its maximum
     // (VOLUME_MAX, PREINFUSION_MAX_ML, PREINFUSION_WAIT_MAX_SECONDS, FLUSH_MAX_SECONDS, MANUAL_MAX_SECONDS, TEMPERATURE_MAX).
@@ -148,16 +128,10 @@ class ScreenController {
     void setLevel(uint8_t level);               // the backlight level (setBacklight() only when it changes)
     bool canDraw() const;                       // the screen shows what the state describes: no drawing on a screen about to be replaced
     void activate(ActiveParameter next, bool animate = false, bool modeChange = false);   // select a parameter and show it (animate: the rows fade, see FADE_OUT_MS)
-    bool availableInMode(ActiveParameter p) const;
-    bool calibrationAvailable_ = false;
-    int16_t calibrationValue_ = 0;   // the cup weight entered (starts at the estimate)
-    int16_t calibrationStart_ = 0;   // the estimate of the extraction
-    uint16_t readyVolume() const;
-    uint16_t readyDuration() const;
+    uint8_t dirtyOfSetting(ActiveParameter parameter) const;   // the part of the screen that shows a parameter being set
     void showExtractionValues(uint16_t volumeValue, PhaseTag volumeTag, uint16_t durationValue, PhaseTag durationTag);
 
-    Settings settings_ = {};
-    ActiveParameter active_ = PARAMETER_VOLUME;
+    ParameterEditor editor_;   // the settings being edited and the parameter selected
 
     // What each field shows
     int16_t volumeShown_ = 0;

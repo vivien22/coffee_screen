@@ -6,10 +6,9 @@
 
 // Starts the screen with the saved settings: the volume is selected and every field is drawn.
 void ScreenController::begin(const Settings &settings) {
-  settings_ = settings;
-  active_ = PARAMETER_VOLUME;
-  volumeShown_ = readyVolume();
-  durationShown_ = readyDuration();
+  editor_.begin(settings);
+  volumeShown_ = editor_.readyVolume();
+  durationShown_ = editor_.readyDuration();
   temperatureShown_ = 0.0;
   temperatureErrorShown_ = false;   // the screen is filled again by beginDisplay()
   dirty_ = DIRTY_ALL_VALUES;
@@ -37,7 +36,7 @@ void ScreenController::finishWelcome() {
   backlight_.level = 0;   // endWelcome() switched it off
 #ifdef DISPLAY_ICONS
   drawIcons();
-  drawDrop(true, settings_.manual);   // with the letter of the mode
+  drawDrop(true, settings().manual);   // with the letter of the mode
 #endif
 }
 
@@ -164,7 +163,7 @@ void ScreenController::redrawScreen() {
     drawSteamIcon();   // the thermometer stays
   } else {
     drawIcons();
-    drawDrop(dropVisible_, settings_.manual);
+    drawDrop(dropVisible_, settings().manual);
   }
 #endif
   dirty_ = steaming_ ? (DIRTY_TEMPERATURE | DIRTY_HEATER) : (DIRTY_ALL_VALUES | DIRTY_HEATER);
@@ -182,7 +181,7 @@ void ScreenController::redrawScreen() {
 void ScreenController::enterSteaming() {
   steaming_ = true;
   steamSetpointShown_ = false;
-  active_ = PARAMETER_TEMPERATURE;
+  editor_.select(PARAMETER_TEMPERATURE);
   temperatureShown_ = liveTemperature_;
   changeScreen();
 }
@@ -211,7 +210,7 @@ void ScreenController::update(uint32_t now) {
 
   if (steaming_) {   // the temperature alone: no tag, no drop
     if (steamSetpointShown_ && (int32_t)(now - steamSetpointUntil_) >= 0) {
-      const RowLook before = lookOf(ROW_TEMPERATURE, active_);
+      const RowLook before = lookOf(ROW_TEMPERATURE, editor_.active());
       steamSetpointShown_ = false;      // the setpoint was shown long enough: the measured temperature (or ERR) comes back
       temperatureKey_ = -1;
       temperatureShown_ = liveTemperature_;
@@ -243,11 +242,11 @@ void ScreenController::update(uint32_t now) {
       dropBlinkPending_ = false;
       dropVisible_ = false;
       dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(false, settings_.manual);
+      drawDrop(false, settings().manual);
     } else if ((int32_t)(now - dropToggleAt_) >= 0) {
       dropVisible_ = !dropVisible_;
       dropToggleAt_ = now + DROP_BLINK_MS;
-      drawDrop(dropVisible_, settings_.manual);
+      drawDrop(dropVisible_, settings().manual);
     }
   }
 
@@ -267,7 +266,7 @@ void ScreenController::showNoWater(bool error) {
     if (!dropVisible_) {
       dropVisible_ = true;
       if (canDraw()) {
-        drawDrop(true, settings_.manual);   // the error is cleared: the drop stays on
+        drawDrop(true, settings().manual);   // the error is cleared: the drop stays on
       }
     }
   }
@@ -281,62 +280,31 @@ void ScreenController::toggleMode() {
   // The rows whose content changes and the letter of the drop fade, as at a change of parameter (see FADE_OUT_MS in Config.h)
   const bool animate = dropVisible_ && !steaming_ && canDraw() && FADE_OUT_MS + FADE_IN_MS > 0;
   finishFades();   // a letter that was fading shows its final look: the next change starts from it
-  const bool wasManual = settings_.manual;
-  settings_.manual = !settings_.manual;
+  const bool wasManual = settings().manual;
+  editor_.toggleMode();
   if (!animate && canDraw()) {
-    drawDrop(dropVisible_, settings_.manual);
+    drawDrop(dropVisible_, settings().manual);
   }
   activate(PARAMETER_VOLUME, animate, animate);   // the selected parameter may not exist in the new mode
   if (animate) {
     fade_[ROW_MODE] = Fade();
     fade_[ROW_MODE].active = true;
     fade_[ROW_MODE].from.value = wasManual ? 1.0 : 0.0;
-    fade_[ROW_MODE].to.value = settings_.manual ? 1.0 : 0.0;
+    fade_[ROW_MODE].to.value = settings().manual ? 1.0 : 0.0;
   }
 }
 
-// The parameters that exist in the current mode: the pre-infusion, the wait and the flush are AUTO
-// only; the MANUAL time is MANUAL only.
-bool ScreenController::availableInMode(ActiveParameter p) const {
-  if (settings_.manual) {
-    return p == PARAMETER_VOLUME || p == PARAMETER_MANUAL_TIME || p == PARAMETER_TEMPERATURE;
-  }
-  return p != PARAMETER_MANUAL_TIME && (p != PARAMETER_CALIBRATION || calibrationAvailable_);
-}
-
-// An AUTO extraction just ended: CAL joins the cycle, starting at the volume the machine estimated.
-void ScreenController::offerCalibration(uint16_t estimateMl) {
-  calibrationAvailable_ = true;
-  calibrationValue_ = calibrationStart_ = estimateMl;
-}
-
-// A new extraction starts: the previous one can no longer be used to calibrate.
-void ScreenController::withdrawCalibration() {
-  calibrationAvailable_ = false;
-}
-
-// The cup weight entered in CAL is validated. netMl is In - Out of the extraction. The loss moves towards the
-// measured loss by CALIBRATION_GAIN (see Config.h) and is kept between 0 and LOSS_MAX_ML. If the weight was
-// not changed nothing is corrected. CAL leaves the cycle either way. Returns the loss.
+// The cup weight entered in CAL is validated (see ParameterEditor::applyCalibration()). Returns the loss.
 float ScreenController::applyCalibration(float netMl) {
-  if (calibrationValue_ != calibrationStart_) {
-    const float loss = settings_.loss + CALIBRATION_GAIN * (netMl - calibrationValue_ - settings_.loss);
-    settings_.loss = constrain(loss, 0.0f, LOSS_MAX_ML);
+  if (editor_.applyCalibration(netMl)) {
     activate(PARAMETER_VOLUME);   // the calibration is done: back to the volume, not on to the next parameter
   }
-  calibrationAvailable_ = false;
-  return settings_.loss;
+  return settings().loss;
 }
 
+// The next parameter of the cycle of the double push (see ParameterEditor::next())
 void ScreenController::selectNextParameter() {
-  // AUTO:   volume -> [CAL, only after an extraction] -> pre-infusion -> wait -> flush -> temperature -> volume
-  // MANUAL: volume -> MANUAL time -> temperature -> volume
-  // The loop skips the parameters that do not exist in the current mode.
-  ActiveParameter next = active_;
-  do {
-    next = (ActiveParameter)((next + 1) % PARAMETER_COUNT);
-  } while (!availableInMode(next));
-  activate(next, true);
+  activate(editor_.next(), true);
 }
 
 // Selects a parameter and sets what its field shows: the setpoint while the temperature is edited, the target
@@ -345,25 +313,25 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
   // What the rows show now. A row that was fading shows its final look at once: the next change starts from it.
   RowLook before[ROW_COUNT];
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
-    before[row] = lookOf((Row)row, active_);
+    before[row] = lookOf((Row)row, editor_.active());
   }
   finishFades();
 
-  const ActiveParameter previous = active_;
-  active_ = next;
+  const ActiveParameter previous = editor_.active();
+  editor_.select(next);
 
   if (previous == PARAMETER_TEMPERATURE) {
     temperatureShown_ = liveTemperature_;
     temperatureKey_ = -1;               // the live temperature is displayed again at once
   }
-  if (active_ == PARAMETER_TEMPERATURE) {
-    temperatureShown_ = settings_.temperature;   // the setpoint is shown while it is edited
+  if (editor_.active() == PARAMETER_TEMPERATURE) {
+    temperatureShown_ = settings().temperature;   // the setpoint is shown while it is edited
   }
-  if (active_ == PARAMETER_VOLUME) {
-    volumeShown_ = readyVolume();                // the target volume, not the last extraction
+  if (editor_.active() == PARAMETER_VOLUME) {
+    volumeShown_ = editor_.readyVolume();                // the target volume, not the last extraction
   }
   if (previous == PARAMETER_MANUAL_TIME) {
-    durationShown_ = settings_.manualSeconds;    // the time just set is the one that stays shown
+    durationShown_ = settings().manualSeconds;    // the time just set is the one that stays shown
   }
 
   if (!animate || FADE_OUT_MS + FADE_IN_MS == 0 || steaming_) {
@@ -373,14 +341,14 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
 
   if (modeChange) {
     // The rows as they are when the machine is ready in the new mode (showReady() does the same, just after): the fades go to them
-    durationShown_ = readyDuration();
+    durationShown_ = editor_.readyDuration();
     volumeTagShown_ = PHASE_TAG_NONE;
     durationTagShown_ = PHASE_TAG_NONE;
   }
 
   // The rows that do not change are not touched, the ones that only change their number are drawn again, the others fade
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
-    const RowLook after = lookOf((Row)row, active_);
+    const RowLook after = lookOf((Row)row, editor_.active());
     if (after == before[row]) {
       continue;
     }
@@ -412,61 +380,20 @@ void ScreenController::activate(ActiveParameter next, bool animate, bool modeCha
   }
 }
 
-// Changes the selected parameter by delta, kept between its limits. Returns true if the value changed.
+// Changes the selected parameter by delta, kept between its limits (ParameterEditor). Returns true if the value changed: its field
+// shows the new value at once.
 bool ScreenController::adjustActiveParameter(int16_t delta) {
   finishFades();   // a value is set on a row that shows its final look
-  if (settings_.manual && active_ == PARAMETER_VOLUME) {
-    return false;   // MANUAL mode: the volume is not a target, the field shows 0
-  }
-
-  int16_t *value;
-  int16_t maxValue;
-  uint8_t dirtyField;
-
-  switch (active_) {
-    case PARAMETER_VOLUME:
-      value = &settings_.volume;          maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME;
-      break;
-    case PARAMETER_PREINFUSION:
-      value = &settings_.preinfusion;     maxValue = PREINFUSION_MAX_ML;      dirtyField = DIRTY_VOLUME_NUMBER;
-      break;
-    case PARAMETER_FLOW_LIMIT:
-      value = &settings_.flowLimit;       maxValue = FLOW_LIMIT_MAX_TENTHS;   dirtyField = DIRTY_VOLUME_NUMBER;
-      break;
-    case PARAMETER_PREINFUSION_WAIT:
-      value = &settings_.preinfusionWait; maxValue = PREINFUSION_WAIT_MAX_SECONDS; dirtyField = DIRTY_DURATION_NUMBER;
-      break;
-    case PARAMETER_FLUSH:
-      value = &settings_.flush;           maxValue = FLUSH_MAX_SECONDS;       dirtyField = DIRTY_DURATION_NUMBER;
-      break;
-    case PARAMETER_MANUAL_TIME:
-      value = &settings_.manualSeconds;   maxValue = MANUAL_MAX_SECONDS;      dirtyField = DIRTY_DURATION;
-      break;
-    case PARAMETER_CALIBRATION:
-      value = &calibrationValue_;         maxValue = VOLUME_MAX;              dirtyField = DIRTY_VOLUME_NUMBER;
-      break;
-    default:
-      value = steaming_ ? &settings_.steamingTemperature : &settings_.temperature;
-      maxValue = TEMPERATURE_MAX;         dirtyField = DIRTY_TEMPERATURE;
-      break;
-  }
-
-  int16_t newValue = constrain(*value + delta, VALUE_MIN, maxValue);
-  // The flow limit is 0 (off) or from FLOW_LIMIT_MIN_TENTHS to the maximum: no value in between
-  if (active_ == PARAMETER_FLOW_LIMIT && newValue > 0 && newValue < FLOW_LIMIT_MIN_TENTHS) {
-    newValue = (delta > 0) ? FLOW_LIMIT_MIN_TENTHS : 0;
-  }
-  if (newValue == *value) {
+  const ActiveParameter active = editor_.active();
+  const RowLook before = lookOf(ROW_TEMPERATURE, active);
+  if (!editor_.adjust(delta, steaming_)) {
     return false;
   }
-  *value = newValue;
 
-  // The field shows the new value at once
-  if (active_ == PARAMETER_VOLUME) {
-    volumeShown_ = newValue;
-  } else if (active_ == PARAMETER_TEMPERATURE) {
-    const RowLook before = lookOf(ROW_TEMPERATURE, active_);
-    temperatureShown_ = newValue;
+  if (active == PARAMETER_VOLUME) {
+    volumeShown_ = settings().volume;
+  } else if (active == PARAMETER_TEMPERATURE) {
+    temperatureShown_ = editor_.temperatureSetting(steaming_);
     if (steaming_) {
       steamSetpointShown_ = true;
       steamSetpointUntil_ = millis() + STEAM_SETPOINT_SHOW_MS;
@@ -477,8 +404,23 @@ bool ScreenController::adjustActiveParameter(int16_t delta) {
       }
     }
   }
-  dirty_ |= dirtyField;
+  dirty_ |= dirtyOfSetting(active);
   return true;
+}
+
+// The volume and the temperature are drawn whole; a setting shown with its tag (pre-infusion, limit, CAL, wait, flush) only has its number
+// drawn again; the MANUAL time has no tag, its field is drawn whole.
+uint8_t ScreenController::dirtyOfSetting(ActiveParameter parameter) const {
+  switch (parameter) {
+    case PARAMETER_VOLUME:           return DIRTY_VOLUME;
+    case PARAMETER_PREINFUSION:
+    case PARAMETER_FLOW_LIMIT:
+    case PARAMETER_CALIBRATION:      return DIRTY_VOLUME_NUMBER;
+    case PARAMETER_PREINFUSION_WAIT:
+    case PARAMETER_FLUSH:            return DIRTY_DURATION_NUMBER;
+    case PARAMETER_MANUAL_TIME:      return DIRTY_DURATION;
+    default:                         return DIRTY_TEMPERATURE;
+  }
 }
 
 // ------------------------------------------------------------
@@ -503,7 +445,7 @@ void ScreenController::showLiveTemperature(uint32_t now, double celsius) {
 
   // While the temperature setpoint is edited, the setpoint is shown instead (steaming: for STEAM_SETPOINT_SHOW_MS after the
   // last turn)
-  if (steaming_ ? steamSetpointShown_ : active_ == PARAMETER_TEMPERATURE) {
+  if (steaming_ ? steamSetpointShown_ : editor_.active() == PARAMETER_TEMPERATURE) {
     return;
   }
 
@@ -545,28 +487,18 @@ void ScreenController::showExtractionStarted() {
   dirty_ |= DIRTY_VOLUME | DIRTY_DURATION;
 }
 
-// The volume shown when nothing is going on: the target volume, or 0 in MANUAL mode (no target)
-uint16_t ScreenController::readyVolume() const {
-  return settings_.manual ? 0 : settings_.volume;
-}
-
-// The duration shown when nothing is going on: 0 s, or the MANUAL time that will be counted down
-uint16_t ScreenController::readyDuration() const {
-  return settings_.manual ? settings_.manualSeconds : 0;
-}
-
 // Nothing is going on: the fields show the target volume (0 in MANUAL) and 0 s (the MANUAL time in MANUAL).
 void ScreenController::showReady() {
   // The rows that change (their tag, or their number: "27 s" -> "0 s") fade, as at a change of parameter. A row that is in a fade already
   // (a change of mode) goes on with it.
   const bool animate = canAnimate();
-  RowLook before[2] = {lookOf(ROW_VOLUME, active_), lookOf(ROW_DURATION, active_)};
+  RowLook before[2] = {lookOf(ROW_VOLUME, editor_.active()), lookOf(ROW_DURATION, editor_.active())};
   if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
     before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
   }
 
-  volumeShown_ = readyVolume();   // the target volume, not the last extraction
-  durationShown_ = readyDuration();
+  volumeShown_ = editor_.readyVolume();   // the target volume, not the last extraction
+  durationShown_ = editor_.readyDuration();
   volumeTagShown_ = PHASE_TAG_NONE;
   durationTagShown_ = PHASE_TAG_NONE;
   tagBlinking_ = false;
@@ -619,8 +551,8 @@ void ScreenController::showExtractionValues(uint16_t volumeValue, PhaseTag volum
   const bool animate = (volumeTag != volumeTagShown_ || durationTag != durationTagShown_) && canAnimate();
   RowLook before[2];
   if (animate) {
-    before[0] = lookOf(ROW_VOLUME, active_);
-    before[1] = lookOf(ROW_DURATION, active_);
+    before[0] = lookOf(ROW_VOLUME, editor_.active());
+    before[1] = lookOf(ROW_DURATION, editor_.active());
     if (tagBlinking_ && !tagVisible_ && before[1].tag == PHASE_TAG_FLUSH) {
       before[1].tag = PHASE_TAG_NONE;   // the tag is hidden by its blinking: nothing of it to fade out
     }
@@ -686,7 +618,7 @@ void ScreenController::render(uint32_t now) {
     return;
   }
 
-  if ((dirty & DIRTY_TEMPERATURE) && temperatureError_ && active_ != PARAMETER_TEMPERATURE) {
+  if ((dirty & DIRTY_TEMPERATURE) && temperatureError_ && editor_.active() != PARAMETER_TEMPERATURE) {
     // "ERR" erases its zone before it is drawn: it is drawn again only if something else was drawn there since,
     // not each time the field is marked dirty without a change (a double push to the next parameter)
     if (!temperatureErrorShown_) {
@@ -694,7 +626,7 @@ void ScreenController::render(uint32_t now) {
       temperatureErrorShown_ = true;
     }
   } else if (dirty & DIRTY_TEMPERATURE) {
-    drawTemperature(temperatureShown_, active_ == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
+    drawTemperature(temperatureShown_, editor_.active() == PARAMETER_TEMPERATURE ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL);
     temperatureErrorShown_ = false;
   }
   if (dirty & (DIRTY_VOLUME | DIRTY_VOLUME_NUMBER)) {
@@ -704,15 +636,15 @@ void ScreenController::render(uint32_t now) {
     // While the pre-infusion volume (or the cup weight of the calibration) is selected, the field shows that
     // setting (large digits, with its tag).
     // Otherwise it shows the volume (or the countdown of the pre-infusion volume).
-    if (active_ == PARAMETER_PREINFUSION) {
+    if (editor_.active() == PARAMETER_PREINFUSION) {
       volumeRoll_ = Roll();   // a setting is drawn as it is: its number does not roll
-      drawVolume(settings_.preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
-    } else if (active_ == PARAMETER_FLOW_LIMIT) {
+      drawVolume(settings().preinfusion, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION, redrawTag);
+    } else if (editor_.active() == PARAMETER_FLOW_LIMIT) {
       volumeRoll_ = Roll();
-      drawFlowLimit(settings_.flowLimit, redrawTag);
-    } else if (active_ == PARAMETER_CALIBRATION) {
+      drawFlowLimit(settings().flowLimit, redrawTag);
+    } else if (editor_.active() == PARAMETER_CALIBRATION) {
       volumeRoll_ = Roll();
-      drawVolume(calibrationValue_, TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
+      drawVolume(editor_.calibrationValue(), TEXT_SIZE_LARGE, PHASE_TAG_CALIBRATION, redrawTag);   // the weight of the cup
     } else if (!redrawTag && volumeRoll_.requested) {
       // A new number during an extraction: it rolls. The screen shows the old one until the first frame.
       if (volumeRoll_.active && volumeRoll_.finishFirst) {
@@ -736,15 +668,15 @@ void ScreenController::render(uint32_t now) {
 
     // While the wait or flush time is selected, the field shows that setting (large digits, with its tag).
     // Otherwise it shows the duration of the extraction (or the countdown of the wait or of the flush).
-    if (active_ == PARAMETER_PREINFUSION_WAIT) {
+    if (editor_.active() == PARAMETER_PREINFUSION_WAIT) {
       durationRoll_ = Roll();
-      drawDuration(settings_.preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
-    } else if (active_ == PARAMETER_FLUSH) {
+      drawDuration(settings().preinfusionWait, TEXT_SIZE_LARGE, PHASE_TAG_PREINFUSION_WAIT, redrawTag);
+    } else if (editor_.active() == PARAMETER_FLUSH) {
       durationRoll_ = Roll();
-      drawDuration(settings_.flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
-    } else if (active_ == PARAMETER_MANUAL_TIME) {
+      drawDuration(settings().flush, TEXT_SIZE_LARGE, PHASE_TAG_FLUSH, redrawTag);
+    } else if (editor_.active() == PARAMETER_MANUAL_TIME) {
       durationRoll_ = Roll();
-      drawDuration(settings_.manualSeconds, TEXT_SIZE_LARGE, PHASE_TAG_NONE, redrawTag);   // no tag: the clock says it
+      drawDuration(settings().manualSeconds, TEXT_SIZE_LARGE, PHASE_TAG_NONE, redrawTag);   // no tag: the clock says it
     } else if (!redrawTag && durationRoll_.requested) {
       if (durationRoll_.active && durationRoll_.finishFirst) {
         drawDurationValue(durationRoll_.finishValue, false, DISPLAY_ROLL_DONE);
@@ -763,7 +695,7 @@ void ScreenController::render(uint32_t now) {
   }
   // The blinking tag, after the duration: it also gives the right state to a tag just redrawn. Not while the duration row shows a setting
   // (wait, flush, manual time): the tag of that setting, or none, is on the screen.
-  if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && rowOf(active_) != ROW_DURATION) {
+  if ((dirty & DIRTY_TAG) && durationTagShown_ == PHASE_TAG_FLUSH && rowOf(editor_.active()) != ROW_DURATION) {
     drawPhaseTag(durationTagShown_, tagVisible_);
   }
   if (dirty & DIRTY_HEATER) {
@@ -776,7 +708,7 @@ void ScreenController::render(uint32_t now) {
 
 // The volume field as it shows the extraction (see render()), with the progress of a roll
 void ScreenController::drawVolumeValue(int16_t value, bool redrawTag, uint8_t progress) {
-  drawVolume(value, active_ == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag, progress);
+  drawVolume(value, editor_.active() == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL, volumeTagShown_, redrawTag, progress);
 }
 
 void ScreenController::drawDurationValue(int16_t value, bool redrawTag, uint8_t progress) {
@@ -824,7 +756,7 @@ void ScreenController::stepRolls(uint32_t now) {
 ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter active) const {
   RowLook look;
   if (row == ROW_MODE) {
-    look.value = settings_.manual ? 1.0 : 0.0;   // the letter: A (0) or M (1)
+    look.value = settings().manual ? 1.0 : 0.0;   // the letter: A (0) or M (1)
   } else if (row == ROW_TEMPERATURE && steaming_) {
     // The steaming mode: large digits, the setpoint being set or the measured temperature (or ERR)
     look.size = TEXT_SIZE_LARGE;
@@ -839,21 +771,21 @@ ScreenController::RowLook ScreenController::lookOf(Row row, ActiveParameter acti
     }
   } else if (row == ROW_VOLUME) {
     if (active == PARAMETER_PREINFUSION) {
-      look.kind = LOOK_PREINFUSION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION; look.value = settings_.preinfusion;
+      look.kind = LOOK_PREINFUSION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION; look.value = settings().preinfusion;
     } else if (active == PARAMETER_FLOW_LIMIT) {
-      look.kind = LOOK_FLOW_LIMIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_LIMIT; look.value = settings_.flowLimit;
+      look.kind = LOOK_FLOW_LIMIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_LIMIT; look.value = settings().flowLimit;
     } else if (active == PARAMETER_CALIBRATION) {
-      look.kind = LOOK_CALIBRATION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_CALIBRATION; look.value = calibrationValue_;
+      look.kind = LOOK_CALIBRATION; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_CALIBRATION; look.value = editor_.calibrationValue();
     } else {
       look.size = active == PARAMETER_VOLUME ? TEXT_SIZE_LARGE : TEXT_SIZE_SMALL; look.tag = volumeTagShown_; look.value = volumeShown_;
     }
   } else {
     if (active == PARAMETER_PREINFUSION_WAIT) {
-      look.kind = LOOK_WAIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION_WAIT; look.value = settings_.preinfusionWait;
+      look.kind = LOOK_WAIT; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_PREINFUSION_WAIT; look.value = settings().preinfusionWait;
     } else if (active == PARAMETER_FLUSH) {
-      look.kind = LOOK_FLUSH; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_FLUSH; look.value = settings_.flush;
+      look.kind = LOOK_FLUSH; look.size = TEXT_SIZE_LARGE; look.tag = PHASE_TAG_FLUSH; look.value = settings().flush;
     } else if (active == PARAMETER_MANUAL_TIME) {
-      look.kind = LOOK_MANUAL; look.size = TEXT_SIZE_LARGE; look.value = settings_.manualSeconds;
+      look.kind = LOOK_MANUAL; look.size = TEXT_SIZE_LARGE; look.value = settings().manualSeconds;
     } else {
       look.tag = durationTagShown_; look.value = durationShown_;
     }
@@ -925,7 +857,7 @@ bool ScreenController::canAnimate() const {
 }
 
 bool ScreenController::fadeRow(Row row, const RowLook &before, bool numberToo) {
-  const RowLook after = lookOf(row, active_);
+  const RowLook after = lookOf(row, editor_.active());
   if (numberToo ? after == before : after.sameShape(before)) {
     return false;
   }
@@ -972,7 +904,7 @@ void ScreenController::finishFades() {
   for (uint8_t row = 0; row < ROW_COUNT; row++) {
     if (fade_[row].active) {
       fade_[row].active = false;
-      drawLook((Row)row, lookOf((Row)row, active_), 255);
+      drawLook((Row)row, lookOf((Row)row, editor_.active()), 255);
       if (row == ROW_TEMPERATURE) {
         temperatureErrorShown_ = false;
       }
@@ -997,12 +929,12 @@ void ScreenController::stepFades(uint32_t now) {
     if (elapsed >= FADE_OUT_MS + FADE_IN_MS) {
       fade.active = false;
       if (row == ROW_MODE) {
-        drawLook(ROW_MODE, lookOf(ROW_MODE, active_), 255, false);   // the drop, at full brightness, over the last frame
+        drawLook(ROW_MODE, lookOf(ROW_MODE, editor_.active()), 255, false);   // the drop, at full brightness, over the last frame
         continue;
       }
       // The row as it is, whole, at full brightness. Drawn over the last frame, without erasing, when it is the look of that frame (an erase
       // followed by the drawing would blink at the very end of the fade); erased first when something changed meanwhile.
-      if (lookOf((Row)row, active_) == fade.to) {
+      if (lookOf((Row)row, editor_.active()) == fade.to) {
         repaintField(row);
       } else {
         forgetField(row);
@@ -1035,7 +967,7 @@ void ScreenController::stepFades(uint32_t now) {
     // another width: that frame is drawn whole, erased first, like the first one of a phase.
     bool numberChanged = false;
     if (!dimming && row != ROW_MODE) {
-      const RowLook now = lookOf((Row)row, active_);
+      const RowLook now = lookOf((Row)row, editor_.active());
       if (now.sameShape(fade.to) && now.value != fade.to.value) {
         fade.to = now;
         numberChanged = true;
